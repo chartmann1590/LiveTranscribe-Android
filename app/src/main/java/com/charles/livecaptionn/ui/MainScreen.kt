@@ -60,6 +60,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.charles.livecaptionn.settings.AppLanguage
 import com.charles.livecaptionn.settings.AudioSource
+import com.charles.livecaptionn.settings.SttBackend
 import com.charles.livecaptionn.speech.RecognitionStatus
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -130,7 +131,8 @@ fun MainScreen(
                 sttUrl = sttUrlDraft,
                 onSttUrlChange = { sttUrlDraft = it },
                 onSaveSttUrl = { viewModel.updateSttUrl(sttUrlDraft) },
-                showStt = ui.settings.audioSource == AudioSource.SYSTEM
+                showStt = ui.settings.audioSource == AudioSource.SYSTEM &&
+                    ui.settings.sttBackend == SttBackend.REMOTE_WHISPER
             )
 
             Spacer(Modifier.height(8.dp))
@@ -185,6 +187,15 @@ private fun CaptionControlCard(ui: MainUiState, onStart: () -> Unit, onStop: () 
                 Text(
                     text = if (isRunning) "Status: ${ui.runtime.status.name}" else "Ready",
                     style = MaterialTheme.typography.labelLarge
+                )
+            }
+            val err = ui.runtime.lastError?.trim().orEmpty()
+            if (isRunning && err.isNotEmpty()) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = err,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
                 )
             }
 
@@ -315,7 +326,36 @@ private fun AudioSourceCard(ui: MainUiState, viewModel: MainViewModel) {
 
             if (ui.settings.audioSource == AudioSource.SYSTEM) {
                 Text(
-                    text = "Captures audio from videos and apps. Requires a Whisper STT server.",
+                    text = "Captures audio from videos and apps that allow playback capture. If Android asks, choose Share entire screen.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text("Transcription", style = MaterialTheme.typography.labelMedium)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    AudioSourceChip(
+                        label = "Remote Whisper",
+                        icon = Icons.Filled.Settings,
+                        selected = ui.settings.sttBackend == SttBackend.REMOTE_WHISPER,
+                        onClick = { viewModel.updateSttBackend(SttBackend.REMOTE_WHISPER) },
+                        modifier = Modifier.weight(1f)
+                    )
+                    AudioSourceChip(
+                        label = "Local Vosk",
+                        icon = Icons.Filled.Mic,
+                        selected = ui.settings.sttBackend == SttBackend.LOCAL_VOSK,
+                        onClick = { viewModel.updateSttBackend(SttBackend.LOCAL_VOSK) },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Text(
+                    text = if (ui.settings.sttBackend == SttBackend.LOCAL_VOSK) {
+                        "Runs EN/VI transcription on this device using bundled Vosk models."
+                    } else {
+                        "Sends captured audio to the configured Whisper ASR endpoint."
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -492,6 +532,11 @@ private fun ServerCard(
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
+            Text(
+                text = "Use the reachable LibreTranslate base URL, for example http://100.x.x.x:3006.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             FilledTonalButton(
                 onClick = onSaveTranslateUrl,
                 shape = RoundedCornerShape(8.dp),
@@ -506,6 +551,11 @@ private fun ServerCard(
                     label = { Text("Speech-to-Text URL (Whisper)") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
+                )
+                Text(
+                    text = "Use the full Whisper ASR endpoint, for example http://100.x.x.x:9000/asr?output=json.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 FilledTonalButton(
                     onClick = onSaveSttUrl,

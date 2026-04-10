@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.projection.MediaProjectionConfig
 import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.Bundle
@@ -85,7 +86,14 @@ class MainActivity : ComponentActivity() {
             when (settings.audioSource) {
                 AudioSource.SYSTEM -> {
                     val mpManager = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-                    mediaProjectionLauncher.launch(mpManager.createScreenCaptureIntent())
+                    val captureIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                        mpManager.createScreenCaptureIntent(
+                            MediaProjectionConfig.createConfigForDefaultDisplay()
+                        )
+                    } else {
+                        mpManager.createScreenCaptureIntent()
+                    }
+                    mediaProjectionLauncher.launch(captureIntent)
                 }
                 AudioSource.MIC -> {
                     val hasMic = ContextCompat.checkSelfPermission(

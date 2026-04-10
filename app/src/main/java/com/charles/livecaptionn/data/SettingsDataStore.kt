@@ -10,6 +10,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.charles.livecaptionn.settings.AppLanguage
 import com.charles.livecaptionn.settings.AudioSource
 import com.charles.livecaptionn.settings.CaptionSettings
+import com.charles.livecaptionn.settings.SttBackend
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -29,6 +30,7 @@ class SettingsDataStore(private val context: Context) : SettingsRepository {
             overlayY = p[OVERLAY_Y] ?: 220,
             overlayMinimized = p[OVERLAY_MIN] ?: false,
             audioSource = AudioSource.fromName(p[AUDIO_SOURCE] ?: AudioSource.MIC.name),
+            sttBackend = SttBackend.fromName(p[STT_BACKEND] ?: SttBackend.REMOTE_WHISPER.name),
             sttBaseUrl = p[STT_URL] ?: CaptionSettings.DEFAULT_STT_URL,
             overlayWidthDp = p[OVERLAY_W] ?: CaptionSettings.DEFAULT_OVERLAY_WIDTH_DP,
             overlayHeightDp = p[OVERLAY_H] ?: CaptionSettings.DEFAULT_OVERLAY_HEIGHT_DP
@@ -49,6 +51,7 @@ class SettingsDataStore(private val context: Context) : SettingsRepository {
                 overlayY = p[OVERLAY_Y] ?: 220,
                 overlayMinimized = p[OVERLAY_MIN] ?: false,
                 audioSource = AudioSource.fromName(p[AUDIO_SOURCE] ?: AudioSource.MIC.name),
+                sttBackend = SttBackend.fromName(p[STT_BACKEND] ?: SttBackend.REMOTE_WHISPER.name),
                 sttBaseUrl = p[STT_URL] ?: CaptionSettings.DEFAULT_STT_URL,
                 overlayWidthDp = p[OVERLAY_W] ?: CaptionSettings.DEFAULT_OVERLAY_WIDTH_DP,
                 overlayHeightDp = p[OVERLAY_H] ?: CaptionSettings.DEFAULT_OVERLAY_HEIGHT_DP
@@ -65,6 +68,7 @@ class SettingsDataStore(private val context: Context) : SettingsRepository {
             p[OVERLAY_Y] = next.overlayY
             p[OVERLAY_MIN] = next.overlayMinimized
             p[AUDIO_SOURCE] = next.audioSource.name
+            p[STT_BACKEND] = next.sttBackend.name
             p[STT_URL] = next.sttBaseUrl.trim()
             p[OVERLAY_W] = next.overlayWidthDp
             p[OVERLAY_H] = next.overlayHeightDp
@@ -83,6 +87,7 @@ class SettingsDataStore(private val context: Context) : SettingsRepository {
         val OVERLAY_Y = intPreferencesKey("overlay_y")
         val OVERLAY_MIN = booleanPreferencesKey("overlay_min")
         val AUDIO_SOURCE = stringPreferencesKey("audio_source")
+        val STT_BACKEND = stringPreferencesKey("stt_backend")
         val STT_URL = stringPreferencesKey("stt_url")
         val OVERLAY_W = intPreferencesKey("overlay_w")
         val OVERLAY_H = intPreferencesKey("overlay_h")

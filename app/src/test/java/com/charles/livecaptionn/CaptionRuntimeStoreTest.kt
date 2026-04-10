@@ -17,6 +17,7 @@ class CaptionRuntimeStoreTest {
         val state = store.state.value
         assertEquals("", state.originalText)
         assertEquals("", state.translatedText)
+        assertEquals(emptyList<Any>(), state.transcriptLines)
         assertEquals(RecognitionStatus.IDLE, state.status)
         assertFalse(state.running)
         assertFalse(state.paused)

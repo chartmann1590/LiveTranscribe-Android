@@ -6,9 +6,15 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
+data class CaptionRuntimeLine(
+    val originalText: String,
+    val translatedText: String = ""
+)
+
 data class CaptionRuntimeState(
     val originalText: String = "",
     val translatedText: String = "",
+    val transcriptLines: List<CaptionRuntimeLine> = emptyList(),
     val status: RecognitionStatus = RecognitionStatus.IDLE,
     val running: Boolean = false,
     val paused: Boolean = false,

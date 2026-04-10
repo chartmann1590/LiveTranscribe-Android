@@ -5,6 +5,8 @@ import com.charles.livecaptionn.BuildConfig
 import com.charles.livecaptionn.data.SettingsRepository
 import com.charles.livecaptionn.settings.AppLanguage
 import com.charles.livecaptionn.settings.CaptionSettings
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.flow.first
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -35,10 +37,14 @@ class LibreTranslateRepository(
             }
             .build()
 
+        val moshi = Moshi.Builder()
+            .addLast(KotlinJsonAdapterFactory())
+            .build()
+
         return Retrofit.Builder()
             .baseUrl(normalized)
             .client(client)
-            .addConverterFactory(MoshiConverterFactory.create())
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
             .create(LibreTranslateApi::class.java)
     }

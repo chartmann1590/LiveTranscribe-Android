@@ -35,6 +35,7 @@ class OverlayController(
     private var statusText: TextView? = null
     private var originalText: TextView? = null
     private var translatedText: TextView? = null
+    private var transcriptText: TextView? = null
     private var body: ScrollView? = null
     private var pauseButton: ImageButton? = null
     private var params: WindowManager.LayoutParams? = null
@@ -111,27 +112,30 @@ class OverlayController(
         header.addView(minButton)
         header.addView(closeButton)
 
-        // Scrollable body for transcript text
-        val bodyContent = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(0, dp(4), 0, dp(4))
-        }
-        originalText = TextView(context).apply {
-            setTextColor(Color.parseColor("#DDDDDD"))
-            text = ""
-        }
-        translatedText = TextView(context).apply {
+        // Scrollable body for transcript text. Use top-gravity + WRAP_CONTENT so the single
+        // transcript TextView anchors predictably; fillViewport+BOTTOM was causing the body
+        // to render as empty in some window sizes.
+        transcriptText = TextView(context).apply {
             setTextColor(Color.WHITE)
             text = ""
+            setLineSpacing(dp(3).toFloat(), 1.0f)
+            setPadding(0, dp(4), 0, dp(4))
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT
+            )
         }
-        bodyContent.addView(originalText)
-        bodyContent.addView(translatedText)
+        // Kept for compatibility with OverlayUiState fields; these are hidden but still
+        // referenced by update() so we instantiate empty stubs.
+        originalText = TextView(context)
+        translatedText = TextView(context)
 
         body = ScrollView(context).apply {
-            addView(bodyContent)
+            addView(transcriptText)
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f
             )
+            isFillViewport = false
             isVerticalScrollBarEnabled = true
         }
 
@@ -166,12 +170,17 @@ class OverlayController(
         (container.background as? GradientDrawable)?.setColor(
             Color.argb((ui.opacity * 255).roundToInt(), 17, 17, 17)
         )
-        statusText?.text = "Status: ${ui.status.name.lowercase().replaceFirstChar { it.uppercase() }}"
-        originalText?.text = ui.originalText
-        translatedText?.text = ui.translatedText
-        originalText?.textSize = ui.textSizeSp - 2f
-        translatedText?.textSize = ui.textSizeSp
-        originalText?.visibility = if (ui.showOriginal) View.VISIBLE else View.GONE
+        statusText?.text = buildString {
+            append("Status: ${ui.status.name.lowercase().replaceFirstChar { it.uppercase() }}")
+            val detail = ui.statusDetail?.trim().orEmpty()
+            if (detail.isNotEmpty()) {
+                append("\n")
+                append(detail)
+            }
+        }
+        transcriptText?.text = ui.transcriptText.ifBlank { "…" }
+        transcriptText?.textSize = ui.textSizeSp
+        transcriptText?.visibility = View.VISIBLE
         body?.visibility = if (ui.minimized) View.GONE else View.VISIBLE
         pauseButton?.setImageResource(
             if (ui.status.name == "PAUSED") android.R.drawable.ic_media_play

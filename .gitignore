@@ -12,3 +12,5 @@
 *.aab
 *.jks
 *.keystore
+overlay_state.png
+*.png.tmp

@@ -3,6 +3,7 @@ package com.charles.livecaptionn
 import com.charles.livecaptionn.settings.AppLanguage
 import com.charles.livecaptionn.settings.AudioSource
 import com.charles.livecaptionn.settings.CaptionSettings
+import com.charles.livecaptionn.settings.SttBackend
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -53,6 +54,11 @@ class CaptionSettingsTest {
     @Test
     fun defaults_sttBaseUrl_isNotEmpty() {
         assertTrue(CaptionSettings().sttBaseUrl.isNotBlank())
+    }
+
+    @Test
+    fun defaults_sttBackend_isRemoteWhisper() {
+        assertEquals(SttBackend.REMOTE_WHISPER, CaptionSettings().sttBackend)
     }
 
     @Test
