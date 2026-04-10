@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Live CaptionN</string>
+    <string name="notification_channel_name">Live Captioning</string>
+    <string name="notification_channel_desc">Shows when live captioning is active.</string>
+    <string name="notification_title">Captioning in progress</string>
+    <string name="notification_text">Listening and translating speech.</string>
+</resources>

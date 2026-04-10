@@ -1,0 +1,80 @@
+package com.charles.livecaptionn.translation
+
+import android.util.Log
+import com.charles.livecaptionn.BuildConfig
+import com.charles.livecaptionn.data.SettingsRepository
+import com.charles.livecaptionn.settings.AppLanguage
+import com.charles.livecaptionn.settings.CaptionSettings
+import kotlinx.coroutines.flow.first
+import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
+import retrofit2.Retrofit
+import retrofit2.converter.moshi.MoshiConverterFactory
+import java.util.concurrent.TimeUnit
+
+class LibreTranslateRepository(
+    private val settingsRepository: SettingsRepository
+) : TranslationRepository {
+
+    @Volatile
+    private var cachedBaseUrl: String? = null
+
+    @Volatile
+    private var cachedApi: LibreTranslateApi? = null
+
+    private fun createApi(baseUrl: String): LibreTranslateApi {
+        val normalized = if (baseUrl.endsWith("/")) baseUrl else "$baseUrl/"
+        val client = OkHttpClient.Builder()
+            .connectTimeout(7, TimeUnit.SECONDS)
+            .readTimeout(9, TimeUnit.SECONDS)
+            .writeTimeout(9, TimeUnit.SECONDS)
+            .apply {
+                if (BuildConfig.DEBUG) {
+                    addInterceptor(HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BASIC))
+                }
+            }
+            .build()
+
+        return Retrofit.Builder()
+            .baseUrl(normalized)
+            .client(client)
+            .addConverterFactory(MoshiConverterFactory.create())
+            .build()
+            .create(LibreTranslateApi::class.java)
+    }
+
+    private suspend fun api(): LibreTranslateApi {
+        val settings = settingsRepository.settingsFlow.first()
+        val url = settings.serverBaseUrl.ifBlank { CaptionSettings.DEFAULT_BASE_URL }
+        val existing = cachedApi
+        if (existing != null && cachedBaseUrl == url) return existing
+        return synchronized(this) {
+            if (cachedApi == null || cachedBaseUrl != url) {
+                cachedApi = createApi(url)
+                cachedBaseUrl = url
+            }
+            cachedApi!!
+        }
+    }
+
+    override suspend fun translate(
+        text: String,
+        source: AppLanguage,
+        target: AppLanguage,
+        autoDetect: Boolean
+    ): String {
+        val clean = text.trim()
+        if (clean.isEmpty()) return clean
+        return try {
+            val req = TranslateRequest(
+                q = clean,
+                source = if (autoDetect) "auto" else source.code,
+                target = target.code
+            )
+            api().translate(req).translatedText.ifBlank { clean }
+        } catch (t: Throwable) {
+            Log.w("LibreTranslateRepo", "Translation failed; returning original text.", t)
+            clean
+        }
+    }
+}
