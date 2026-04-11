@@ -53,12 +53,27 @@ jobs:
           name: app-release
           path: app/build/outputs/apk/release/app-release-unsigned.apk
 
+      # Compute a tag name for the release.
+      # - Tag push (refs/tags/v*): reuse the tag the user pushed.
+      # - Main branch push: synthesize v1.0.<run_number> so every commit to main
+      #   publishes a fresh release with a monotonically increasing version.
+      # - Pull requests: no release, step is skipped via the `if` below.
+      - name: Compute release tag
+        id: tag
+        if: github.event_name == 'push'
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            echo "name=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=v1.0.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: LiveCaptionN ${{ github.ref_name }}
+          tag_name: ${{ steps.tag.outputs.name }}
+          name: LiveCaptionN ${{ steps.tag.outputs.name }}
           draft: false
           prerelease: false
           generate_release_notes: true
