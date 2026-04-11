@@ -14,3 +14,6 @@
 *.keystore
 overlay_state.png
 *.png.tmp
+
+# Vosk model blobs — downloaded locally, not committed
+/app/src/main/assets/models/
