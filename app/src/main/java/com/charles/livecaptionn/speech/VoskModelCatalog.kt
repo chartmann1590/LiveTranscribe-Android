@@ -1,0 +1,84 @@
+package com.charles.livecaptionn.speech
+
+/**
+ * Where the Vosk model files live.
+ *
+ * - [BUNDLED]: shipped inside the APK under `assets/models/<name>`.
+ * - [DOWNLOADED]: unzipped into the app's private `filesDir/vosk/<name>` folder.
+ */
+enum class VoskSource { BUNDLED, DOWNLOADED }
+
+/**
+ * Metadata about one Vosk speech model. `installed = true` means the files
+ * are present and ready to load; `downloadUrl` is populated for models the
+ * user can fetch at runtime.
+ */
+data class VoskModelInfo(
+    val languageCode: String,
+    val languageName: String,
+    val modelName: String,
+    val sizeMb: Int,
+    val downloadUrl: String? = null,
+    val installed: Boolean = false,
+    val source: VoskSource = VoskSource.DOWNLOADED,
+    val isBundled: Boolean = false
+)
+
+/**
+ * Static catalog of small Vosk models we know how to fetch. Sourced from
+ * https://alphacephei.com/vosk/models — keep the list intentionally short
+ * and weighted toward the "-small" variants so downloads stay reasonable
+ * on mobile data.
+ */
+object VoskModelCatalog {
+
+    val DOWNLOADABLE: List<VoskModelInfo> = listOf(
+        small("en", "English",       "vosk-model-small-en-us-0.15",  40),
+        small("vi", "Vietnamese",    "vosk-model-small-vn-0.4",      32),
+        small("es", "Spanish",       "vosk-model-small-es-0.42",     39),
+        small("fr", "French",        "vosk-model-small-fr-0.22",     41),
+        small("de", "German",        "vosk-model-small-de-0.15",     45),
+        small("it", "Italian",       "vosk-model-small-it-0.22",     48),
+        small("pt", "Portuguese",    "vosk-model-small-pt-0.3",      31),
+        small("nl", "Dutch",         "vosk-model-small-nl-0.22",     39),
+        small("ru", "Russian",       "vosk-model-small-ru-0.22",     45),
+        small("uk", "Ukrainian",     "vosk-model-small-uk-v3-small", 75),
+        small("pl", "Polish",        "vosk-model-small-pl-0.22",     50),
+        small("cs", "Czech",         "vosk-model-small-cs-0.4-rhasspy", 44),
+        small("tr", "Turkish",       "vosk-model-small-tr-0.3",      35),
+        small("ar", "Arabic",        "vosk-model-ar-mgb2-0.4",       318), // no small variant
+        small("fa", "Persian",       "vosk-model-small-fa-0.42",     47),
+        small("hi", "Hindi",         "vosk-model-small-hi-0.22",     42),
+        small("zh", "Chinese",       "vosk-model-small-cn-0.22",     42),
+        small("ja", "Japanese",      "vosk-model-small-ja-0.22",     48),
+        small("ko", "Korean",        "vosk-model-small-ko-0.22",     82),
+        small("id", "Indonesian",    "vosk-model-small-id-0.22",     30),
+    )
+
+    /** The lightweight variants that ship inside the APK. */
+    val BUNDLED_MODELS: List<BundledModel> = listOf(
+        BundledModel(languageCode = "en", modelName = "vosk-model-small-en-us-0.15"),
+        BundledModel(languageCode = "vi", modelName = "vosk-model-small-vn-0.4")
+    )
+
+    data class BundledModel(val languageCode: String, val modelName: String)
+
+    fun findByLanguage(code: String): VoskModelInfo? =
+        DOWNLOADABLE.firstOrNull { it.languageCode.equals(code, ignoreCase = true) }
+
+    fun findByModelName(modelName: String): VoskModelInfo? =
+        DOWNLOADABLE.firstOrNull { it.modelName == modelName }
+
+    private fun small(
+        code: String,
+        name: String,
+        modelName: String,
+        sizeMb: Int
+    ) = VoskModelInfo(
+        languageCode = code,
+        languageName = name,
+        modelName = modelName,
+        sizeMb = sizeMb,
+        downloadUrl = "https://alphacephei.com/vosk/models/$modelName.zip"
+    )
+}

@@ -11,9 +11,9 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.charles.livecaptionn.di.AppContainer
-import com.charles.livecaptionn.settings.AppLanguage
 import com.charles.livecaptionn.settings.AudioSource
 import com.charles.livecaptionn.settings.SttBackend
+import com.charles.livecaptionn.speech.VoskModelInfo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -47,6 +47,25 @@ class MainViewModel(
                 )
             }
         }
+        viewModelScope.launch {
+            container.languageCatalogStore.state.collectLatest { catalog ->
+                mutableState.value = mutableState.value.copy(
+                    libreLanguages = catalog.languages,
+                    libreLoading = catalog.loading,
+                    libreError = catalog.error
+                )
+            }
+        }
+        viewModelScope.launch {
+            container.voskRegistry.models.collectLatest { models ->
+                mutableState.value = mutableState.value.copy(voskModels = models)
+            }
+        }
+        viewModelScope.launch {
+            container.voskRegistry.downloadProgress.collectLatest { progress ->
+                mutableState.value = mutableState.value.copy(voskDownloadProgress = progress)
+            }
+        }
     }
 
     fun refreshPermissionState() {
@@ -56,26 +75,21 @@ class MainViewModel(
         )
     }
 
-    fun updateSource(language: AppLanguage) {
-        viewModelScope.launch { container.settingsRepository.update { it.copy(sourceLanguage = language) } }
+    fun updateSource(code: String) {
+        viewModelScope.launch { container.settingsRepository.update { it.copy(sourceLanguageCode = code) } }
     }
 
-    fun updateTarget(language: AppLanguage) {
-        viewModelScope.launch { container.settingsRepository.update { it.copy(targetLanguage = language) } }
+    fun updateTarget(code: String) {
+        viewModelScope.launch { container.settingsRepository.update { it.copy(targetLanguageCode = code) } }
     }
 
-    fun setPresetEnToVi() {
+    fun swapLanguages() {
         viewModelScope.launch {
             container.settingsRepository.update {
-                it.copy(sourceLanguage = AppLanguage.ENGLISH, targetLanguage = AppLanguage.VIETNAMESE)
-            }
-        }
-    }
-
-    fun setPresetViToEn() {
-        viewModelScope.launch {
-            container.settingsRepository.update {
-                it.copy(sourceLanguage = AppLanguage.VIETNAMESE, targetLanguage = AppLanguage.ENGLISH)
+                it.copy(
+                    sourceLanguageCode = it.targetLanguageCode,
+                    targetLanguageCode = it.sourceLanguageCode
+                )
             }
         }
     }
@@ -97,7 +111,14 @@ class MainViewModel(
     }
 
     fun updateBaseUrl(url: String) {
-        viewModelScope.launch { container.settingsRepository.update { it.copy(serverBaseUrl = url) } }
+        viewModelScope.launch {
+            container.settingsRepository.update { it.copy(serverBaseUrl = url) }
+            container.languageCatalogStore.refresh()
+        }
+    }
+
+    fun refreshLibreCatalog() {
+        container.languageCatalogStore.refresh()
     }
 
     fun updateAudioSource(source: AudioSource) {
@@ -110,6 +131,15 @@ class MainViewModel(
 
     fun updateSttUrl(url: String) {
         viewModelScope.launch { container.settingsRepository.update { it.copy(sttBaseUrl = url) } }
+    }
+
+    fun downloadVoskModel(model: VoskModelInfo) {
+        viewModelScope.launch { container.voskRegistry.downloadAndInstall(model) }
+    }
+
+    fun deleteVoskModel(model: VoskModelInfo) {
+        if (model.isBundled) return
+        viewModelScope.launch { container.voskRegistry.uninstall(model.modelName) }
     }
 
     fun openOverlayPermissionSettings(context: Context) {

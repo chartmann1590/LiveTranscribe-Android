@@ -15,7 +15,9 @@
 
 ---
 
-LiveCaptionN listens through the microphone (or the currently playing app audio), transcribes what it hears in near real time, translates between English and Vietnamese, and paints the result as a draggable caption window on top of whatever you are watching or browsing. It is built for people watching foreign-language videos, following along in a meeting, or studying another language hands-free.
+LiveCaptionN listens through the microphone (or the currently playing app audio), transcribes what it hears in near real time, translates between any supported language pair, and paints the result as a draggable caption window on top of whatever you are watching or browsing. It is built for people watching foreign-language videos, following along in a meeting, or studying another language hands-free.
+
+The language pickers adapt to whichever engine you choose: with a **LibreTranslate** server you get the full list of languages that server supports, and with **on-device Vosk** you only see models that are installed (plus a built-in downloader for the rest).
 
 ## Screenshots
 
@@ -33,10 +35,36 @@ LiveCaptionN listens through the microphone (or the currently playing app audio)
 - **Floating caption overlay** — draggable, resizable `SYSTEM_ALERT_WINDOW` window that sits on top of any app, with Pause, Minimize, and Close controls.
 - **Multiple speech engines** — Android's built-in `SpeechRecognizer`, a Whisper HTTP endpoint, or fully offline **Vosk** models.
 - **Mic or system audio** — switch between the microphone and `MediaProjection` audio capture of the currently playing app.
-- **EN ⇄ VI translation** — pluggable LibreTranslate-compatible HTTP backend. Auto-detect source, show original alongside translation, or hide it.
+- **Any language your backend supports** — the picker shows the `/languages` list returned by your LibreTranslate server, or only the Vosk models installed on this phone when you choose on-device transcription.
+- **Built-in Vosk model downloader** — grab additional on-device models (≈30–80 MB each) for Spanish, French, German, Russian, Chinese, and more from the Manage models sheet.
 - **Transcript history** — every session is saved locally and searchable from the history screen.
 - **Tunable overlay** — text size, opacity, width/height, "show original" toggle, minimized state, and remembered screen position.
 - **Private by default** — speech processing and translation both run against endpoints you configure. No accounts, no telemetry.
+
+## Translating different languages
+
+LiveCaptionN is a two-stage pipeline: **speech → text** happens in a speech engine, then **text → text** happens in LibreTranslate. You can mix and match.
+
+### Path A — LibreTranslate (broad language coverage)
+
+Point the app at any LibreTranslate-compatible server and it fetches `GET /languages` on startup (and whenever you change the URL). Whatever the server reports shows up in both the Source and Target pickers — typically English, Spanish, French, German, Italian, Portuguese, Russian, Chinese, Japanese, Korean, Arabic, Hindi, Vietnamese, and ~15 more depending on which Argos Translate packages are installed.
+
+To add more languages, install extra packages on the server:
+
+```bash
+# On the machine running LibreTranslate
+argospm update
+argospm install translate-en_ja translate-en_ko translate-en_fa
+# …then restart LibreTranslate
+```
+
+See the [LibreTranslate docs](https://github.com/LibreTranslate/LibreTranslate#install-argos-translate-packages) for the full list.
+
+### Path B — On-device Vosk (offline, no server needed for STT)
+
+When you select **System Audio → Local Vosk** the source-language picker collapses to just the Vosk models that are installed on this phone. Two models ship inside the APK (English and Vietnamese). Tap **Manage on-device models** to download additional ones — the app fetches them from `alphacephei.com/vosk/models` over HTTPS, unzips to app-private storage, and instantly makes that language available in the picker. Uninstalling frees the disk space.
+
+> On-device transcription still uses LibreTranslate for the text → text step, so you need the translation server reachable if you want captions in a different language than the one being spoken. If the source and target match (for example, English speech → English captions), no translation call is made.
 
 ## Quick install
 

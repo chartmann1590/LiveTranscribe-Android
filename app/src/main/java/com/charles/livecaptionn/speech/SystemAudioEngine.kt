@@ -7,7 +7,6 @@ import android.media.AudioPlaybackCaptureConfiguration
 import android.media.AudioRecord
 import android.media.projection.MediaProjection
 import android.util.Log
-import com.charles.livecaptionn.settings.AppLanguage
 import com.charles.livecaptionn.settings.SttBackend
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -30,8 +29,9 @@ class SystemAudioEngine(
     private val projection: MediaProjection,
     private val sttUrl: String,
     private val languageCode: String?,
-    private val sourceLanguage: AppLanguage,
+    private val sourceLanguageCode: String,
     private val sttBackend: SttBackend,
+    private val localSttClient: LocalVoskSttClient,
     private val scope: CoroutineScope,
     private val onResult: (SpeechResult) -> Unit,
     /** Null clears any STT error hint after a successful round-trip to the server. */
@@ -42,7 +42,6 @@ class SystemAudioEngine(
     val status: StateFlow<RecognitionStatus> = statusMutable
 
     private val sttClient = WhisperSttClient()
-    private val localSttClient by lazy { LocalVoskSttClient(context.applicationContext) }
 
     private var audioRecord: AudioRecord? = null
     private var captureJob: Job? = null
@@ -193,7 +192,7 @@ class SystemAudioEngine(
                         sttClient.transcribe(wavData, sttUrl, languageCode)
                     }
                     SttBackend.LOCAL_VOSK -> {
-                        localSttClient.transcribe(pcmData, SAMPLE_RATE, sourceLanguage)
+                        localSttClient.transcribe(pcmData, SAMPLE_RATE, sourceLanguageCode)
                     }
                 }
                 val err = outcome.errorMessage

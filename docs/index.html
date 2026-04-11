@@ -6,8 +6,8 @@
 
 <!-- Primary SEO -->
 <title>LiveCaptionN — Real-time speech captions & translation overlay for Android</title>
-<meta name="description" content="LiveCaptionN is a free, open-source Android app that captures speech from your mic or system audio, transcribes it with Whisper or Vosk, translates English ↔ Vietnamese on the fly, and shows the captions as a draggable overlay on top of any app.">
-<meta name="keywords" content="live captions android, speech to text overlay, real-time translation android, English Vietnamese translator, whisper android app, vosk android, floating caption overlay, libretranslate android, accessibility captions, system audio transcription">
+<meta name="description" content="LiveCaptionN is a free, open-source Android app that captures speech from your mic or system audio, transcribes it with Whisper or on-device Vosk, translates between any language pair your LibreTranslate server supports, and shows captions as a draggable overlay on top of any app.">
+<meta name="keywords" content="live captions android, speech to text overlay, real-time translation android, multilingual translation, whisper android app, vosk android offline, floating caption overlay, libretranslate android, accessibility captions, system audio transcription">
 <meta name="author" content="chartmann1590">
 <meta name="robots" content="index, follow, max-image-preview:large">
 <link rel="canonical" href="https://chartmann1590.github.io/LiveTranscribe-Android/">
@@ -18,7 +18,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="LiveCaptionN">
 <meta property="og:title" content="LiveCaptionN — Real-time captions & translation overlay for Android">
-<meta property="og:description" content="Free, open-source Android app for live speech captioning and English ↔ Vietnamese translation in a floating overlay on top of any app.">
+<meta property="og:description" content="Free, open-source Android app for live speech captioning and multilingual translation in a floating overlay on top of any app.">
 <meta property="og:url" content="https://chartmann1590.github.io/LiveTranscribe-Android/">
 <meta property="og:image" content="https://chartmann1590.github.io/LiveTranscribe-Android/assets/screenshots/overlay_home.png">
 <meta property="og:image:width" content="1008">
@@ -29,7 +29,7 @@
 <!-- Twitter -->
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="LiveCaptionN — Real-time captions & translation overlay for Android">
-<meta name="twitter:description" content="Free, open-source Android app for live speech captioning and English ↔ Vietnamese translation in a floating overlay.">
+<meta name="twitter:description" content="Free, open-source Android app for live speech captioning and multilingual translation in a floating overlay.">
 <meta name="twitter:image" content="https://chartmann1590.github.io/LiveTranscribe-Android/assets/screenshots/overlay_home.png">
 
 <!-- JSON-LD: SoftwareApplication -->
@@ -41,7 +41,7 @@
   "operatingSystem": "Android 10+",
   "applicationCategory": "UtilitiesApplication",
   "applicationSubCategory": "Accessibility",
-  "description": "Free, open-source Android app that captures speech from the mic or system audio, transcribes it in real time, and translates English ↔ Vietnamese in a floating overlay.",
+  "description": "Free, open-source Android app that captures speech from the mic or system audio, transcribes it in real time, and translates between any language pair your LibreTranslate server supports inside a floating overlay.",
   "url": "https://chartmann1590.github.io/LiveTranscribe-Android/",
   "downloadUrl": "https://github.com/chartmann1590/LiveTranscribe-Android/releases/latest",
   "softwareVersion": "1.0",
@@ -60,7 +60,8 @@
     "Real-time speech-to-text from microphone",
     "System audio capture via MediaProjection",
     "Remote Whisper ASR and local Vosk ASR backends",
-    "English ↔ Vietnamese translation via LibreTranslate",
+    "Any language pair supported by your LibreTranslate server",
+    "Built-in downloader for additional on-device Vosk models",
     "Draggable, resizable floating caption overlay",
     "Persistent transcript history"
   ]
@@ -97,6 +98,7 @@
     </a>
     <div class="nav-links">
       <a href="#features">Features</a>
+      <a href="#languages">Languages</a>
       <a href="#screenshots">Screenshots</a>
       <a href="#how">How it works</a>
       <a href="#faq">FAQ</a>
@@ -112,7 +114,7 @@
       <span class="eyebrow">Open Source · Android · Free</span>
       <h1>Real-time captions and translation on top of any app.</h1>
       <p class="hero-tagline">
-        LiveCaptionN listens to your mic or captures system audio, transcribes it with Whisper or an on-device Vosk model, and translates between English and Vietnamese — all inside a floating overlay you can drag anywhere on screen.
+        LiveCaptionN listens to your mic or captures system audio, transcribes it with Whisper or an on-device Vosk model, and translates between any language pair your LibreTranslate server supports — all inside a floating overlay you can drag anywhere on screen.
       </p>
       <div class="hero-ctas">
         <a class="btn btn-primary" href="https://github.com/chartmann1590/LiveTranscribe-Android/releases/latest">
@@ -181,8 +183,8 @@
         <div class="feature-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
         </div>
-        <h3>English ↔ Vietnamese</h3>
-        <p>Bidirectional translation through any LibreTranslate-compatible endpoint, with auto language detection when you need it.</p>
+        <h3>Any language your server supports</h3>
+        <p>LiveCaptionN reads <code>/languages</code> from your LibreTranslate endpoint and populates the pickers dynamically — add more on the server, they show up in the app.</p>
       </div>
 
       <div class="feature-card">
@@ -207,6 +209,42 @@
         </div>
         <h3>Private by default</h3>
         <p>No analytics, no ads, no cloud lock-in. Run it against your own self-hosted servers or stay fully offline with Vosk.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== LANGUAGES ============== -->
+<section id="languages">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">Languages &amp; translation</span>
+      <h2>Two ways to translate — pick whichever fits your setup</h2>
+      <p>LiveCaptionN is a two-stage pipeline: <strong>speech → text</strong> runs in a speech engine, then <strong>text → text</strong> runs in LibreTranslate. The language pickers adapt to whichever path you choose so you only ever see options that actually work.</p>
+    </div>
+
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+        </div>
+        <h3>Path A — LibreTranslate</h3>
+        <p>Point the app at any LibreTranslate-compatible server. On launch it calls <code>GET /languages</code> and populates both Source and Target pickers with whatever the server reports — typically 25–35+ languages depending on which Argos Translate packages are installed.</p>
+        <p>Want more languages? SSH into your LibreTranslate host and install extra packages:</p>
+        <pre style="background:#0b0717;border:1px solid rgba(167,139,250,0.25);border-radius:10px;padding:12px;overflow-x:auto;font-size:13px;color:#ddd;"><code>argospm update
+argospm install translate-en_ja translate-en_ko translate-en_fa
+# …then restart LibreTranslate</code></pre>
+        <p>Change the base URL in-app and LiveCaptionN refetches the list automatically.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </div>
+        <h3>Path B — On-device Vosk</h3>
+        <p>Select <strong>System Audio → Local Vosk</strong> and the source-language picker collapses to just the Vosk models installed on this phone. Two models ship inside the APK (English and Vietnamese) so it works out of the box with zero downloads.</p>
+        <p>Tap <strong>Manage on-device models</strong> to grab more (≈30–80 MB each): Spanish, French, German, Italian, Portuguese, Dutch, Russian, Ukrainian, Polish, Czech, Turkish, Arabic, Persian, Hindi, Chinese, Japanese, Korean, Indonesian. Models are fetched from <code>alphacephei.com/vosk/models</code> over HTTPS and unzipped to app-private storage.</p>
+        <p>On-device transcription still uses LibreTranslate for the text → text step. If the source and target match (English speech → English captions), no translation call is made.</p>
       </div>
     </div>
   </div>
@@ -315,7 +353,15 @@
       </details>
       <details>
         <summary>What about translation?</summary>
-        <p>Translation goes through any LibreTranslate-compatible endpoint. Self-host LibreTranslate or point at a public instance you trust.</p>
+        <p>Translation goes through any LibreTranslate-compatible endpoint. Self-host LibreTranslate or point at a public instance you trust. The app fetches <code>GET /languages</code> from whatever server you configure and populates the language pickers from that list — so whichever Argos Translate packages are installed on your server is exactly what you'll see in the app.</p>
+      </details>
+      <details>
+        <summary>How do I add more languages?</summary>
+        <p>For translation, install extra Argos Translate packages on your LibreTranslate server (<code>argospm install translate-en_ja</code>, etc.) and the app will pick them up on the next refresh. For on-device speech recognition, tap <strong>Manage on-device models</strong> inside the app to download additional Vosk models for Spanish, French, German, Russian, Chinese, Japanese, Korean, and many more.</p>
+      </details>
+      <details>
+        <summary>Does on-device mode need internet?</summary>
+        <p>Only for the translation step. Speech recognition via Vosk is fully offline once the model is downloaded. If your source and target language match (e.g. English speech → English captions), no translation call is made and the app works entirely offline.</p>
       </details>
       <details>
         <summary>Can it caption YouTube or TikTok directly?</summary>

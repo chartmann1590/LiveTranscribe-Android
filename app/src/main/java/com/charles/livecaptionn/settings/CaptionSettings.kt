@@ -3,8 +3,8 @@ package com.charles.livecaptionn.settings
 import com.charles.livecaptionn.BuildConfig
 
 data class CaptionSettings(
-    val sourceLanguage: AppLanguage = AppLanguage.ENGLISH,
-    val targetLanguage: AppLanguage = AppLanguage.VIETNAMESE,
+    val sourceLanguageCode: String = "en",
+    val targetLanguageCode: String = "vi",
     val autoDetectSource: Boolean = false,
     val textSizeSp: Float = 20f,
     val overlayOpacity: Float = 0.65f,

@@ -1,12 +1,10 @@
 package com.charles.livecaptionn.translation
 
-import com.charles.livecaptionn.settings.AppLanguage
-
 interface TranslationRepository {
     suspend fun translate(
         text: String,
-        source: AppLanguage,
-        target: AppLanguage,
+        sourceCode: String,
+        targetCode: String,
         autoDetect: Boolean
     ): String
 }

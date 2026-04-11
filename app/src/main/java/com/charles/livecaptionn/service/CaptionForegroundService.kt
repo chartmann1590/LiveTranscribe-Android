@@ -19,9 +19,9 @@ import com.charles.livecaptionn.R
 import com.charles.livecaptionn.data.TranscriptEntry
 import com.charles.livecaptionn.overlay.OverlayController
 import com.charles.livecaptionn.overlay.OverlayUiState
-import com.charles.livecaptionn.settings.AppLanguage
 import com.charles.livecaptionn.settings.AudioSource
 import com.charles.livecaptionn.settings.CaptionSettings
+import com.charles.livecaptionn.settings.LocaleMap
 import com.charles.livecaptionn.speech.AndroidSpeechRecognizerManager
 import com.charles.livecaptionn.speech.RecognitionStatus
 import com.charles.livecaptionn.speech.SpeechEngine
@@ -97,11 +97,8 @@ class CaptionForegroundService : Service() {
             val settings = app.container.settingsRepository.settingsFlow.first()
             Log.d("CaptionService", "startFlow settings minimized=${settings.overlayMinimized} w=${settings.overlayWidthDp}dp h=${settings.overlayHeightDp}dp audio=${settings.audioSource}")
             currentAudioSource = settings.audioSource
-            val sttLanguageCode = when (currentAudioSource) {
-                AudioSource.SYSTEM,
-                AudioSource.MIC -> if (settings.sourceLanguage == AppLanguage.VIETNAMESE) "vi" else "en"
-            }
-            val localeForSpeechRec = if (settings.sourceLanguage == AppLanguage.VIETNAMESE) "vi-VN" else "en-US"
+            val sttLanguageCode = settings.sourceLanguageCode.ifBlank { "en" }
+            val localeForSpeechRec = LocaleMap.bcp47(sttLanguageCode)
 
             // Start foreground with appropriate service type
             startForeground(
@@ -128,8 +125,8 @@ class CaptionForegroundService : Service() {
                         val captionSettings = app.container.settingsRepository.settingsFlow.first()
                         val translated = app.container.translationRepository.translate(
                             text = textSnapshot,
-                            source = captionSettings.sourceLanguage,
-                            target = captionSettings.targetLanguage,
+                            sourceCode = captionSettings.sourceLanguageCode,
+                            targetCode = captionSettings.targetLanguageCode,
                             autoDetect = currentAudioSource == AudioSource.SYSTEM || captionSettings.autoDetectSource
                         )
                         val translatedResult = translated.ifBlank { textSnapshot }
@@ -152,9 +149,9 @@ class CaptionForegroundService : Service() {
                                     sourceLanguage = if (currentAudioSource == AudioSource.SYSTEM) {
                                         "auto"
                                     } else {
-                                        captionSettings.sourceLanguage.code
+                                        captionSettings.sourceLanguageCode
                                     },
-                                    targetLanguage = captionSettings.targetLanguage.code
+                                    targetLanguage = captionSettings.targetLanguageCode
                                 )
                             )
                         }
@@ -199,8 +196,9 @@ class CaptionForegroundService : Service() {
                         projection = projection,
                         sttUrl = settings.sttBaseUrl,
                         languageCode = sttLanguageCode,
-                        sourceLanguage = settings.sourceLanguage,
+                        sourceLanguageCode = sttLanguageCode,
                         sttBackend = settings.sttBackend,
+                        localSttClient = app.container.localVoskClient,
                         scope = serviceScope,
                         onResult = onSpeechResult,
                         onSttError = { msg ->

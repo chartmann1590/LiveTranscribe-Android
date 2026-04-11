@@ -1,6 +1,5 @@
 package com.charles.livecaptionn
 
-import com.charles.livecaptionn.settings.AppLanguage
 import com.charles.livecaptionn.settings.AudioSource
 import com.charles.livecaptionn.settings.CaptionSettings
 import com.charles.livecaptionn.settings.SttBackend
@@ -13,12 +12,12 @@ class CaptionSettingsTest {
 
     @Test
     fun defaults_sourceLanguage_isEnglish() {
-        assertEquals(AppLanguage.ENGLISH, CaptionSettings().sourceLanguage)
+        assertEquals("en", CaptionSettings().sourceLanguageCode)
     }
 
     @Test
     fun defaults_targetLanguage_isVietnamese() {
-        assertEquals(AppLanguage.VIETNAMESE, CaptionSettings().targetLanguage)
+        assertEquals("vi", CaptionSettings().targetLanguageCode)
     }
 
     @Test
@@ -64,9 +63,9 @@ class CaptionSettingsTest {
     @Test
     fun copy_preservesOtherFields() {
         val original = CaptionSettings()
-        val modified = original.copy(sourceLanguage = AppLanguage.VIETNAMESE)
-        assertEquals(AppLanguage.VIETNAMESE, modified.sourceLanguage)
-        assertEquals(original.targetLanguage, modified.targetLanguage)
+        val modified = original.copy(sourceLanguageCode = "vi")
+        assertEquals("vi", modified.sourceLanguageCode)
+        assertEquals(original.targetLanguageCode, modified.targetLanguageCode)
         assertEquals(original.textSizeSp, modified.textSizeSp)
         assertEquals(original.audioSource, modified.audioSource)
     }

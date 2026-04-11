@@ -11,40 +11,55 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.SurroundSound
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Translate
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -58,10 +73,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.charles.livecaptionn.settings.AppLanguage
 import com.charles.livecaptionn.settings.AudioSource
+import com.charles.livecaptionn.settings.Language
 import com.charles.livecaptionn.settings.SttBackend
 import com.charles.livecaptionn.speech.RecognitionStatus
+import com.charles.livecaptionn.speech.VoskModelInfo
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,6 +92,7 @@ fun MainScreen(
     val ui by viewModel.state.collectAsStateWithLifecycle()
     var translateUrlDraft by remember(ui.settings.serverBaseUrl) { mutableStateOf(ui.settings.serverBaseUrl) }
     var sttUrlDraft by remember(ui.settings.sttBaseUrl) { mutableStateOf(ui.settings.sttBaseUrl) }
+    var showVoskSheet by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { viewModel.refreshPermissionState() }
 
     Scaffold(
@@ -108,26 +125,21 @@ fun MainScreen(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // ── Start / Stop ──
             CaptionControlCard(ui, onStart, onStop)
-
-            // ── Permissions ──
             PermissionsCard(ui, onRequestAudioPermission, onOpenOverlaySettings)
-
-            // ── Audio Source ──
-            AudioSourceCard(ui, viewModel)
-
-            // ── Languages ──
-            LanguageCard(ui, viewModel)
-
-            // ── Overlay Settings ──
+            AudioSourceCard(ui, viewModel, onManageModels = { showVoskSheet = true })
+            LanguageCard(
+                ui = ui,
+                viewModel = viewModel,
+                onManageModels = { showVoskSheet = true }
+            )
             OverlaySettingsCard(ui, viewModel)
-
-            // ── Server URLs ──
             ServerCard(
+                ui = ui,
                 translateUrl = translateUrlDraft,
                 onTranslateUrlChange = { translateUrlDraft = it },
                 onSaveTranslateUrl = { viewModel.updateBaseUrl(translateUrlDraft) },
+                onRefreshLibre = { viewModel.refreshLibreCatalog() },
                 sttUrl = sttUrlDraft,
                 onSttUrlChange = { sttUrlDraft = it },
                 onSaveSttUrl = { viewModel.updateSttUrl(sttUrlDraft) },
@@ -136,6 +148,16 @@ fun MainScreen(
             )
 
             Spacer(Modifier.height(8.dp))
+        }
+
+        if (showVoskSheet) {
+            VoskModelSheet(
+                models = ui.voskModels,
+                progress = ui.voskDownloadProgress,
+                onDismiss = { showVoskSheet = false },
+                onDownload = viewModel::downloadVoskModel,
+                onDelete = viewModel::deleteVoskModel
+            )
         }
     }
 }
@@ -168,7 +190,6 @@ private fun CaptionControlCard(ui: MainUiState, onStart: () -> Unit, onStop: () 
             Modifier.padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Status indicator
             val statusColor = when (ui.runtime.status) {
                 RecognitionStatus.LISTENING -> MaterialTheme.colorScheme.primary
                 RecognitionStatus.PROCESSING -> MaterialTheme.colorScheme.tertiary
@@ -249,7 +270,7 @@ private fun CaptionControlCard(ui: MainUiState, onStart: () -> Unit, onStop: () 
     }
 }
 
-// ── Permissions Card ──
+// ── Permissions ──
 
 @Composable
 private fun PermissionsCard(
@@ -257,13 +278,9 @@ private fun PermissionsCard(
     onRequestAudioPermission: () -> Unit,
     onOpenOverlaySettings: () -> Unit
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp)
-    ) {
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             SectionLabel("Permissions")
-
             PermissionRow("Microphone", ui.micPermissionGranted) { onRequestAudioPermission() }
             PermissionRow("Overlay", ui.overlayPermissionGranted) { onOpenOverlaySettings() }
         }
@@ -289,17 +306,19 @@ private fun PermissionRow(label: String, granted: Boolean, onGrant: () -> Unit) 
             Text(label, style = MaterialTheme.typography.bodyMedium)
         }
         if (!granted) {
-            FilledTonalButton(onClick = onGrant, shape = RoundedCornerShape(8.dp)) {
-                Text("Grant")
-            }
+            FilledTonalButton(onClick = onGrant, shape = RoundedCornerShape(8.dp)) { Text("Grant") }
         }
     }
 }
 
-// ── Audio Source Card ──
+// ── Audio Source ──
 
 @Composable
-private fun AudioSourceCard(ui: MainUiState, viewModel: MainViewModel) {
+private fun AudioSourceCard(
+    ui: MainUiState,
+    viewModel: MainViewModel,
+    onManageModels: () -> Unit
+) {
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             SectionLabel("Audio Source")
@@ -308,14 +327,14 @@ private fun AudioSourceCard(ui: MainUiState, viewModel: MainViewModel) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                AudioSourceChip(
+                ChoiceChip(
                     label = "Microphone",
                     icon = Icons.Filled.Mic,
                     selected = ui.settings.audioSource == AudioSource.MIC,
                     onClick = { viewModel.updateAudioSource(AudioSource.MIC) },
                     modifier = Modifier.weight(1f)
                 )
-                AudioSourceChip(
+                ChoiceChip(
                     label = "System Audio",
                     icon = Icons.Filled.SurroundSound,
                     selected = ui.settings.audioSource == AudioSource.SYSTEM,
@@ -330,19 +349,19 @@ private fun AudioSourceCard(ui: MainUiState, viewModel: MainViewModel) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Text("Transcription", style = MaterialTheme.typography.labelMedium)
+                Text("Transcription engine", style = MaterialTheme.typography.labelMedium)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    AudioSourceChip(
+                    ChoiceChip(
                         label = "Remote Whisper",
-                        icon = Icons.Filled.Settings,
+                        icon = Icons.Filled.Cloud,
                         selected = ui.settings.sttBackend == SttBackend.REMOTE_WHISPER,
                         onClick = { viewModel.updateSttBackend(SttBackend.REMOTE_WHISPER) },
                         modifier = Modifier.weight(1f)
                     )
-                    AudioSourceChip(
+                    ChoiceChip(
                         label = "Local Vosk",
                         icon = Icons.Filled.Mic,
                         selected = ui.settings.sttBackend == SttBackend.LOCAL_VOSK,
@@ -350,18 +369,31 @@ private fun AudioSourceCard(ui: MainUiState, viewModel: MainViewModel) {
                         modifier = Modifier.weight(1f)
                     )
                 }
-                Text(
-                    text = if (ui.settings.sttBackend == SttBackend.LOCAL_VOSK) {
-                        "Runs EN/VI transcription on this device using bundled Vosk models."
-                    } else {
-                        "Sends captured audio to the configured Whisper ASR endpoint."
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                if (ui.settings.sttBackend == SttBackend.LOCAL_VOSK) {
+                    val installed = ui.voskModels.count { it.installed }
+                    Text(
+                        text = "Runs transcription fully on this device. $installed language${if (installed == 1) "" else "s"} installed.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedButton(
+                        onClick = onManageModels,
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(Icons.Filled.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Manage on-device models")
+                    }
+                } else {
+                    Text(
+                        text = "Sends captured audio to the configured Whisper ASR endpoint.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             } else {
                 Text(
-                    text = "Uses the device microphone to hear speech.",
+                    text = "Uses the device microphone. Android's built-in recognizer decides which locales are available.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -371,7 +403,7 @@ private fun AudioSourceCard(ui: MainUiState, viewModel: MainViewModel) {
 }
 
 @Composable
-private fun AudioSourceChip(
+private fun ChoiceChip(
     label: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     selected: Boolean,
@@ -402,45 +434,87 @@ private fun AudioSourceChip(
 // ── Language Card ──
 
 @Composable
-private fun LanguageCard(ui: MainUiState, viewModel: MainViewModel) {
+private fun LanguageCard(
+    ui: MainUiState,
+    viewModel: MainViewModel,
+    onManageModels: () -> Unit
+) {
+    val sourceOptions = ui.availableSourceLanguages
+    val targetOptions = ui.availableTargetLanguages
+
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             SectionLabel("Languages")
 
-            // Quick presets
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(
-                    onClick = viewModel::setPresetEnToVi,
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(8.dp)
-                ) { Text("EN \u2192 VI", fontSize = 13.sp) }
+            // Source
+            Text("Source (spoken)", style = MaterialTheme.typography.labelMedium)
+            LanguagePickerField(
+                selectedCode = ui.settings.sourceLanguageCode,
+                options = sourceOptions,
+                placeholder = if (sourceOptions.isEmpty()) "No languages available" else "Pick a language",
+                onPick = { viewModel.updateSource(it.code) }
+            )
 
-                OutlinedButton(
-                    onClick = viewModel::setPresetViToEn,
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(8.dp)
-                ) { Text("VI \u2192 EN", fontSize = 13.sp) }
-            }
-
-            // Source language
-            Text("Source", style = MaterialTheme.typography.labelMedium)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                LangButton("English", ui.settings.sourceLanguage == AppLanguage.ENGLISH) {
-                    viewModel.updateSource(AppLanguage.ENGLISH)
-                }
-                LangButton("Vietnamese", ui.settings.sourceLanguage == AppLanguage.VIETNAMESE) {
-                    viewModel.updateSource(AppLanguage.VIETNAMESE)
+            // Swap + target
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Target (translation)", style = MaterialTheme.typography.labelMedium)
+                TextButton(onClick = viewModel::swapLanguages) {
+                    Icon(Icons.Filled.SwapHoriz, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Swap")
                 }
             }
+            LanguagePickerField(
+                selectedCode = ui.settings.targetLanguageCode,
+                options = targetOptions,
+                placeholder = if (targetOptions.isEmpty()) "No languages available" else "Pick a language",
+                onPick = { viewModel.updateTarget(it.code) }
+            )
 
-            // Target language
-            Text("Target", style = MaterialTheme.typography.labelMedium)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                LangButton("English", ui.settings.targetLanguage == AppLanguage.ENGLISH) {
-                    viewModel.updateTarget(AppLanguage.ENGLISH)
+            // Context-specific helper text
+            val vmAudio = ui.settings.audioSource
+            val vmStt = ui.settings.sttBackend
+            when {
+                vmAudio == AudioSource.SYSTEM && vmStt == SttBackend.LOCAL_VOSK -> {
+                    Text(
+                        text = "On-device transcription: source language is limited to the Vosk models installed on this phone.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    TextButton(onClick = onManageModels) {
+                        Icon(Icons.Filled.Download, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Download more languages")
+                    }
                 }
-                LangButton("Vietnamese", ui.settings.targetLanguage == AppLanguage.VIETNAMESE) {
-                    viewModel.updateTarget(AppLanguage.VIETNAMESE)
+                ui.libreLanguages.isEmpty() && ui.libreError != null -> {
+                    Text(
+                        text = "Could not reach LibreTranslate at ${ui.settings.serverBaseUrl} — showing a fallback list. Save a valid URL to load the full language set from your server.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                ui.libreLoading -> {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = "Loading languages from LibreTranslate…",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                ui.libreLanguages.isNotEmpty() -> {
+                    Text(
+                        text = "${ui.libreLanguages.size} languages reported by LibreTranslate. Add more to your server by installing extra Argos Translate packages.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
 
@@ -460,15 +534,268 @@ private fun LanguageCard(ui: MainUiState, viewModel: MainViewModel) {
 }
 
 @Composable
-private fun LangButton(label: String, selected: Boolean, onClick: () -> Unit) {
-    if (selected) {
-        Button(onClick = onClick, shape = RoundedCornerShape(8.dp)) { Text(label) }
-    } else {
-        OutlinedButton(onClick = onClick, shape = RoundedCornerShape(8.dp)) { Text(label) }
+private fun LanguagePickerField(
+    selectedCode: String,
+    options: List<Language>,
+    placeholder: String,
+    onPick: (Language) -> Unit
+) {
+    var open by remember { mutableStateOf(false) }
+    val selected = options.firstOrNull { it.code.equals(selectedCode, ignoreCase = true) }
+    val label = selected?.let { "${it.name}  (${it.code})" }
+        ?: selectedCode.takeIf { it.isNotBlank() }?.uppercase()
+        ?: placeholder
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .border(1.5.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(10.dp))
+            .clickable(enabled = options.isNotEmpty()) { open = true }
+            .padding(horizontal = 14.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (options.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant
+            else MaterialTheme.colorScheme.onSurface,
+            maxLines = 1
+        )
+        Icon(Icons.Filled.ArrowDropDown, contentDescription = null)
+    }
+
+    if (open) {
+        LanguagePickerDialog(
+            options = options,
+            selectedCode = selectedCode,
+            onDismiss = { open = false },
+            onPick = {
+                onPick(it)
+                open = false
+            }
+        )
     }
 }
 
-// ── Overlay Settings Card ──
+@Composable
+private fun LanguagePickerDialog(
+    options: List<Language>,
+    selectedCode: String,
+    onDismiss: () -> Unit,
+    onPick: (Language) -> Unit
+) {
+    var query by remember { mutableStateOf("") }
+    val filtered = remember(query, options) {
+        if (query.isBlank()) options
+        else options.filter {
+            it.name.contains(query, ignoreCase = true) || it.code.contains(query, ignoreCase = true)
+        }
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+        title = { Text("Choose language") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    label = { Text("Search") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(12.dp))
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 360.dp)
+                ) {
+                    items(filtered, key = { it.code }) { lang ->
+                        val isSelected = lang.code.equals(selectedCode, ignoreCase = true)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onPick(lang) }
+                                .padding(vertical = 12.dp, horizontal = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (isSelected) {
+                                Icon(Icons.Filled.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
+                            } else {
+                                Spacer(Modifier.size(18.dp))
+                            }
+                            Spacer(Modifier.width(10.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(lang.name, style = MaterialTheme.typography.bodyMedium)
+                                Text(
+                                    text = lang.code,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                    if (filtered.isEmpty()) {
+                        items(listOf(Unit)) {
+                            Text(
+                                text = "No languages match \"$query\".",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(vertical = 16.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    )
+}
+
+// ── Vosk model management ──
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun VoskModelSheet(
+    models: List<VoskModelInfo>,
+    progress: Map<String, Float>,
+    onDismiss: () -> Unit,
+    onDownload: (VoskModelInfo) -> Unit,
+    onDelete: (VoskModelInfo) -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text("On-device speech models", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(
+                text = "Vosk models run fully offline on this phone. Downloading a model is a one-time step; uninstall it any time to free storage. Sizes are approximate.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            val installed = models.filter { it.installed }
+            val available = models.filter { !it.installed }
+
+            if (installed.isNotEmpty()) {
+                Text("Installed", style = MaterialTheme.typography.labelLarge)
+                installed.forEach { model ->
+                    VoskRow(
+                        model = model,
+                        progress = progress[model.modelName],
+                        onDownload = { onDownload(model) },
+                        onDelete = { onDelete(model) }
+                    )
+                }
+            }
+
+            if (available.isNotEmpty()) {
+                Text("Available to download", style = MaterialTheme.typography.labelLarge)
+                available.forEach { model ->
+                    VoskRow(
+                        model = model,
+                        progress = progress[model.modelName],
+                        onDownload = { onDownload(model) },
+                        onDelete = { onDelete(model) }
+                    )
+                }
+            }
+
+            Text(
+                text = "Models are fetched from alphacephei.com/vosk/models over HTTPS.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(8.dp))
+        }
+    }
+}
+
+@Composable
+private fun VoskRow(
+    model: VoskModelInfo,
+    progress: Float?,
+    onDownload: () -> Unit,
+    onDelete: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (model.installed)
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+            else MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = "${model.languageName} (${model.languageCode})",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = buildString {
+                            append(model.modelName)
+                            if (model.sizeMb > 0) append(" · ~${model.sizeMb} MB")
+                            if (model.isBundled) append(" · bundled")
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                when {
+                    progress != null -> {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(22.dp),
+                            strokeWidth = 2.dp
+                        )
+                    }
+                    model.installed && !model.isBundled -> {
+                        IconButton(onClick = onDelete) {
+                            Icon(Icons.Filled.Delete, contentDescription = "Delete")
+                        }
+                    }
+                    model.installed && model.isBundled -> {
+                        Icon(
+                            Icons.Filled.CheckCircle,
+                            contentDescription = "Installed",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    else -> {
+                        FilledTonalButton(onClick = onDownload, shape = RoundedCornerShape(8.dp)) {
+                            Icon(Icons.Filled.Download, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Get")
+                        }
+                    }
+                }
+            }
+            if (progress != null) {
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+    }
+}
+
+// ── Overlay Settings ──
 
 @Composable
 private fun OverlaySettingsCard(ui: MainUiState, viewModel: MainViewModel) {
@@ -509,9 +836,11 @@ private fun OverlaySettingsCard(ui: MainUiState, viewModel: MainViewModel) {
 
 @Composable
 private fun ServerCard(
+    ui: MainUiState,
     translateUrl: String,
     onTranslateUrlChange: (String) -> Unit,
     onSaveTranslateUrl: () -> Unit,
+    onRefreshLibre: () -> Unit,
     sttUrl: String,
     onSttUrlChange: (String) -> Unit,
     onSaveSttUrl: () -> Unit,
@@ -528,20 +857,37 @@ private fun ServerCard(
             OutlinedTextField(
                 value = translateUrl,
                 onValueChange = onTranslateUrlChange,
-                label = { Text("Translation URL") },
+                label = { Text("LibreTranslate URL") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
             Text(
-                text = "Use the reachable LibreTranslate base URL, for example http://100.x.x.x:3006.",
+                text = "Example: http://192.168.1.50:5000. The app fetches /languages to populate the dropdowns.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            FilledTonalButton(
-                onClick = onSaveTranslateUrl,
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) { Text("Save Translation URL") }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilledTonalButton(
+                    onClick = onSaveTranslateUrl,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.weight(1f)
+                ) { Text("Save") }
+                OutlinedButton(
+                    onClick = onRefreshLibre,
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Refresh")
+                }
+            }
+            if (ui.libreError != null && !ui.libreLoading) {
+                Text(
+                    text = "Language fetch error: ${ui.libreError}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
 
             if (showStt) {
                 Spacer(Modifier.height(4.dp))
@@ -553,7 +899,7 @@ private fun ServerCard(
                     singleLine = true
                 )
                 Text(
-                    text = "Use the full Whisper ASR endpoint, for example http://100.x.x.x:9000/asr?output=json.",
+                    text = "Example: http://192.168.1.50:9000/asr?output=json",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

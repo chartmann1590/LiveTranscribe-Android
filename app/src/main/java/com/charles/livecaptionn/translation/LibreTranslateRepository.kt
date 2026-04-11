@@ -3,7 +3,6 @@ package com.charles.livecaptionn.translation
 import android.util.Log
 import com.charles.livecaptionn.BuildConfig
 import com.charles.livecaptionn.data.SettingsRepository
-import com.charles.livecaptionn.settings.AppLanguage
 import com.charles.livecaptionn.settings.CaptionSettings
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
@@ -65,17 +64,18 @@ class LibreTranslateRepository(
 
     override suspend fun translate(
         text: String,
-        source: AppLanguage,
-        target: AppLanguage,
+        sourceCode: String,
+        targetCode: String,
         autoDetect: Boolean
     ): String {
         val clean = text.trim()
         if (clean.isEmpty()) return clean
+        if (targetCode.isBlank()) return clean
         return try {
             val req = TranslateRequest(
                 q = clean,
-                source = if (autoDetect) "auto" else source.code,
-                target = target.code
+                source = if (autoDetect || sourceCode.isBlank()) "auto" else sourceCode,
+                target = targetCode
             )
             api().translate(req).translatedText.ifBlank { clean }
         } catch (t: Throwable) {

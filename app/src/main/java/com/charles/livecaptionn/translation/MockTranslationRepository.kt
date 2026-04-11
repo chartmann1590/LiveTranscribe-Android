@@ -1,14 +1,12 @@
 package com.charles.livecaptionn.translation
 
-import com.charles.livecaptionn.settings.AppLanguage
-
 class MockTranslationRepository : TranslationRepository {
     override suspend fun translate(
         text: String,
-        source: AppLanguage,
-        target: AppLanguage,
+        sourceCode: String,
+        targetCode: String,
         autoDetect: Boolean
     ): String {
-        return "[mock ${source.code}->${target.code}] ${text.trim()}"
+        return "[mock $sourceCode->$targetCode] ${text.trim()}"
     }
 }

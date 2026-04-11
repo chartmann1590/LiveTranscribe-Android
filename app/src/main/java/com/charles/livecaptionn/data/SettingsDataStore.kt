@@ -7,7 +7,6 @@ import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-import com.charles.livecaptionn.settings.AppLanguage
 import com.charles.livecaptionn.settings.AudioSource
 import com.charles.livecaptionn.settings.CaptionSettings
 import com.charles.livecaptionn.settings.SttBackend
@@ -17,48 +16,15 @@ import kotlinx.coroutines.flow.map
 private val Context.dataStore by preferencesDataStore(name = "caption_settings")
 
 class SettingsDataStore(private val context: Context) : SettingsRepository {
-    override val settingsFlow: Flow<CaptionSettings> = context.dataStore.data.map { p ->
-        CaptionSettings(
-            sourceLanguage = AppLanguage.fromCode(p[SOURCE] ?: CaptionSettings().sourceLanguage.code),
-            targetLanguage = AppLanguage.fromCode(p[TARGET] ?: CaptionSettings().targetLanguage.code),
-            autoDetectSource = p[AUTO_DETECT] ?: false,
-            textSizeSp = p[TEXT_SIZE] ?: 20f,
-            overlayOpacity = p[OPACITY] ?: 0.65f,
-            showOriginal = p[SHOW_ORIGINAL] ?: true,
-            serverBaseUrl = p[BASE_URL] ?: CaptionSettings.DEFAULT_BASE_URL,
-            overlayX = p[OVERLAY_X] ?: 60,
-            overlayY = p[OVERLAY_Y] ?: 220,
-            overlayMinimized = p[OVERLAY_MIN] ?: false,
-            audioSource = AudioSource.fromName(p[AUDIO_SOURCE] ?: AudioSource.MIC.name),
-            sttBackend = SttBackend.fromName(p[STT_BACKEND] ?: SttBackend.REMOTE_WHISPER.name),
-            sttBaseUrl = p[STT_URL] ?: CaptionSettings.DEFAULT_STT_URL,
-            overlayWidthDp = p[OVERLAY_W] ?: CaptionSettings.DEFAULT_OVERLAY_WIDTH_DP,
-            overlayHeightDp = p[OVERLAY_H] ?: CaptionSettings.DEFAULT_OVERLAY_HEIGHT_DP
-        )
-    }
+
+    override val settingsFlow: Flow<CaptionSettings> = context.dataStore.data.map { p -> p.toCaptionSettings() }
 
     override suspend fun update(transform: (CaptionSettings) -> CaptionSettings) {
         context.dataStore.edit { p ->
-            val curr = CaptionSettings(
-                sourceLanguage = AppLanguage.fromCode(p[SOURCE] ?: CaptionSettings().sourceLanguage.code),
-                targetLanguage = AppLanguage.fromCode(p[TARGET] ?: CaptionSettings().targetLanguage.code),
-                autoDetectSource = p[AUTO_DETECT] ?: false,
-                textSizeSp = p[TEXT_SIZE] ?: 20f,
-                overlayOpacity = p[OPACITY] ?: 0.65f,
-                showOriginal = p[SHOW_ORIGINAL] ?: true,
-                serverBaseUrl = p[BASE_URL] ?: CaptionSettings.DEFAULT_BASE_URL,
-                overlayX = p[OVERLAY_X] ?: 60,
-                overlayY = p[OVERLAY_Y] ?: 220,
-                overlayMinimized = p[OVERLAY_MIN] ?: false,
-                audioSource = AudioSource.fromName(p[AUDIO_SOURCE] ?: AudioSource.MIC.name),
-                sttBackend = SttBackend.fromName(p[STT_BACKEND] ?: SttBackend.REMOTE_WHISPER.name),
-                sttBaseUrl = p[STT_URL] ?: CaptionSettings.DEFAULT_STT_URL,
-                overlayWidthDp = p[OVERLAY_W] ?: CaptionSettings.DEFAULT_OVERLAY_WIDTH_DP,
-                overlayHeightDp = p[OVERLAY_H] ?: CaptionSettings.DEFAULT_OVERLAY_HEIGHT_DP
-            )
+            val curr = p.toCaptionSettings()
             val next = transform(curr)
-            p[SOURCE] = next.sourceLanguage.code
-            p[TARGET] = next.targetLanguage.code
+            p[SOURCE] = next.sourceLanguageCode
+            p[TARGET] = next.targetLanguageCode
             p[AUTO_DETECT] = next.autoDetectSource
             p[TEXT_SIZE] = next.textSizeSp
             p[OPACITY] = next.overlayOpacity.coerceIn(0.2f, 1f)
@@ -73,6 +39,27 @@ class SettingsDataStore(private val context: Context) : SettingsRepository {
             p[OVERLAY_W] = next.overlayWidthDp
             p[OVERLAY_H] = next.overlayHeightDp
         }
+    }
+
+    private fun androidx.datastore.preferences.core.Preferences.toCaptionSettings(): CaptionSettings {
+        val defaults = CaptionSettings()
+        return CaptionSettings(
+            sourceLanguageCode = this[SOURCE] ?: defaults.sourceLanguageCode,
+            targetLanguageCode = this[TARGET] ?: defaults.targetLanguageCode,
+            autoDetectSource = this[AUTO_DETECT] ?: false,
+            textSizeSp = this[TEXT_SIZE] ?: 20f,
+            overlayOpacity = this[OPACITY] ?: 0.65f,
+            showOriginal = this[SHOW_ORIGINAL] ?: true,
+            serverBaseUrl = this[BASE_URL] ?: CaptionSettings.DEFAULT_BASE_URL,
+            overlayX = this[OVERLAY_X] ?: 60,
+            overlayY = this[OVERLAY_Y] ?: 220,
+            overlayMinimized = this[OVERLAY_MIN] ?: false,
+            audioSource = AudioSource.fromName(this[AUDIO_SOURCE] ?: AudioSource.MIC.name),
+            sttBackend = SttBackend.fromName(this[STT_BACKEND] ?: SttBackend.REMOTE_WHISPER.name),
+            sttBaseUrl = this[STT_URL] ?: CaptionSettings.DEFAULT_STT_URL,
+            overlayWidthDp = this[OVERLAY_W] ?: CaptionSettings.DEFAULT_OVERLAY_WIDTH_DP,
+            overlayHeightDp = this[OVERLAY_H] ?: CaptionSettings.DEFAULT_OVERLAY_HEIGHT_DP
+        )
     }
 
     private companion object {
