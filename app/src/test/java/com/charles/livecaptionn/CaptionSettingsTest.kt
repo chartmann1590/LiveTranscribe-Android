@@ -56,8 +56,8 @@ class CaptionSettingsTest {
     }
 
     @Test
-    fun defaults_sttBackend_isRemoteWhisper() {
-        assertEquals(SttBackend.REMOTE_WHISPER, CaptionSettings().sttBackend)
+    fun defaults_sttBackend_isLocalVosk() {
+        assertEquals(SttBackend.LOCAL_VOSK, CaptionSettings().sttBackend)
     }
 
     @Test
