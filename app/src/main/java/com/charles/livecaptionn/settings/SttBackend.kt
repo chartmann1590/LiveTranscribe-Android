@@ -1,11 +1,11 @@
 package com.charles.livecaptionn.settings
 
 enum class SttBackend(val label: String) {
-    REMOTE_WHISPER("Remote Whisper"),
-    LOCAL_VOSK("Local Vosk");
+    LOCAL_VOSK("On-device (streaming)"),
+    REMOTE_WHISPER("Remote Whisper");
 
     companion object {
         fun fromName(name: String): SttBackend =
-            entries.firstOrNull { it.name == name } ?: REMOTE_WHISPER
+            entries.firstOrNull { it.name == name } ?: LOCAL_VOSK
     }
 }

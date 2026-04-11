@@ -14,7 +14,7 @@ data class CaptionSettings(
     val overlayY: Int = 220,
     val overlayMinimized: Boolean = false,
     val audioSource: AudioSource = AudioSource.MIC,
-    val sttBackend: SttBackend = SttBackend.REMOTE_WHISPER,
+    val sttBackend: SttBackend = SttBackend.LOCAL_VOSK,
     val sttBaseUrl: String = DEFAULT_STT_URL,
     val overlayWidthDp: Int = DEFAULT_OVERLAY_WIDTH_DP,
     val overlayHeightDp: Int = DEFAULT_OVERLAY_HEIGHT_DP

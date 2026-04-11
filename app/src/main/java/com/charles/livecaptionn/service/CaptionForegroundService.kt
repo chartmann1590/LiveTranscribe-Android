@@ -22,11 +22,14 @@ import com.charles.livecaptionn.overlay.OverlayUiState
 import com.charles.livecaptionn.settings.AudioSource
 import com.charles.livecaptionn.settings.CaptionSettings
 import com.charles.livecaptionn.settings.LocaleMap
+import com.charles.livecaptionn.settings.SttBackend
 import com.charles.livecaptionn.speech.AndroidSpeechRecognizerManager
 import com.charles.livecaptionn.speech.RecognitionStatus
 import com.charles.livecaptionn.speech.SpeechEngine
 import com.charles.livecaptionn.speech.SpeechResult
+import com.charles.livecaptionn.speech.StreamingSttEngine
 import com.charles.livecaptionn.speech.SystemAudioEngine
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
@@ -164,12 +167,13 @@ class CaptionForegroundService : Service() {
                 app.container.runtimeStore.update {
                     it.copy(
                         originalText = transcript,
-                        // System audio is chunk-final only: clear so we never show last chunk's translation under new text.
-                        translatedText = if (currentAudioSource == AudioSource.SYSTEM) "" else it.translatedText,
+                        // Partials overwrite the open line; finals close it so the next
+                        // utterance starts fresh. Works the same for mic and system audio
+                        // now that both stream.
                         transcriptLines = recordTranscriptResult(
                             lines = it.transcriptLines,
                             originalText = transcript,
-                            replaceOpenLine = currentAudioSource == AudioSource.MIC
+                            replaceOpenLine = !result.isFinal
                         ),
                         status = RecognitionStatus.PROCESSING,
                         lastError = null
@@ -178,47 +182,74 @@ class CaptionForegroundService : Service() {
                 queueTranslation(transcript, result.isFinal)
             }
 
-            when (currentAudioSource) {
-                AudioSource.SYSTEM -> {
-                    val mpManager = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-                    val data = MediaProjectionHolder.data
-                    if (data == null) {
-                        Log.e("CaptionService", "MediaProjection data missing.")
-                        captionSessionActive.set(false)
-                        stopSelf()
-                        return@launch
-                    }
-                    val projection = mpManager.getMediaProjection(
-                        MediaProjectionHolder.resultCode, data
-                    )
-                    val engine = SystemAudioEngine(
-                        context = this@CaptionForegroundService,
-                        projection = projection,
-                        sttUrl = settings.sttBaseUrl,
-                        languageCode = sttLanguageCode,
-                        sourceLanguageCode = sttLanguageCode,
-                        sttBackend = settings.sttBackend,
-                        localSttClient = app.container.localVoskClient,
-                        scope = serviceScope,
-                        onResult = onSpeechResult,
-                        onSttError = { msg ->
-                            app.container.runtimeStore.update {
-                                it.copy(lastError = msg)
-                            }
-                        }
-                    )
-                    speechEngine = engine
-                    observeSystemAudioStatus(engine)
-                    engine.start()
+            val mediaProjection = if (currentAudioSource == AudioSource.SYSTEM) {
+                val mpManager = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+                val data = MediaProjectionHolder.data
+                if (data == null) {
+                    Log.e("CaptionService", "MediaProjection data missing.")
+                    captionSessionActive.set(false)
+                    stopSelf()
+                    return@launch
                 }
-                AudioSource.MIC -> {
-                    val engine = AndroidSpeechRecognizerManager(
-                        this@CaptionForegroundService, onSpeechResult
-                    )
-                    engine.setLanguage(localeForSpeechRec)
-                    speechEngine = engine
-                    observeMicStatus(engine)
-                    engine.start()
+                mpManager.getMediaProjection(MediaProjectionHolder.resultCode, data)
+            } else {
+                null
+            }
+
+            val errorSink: (String?) -> Unit = { msg ->
+                app.container.runtimeStore.update { it.copy(lastError = msg) }
+            }
+
+            // Routing:
+            //   LOCAL_VOSK  → streaming Vosk for both mic and system audio (preferred: low-latency, live partials)
+            //   REMOTE_WHISPER:
+            //       system  → legacy batch SystemAudioEngine (posts WAVs to remote Whisper)
+            //       mic     → AndroidSpeechRecognizerManager (Google recognizer; kept as fallback)
+            val backend = settings.sttBackend
+            val useStreaming = backend == SttBackend.LOCAL_VOSK
+
+            if (useStreaming) {
+                val engine = StreamingSttEngine(
+                    context = this@CaptionForegroundService,
+                    audioSource = currentAudioSource,
+                    mediaProjection = mediaProjection,
+                    languageCode = sttLanguageCode,
+                    localSttClient = app.container.localVoskClient,
+                    scope = serviceScope,
+                    onResult = onSpeechResult,
+                    onError = errorSink
+                )
+                speechEngine = engine
+                observeEngineStatus(engine.status)
+                engine.start()
+            } else {
+                when (currentAudioSource) {
+                    AudioSource.SYSTEM -> {
+                        val engine = SystemAudioEngine(
+                            context = this@CaptionForegroundService,
+                            projection = mediaProjection!!,
+                            sttUrl = settings.sttBaseUrl,
+                            languageCode = sttLanguageCode,
+                            sourceLanguageCode = sttLanguageCode,
+                            sttBackend = settings.sttBackend,
+                            localSttClient = app.container.localVoskClient,
+                            scope = serviceScope,
+                            onResult = onSpeechResult,
+                            onSttError = errorSink
+                        )
+                        speechEngine = engine
+                        observeEngineStatus(engine.status)
+                        engine.start()
+                    }
+                    AudioSource.MIC -> {
+                        val engine = AndroidSpeechRecognizerManager(
+                            this@CaptionForegroundService, onSpeechResult
+                        )
+                        engine.setLanguage(localeForSpeechRec)
+                        speechEngine = engine
+                        observeEngineStatus(engine.status)
+                        engine.start()
+                    }
                 }
             }
 
@@ -227,17 +258,9 @@ class CaptionForegroundService : Service() {
         }
     }
 
-    private fun observeMicStatus(engine: AndroidSpeechRecognizerManager) {
+    private fun observeEngineStatus(statusFlow: StateFlow<RecognitionStatus>) {
         serviceScope.launch {
-            engine.status.collectLatest { status ->
-                app.container.runtimeStore.update { it.copy(status = status) }
-            }
-        }
-    }
-
-    private fun observeSystemAudioStatus(engine: SystemAudioEngine) {
-        serviceScope.launch {
-            engine.status.collectLatest { status ->
+            statusFlow.collectLatest { status ->
                 app.container.runtimeStore.update { it.copy(status = status) }
             }
         }
