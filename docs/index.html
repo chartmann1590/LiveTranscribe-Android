@@ -6,7 +6,7 @@
 
 <!-- Primary SEO -->
 <title>LiveCaptionN — Real-time speech captions & translation overlay for Android</title>
-<meta name="description" content="LiveCaptionN is a free, open-source Android app that captures speech from your mic or system audio, transcribes it with Whisper or on-device Vosk, translates between any language pair your LibreTranslate server supports, and shows captions as a draggable overlay on top of any app.">
+<meta name="description" content="LiveCaptionN is a free, open-source Android app that streams live on-device speech recognition from your mic or system audio, transcribes word-by-word with a streaming Vosk pipeline, translates between any language pair your LibreTranslate server supports, and shows captions as a draggable overlay on top of any app.">
 <meta name="keywords" content="live captions android, speech to text overlay, real-time translation android, multilingual translation, whisper android app, vosk android offline, floating caption overlay, libretranslate android, accessibility captions, system audio transcription">
 <meta name="author" content="chartmann1590">
 <meta name="robots" content="index, follow, max-image-preview:large">
@@ -41,10 +41,10 @@
   "operatingSystem": "Android 10+",
   "applicationCategory": "UtilitiesApplication",
   "applicationSubCategory": "Accessibility",
-  "description": "Free, open-source Android app that captures speech from the mic or system audio, transcribes it in real time, and translates between any language pair your LibreTranslate server supports inside a floating overlay.",
+  "description": "Free, open-source Android app with a streaming on-device Vosk pipeline that captions speech word-by-word from the mic or system audio and translates between any language pair your LibreTranslate server supports, inside a floating overlay.",
   "url": "https://chartmann1590.github.io/LiveTranscribe-Android/",
   "downloadUrl": "https://github.com/chartmann1590/LiveTranscribe-Android/releases/latest",
-  "softwareVersion": "1.0",
+  "softwareVersion": "1.0.x",
   "license": "https://github.com/chartmann1590/LiveTranscribe-Android/blob/main/LICENSE",
   "author": {
     "@type": "Person",
@@ -57,11 +57,13 @@
     "priceCurrency": "USD"
   },
   "featureList": [
-    "Real-time speech-to-text from microphone",
-    "System audio capture via MediaProjection",
-    "Remote Whisper ASR and local Vosk ASR backends",
+    "Streaming on-device speech-to-text with live word-by-word partials",
+    "Same low-latency pipeline for mic and system audio capture",
+    "Google Live Caption-grade on-device recognizer on Android 12+",
+    "Remote Whisper ASR fallback backend",
     "Any language pair supported by your LibreTranslate server",
     "Built-in downloader for additional on-device Vosk models",
+    "In-app update notifications via the GitHub Releases API",
     "Draggable, resizable floating caption overlay",
     "Persistent transcript history"
   ]
@@ -112,9 +114,9 @@
   <div class="container hero-grid">
     <div>
       <span class="eyebrow">Open Source · Android · Free</span>
-      <h1>Real-time captions and translation on top of any app.</h1>
+      <h1>Live, streaming captions and translation on top of any app.</h1>
       <p class="hero-tagline">
-        LiveCaptionN listens to your mic or captures system audio, transcribes it with Whisper or an on-device Vosk model, and translates between any language pair your LibreTranslate server supports — all inside a floating overlay you can drag anywhere on screen.
+        LiveCaptionN streams speech recognition on-device — word by word, as you speak — from your microphone <em>or</em> the audio another app is playing, then translates between any language pair your LibreTranslate server supports, all inside a floating overlay you can drag anywhere on screen.
       </p>
       <div class="hero-ctas">
         <a class="btn btn-primary" href="https://github.com/chartmann1590/LiveTranscribe-Android/releases/latest">
@@ -175,8 +177,8 @@
         <div class="feature-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
         </div>
-        <h3>Whisper or Vosk backend</h3>
-        <p>Point at a remote Whisper ASR server for top accuracy, or switch to an on-device Vosk model to keep everything local and offline.</p>
+        <h3>Streaming on-device recognition</h3>
+        <p>One long-lived Vosk recognizer is fed ~100 ms audio chunks continuously, so words appear as you speak them — no 2-second batch delay, no cloud round-trip. Works the same for mic and system audio.</p>
       </div>
 
       <div class="feature-card">
@@ -209,6 +211,14 @@
         </div>
         <h3>Private by default</h3>
         <p>No analytics, no ads, no cloud lock-in. Run it against your own self-hosted servers or stay fully offline with Vosk.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </div>
+        <h3>Automatic update notifications</h3>
+        <p>A background WorkManager job polls the GitHub Releases API twice a day. When a new build ships, you get a system notification with a one-tap Download action — and an in-app banner the next time you open the app.</p>
       </div>
     </div>
   </div>

@@ -4,6 +4,7 @@ import com.charles.livecaptionn.service.CaptionRuntimeState
 import com.charles.livecaptionn.settings.CaptionSettings
 import com.charles.livecaptionn.settings.Language
 import com.charles.livecaptionn.speech.VoskModelInfo
+import com.charles.livecaptionn.update.UpdateInfo
 
 data class MainUiState(
     val settings: CaptionSettings = CaptionSettings(),
@@ -14,7 +15,8 @@ data class MainUiState(
     val libreLoading: Boolean = false,
     val libreError: String? = null,
     val voskModels: List<VoskModelInfo> = emptyList(),
-    val voskDownloadProgress: Map<String, Float> = emptyMap()
+    val voskDownloadProgress: Map<String, Float> = emptyMap(),
+    val availableUpdate: UpdateInfo? = null
 ) {
     /** Languages the user is allowed to pick as the speech source, given the
      *  current audio source + STT backend combination. */

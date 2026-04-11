@@ -11,6 +11,11 @@ val localProps = Properties().apply {
     if (f.exists()) f.inputStream().use { load(it) }
 }
 
+// CI builds encode GitHub's run number into versionCode so the app's build
+// number matches the release tag (v1.0.<run_number>). Local dev builds get 1.
+val ciRunNumber: Int = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
+val appVersionName: String = "1.0.$ciRunNumber"
+
 android {
     namespace = "com.charles.livecaptionn"
     compileSdk = 35
@@ -19,8 +24,8 @@ android {
         applicationId = "com.charles.livecaptionn"
         minSdk = 29
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = ciRunNumber
+        versionName = appVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -32,6 +37,10 @@ android {
             "\"${localProps.getProperty("translate.url", "http://localhost:3006")}\"")
         buildConfigField("String", "DEFAULT_STT_URL",
             "\"${localProps.getProperty("stt.url", "http://localhost:9000/asr?output=json")}\"")
+
+        // GitHub repo that the in-app update checker queries for new releases.
+        buildConfigField("String", "UPDATE_REPO_OWNER", "\"chartmann1590\"")
+        buildConfigField("String", "UPDATE_REPO_NAME", "\"LiveTranscribe-Android\"")
     }
 
     buildTypes {
@@ -88,6 +97,7 @@ dependencies {
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
     implementation("com.squareup.moshi:moshi-kotlin:1.15.1")
     implementation("com.alphacephei:vosk-android:0.3.75")
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
 
     implementation("androidx.core:core-splashscreen:1.0.1")
     implementation("com.google.android.material:material:1.11.0")

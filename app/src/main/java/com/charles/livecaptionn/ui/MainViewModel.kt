@@ -14,6 +14,7 @@ import com.charles.livecaptionn.di.AppContainer
 import com.charles.livecaptionn.settings.AudioSource
 import com.charles.livecaptionn.settings.SttBackend
 import com.charles.livecaptionn.speech.VoskModelInfo
+import com.charles.livecaptionn.update.UpdateInfo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -66,6 +67,26 @@ class MainViewModel(
                 mutableState.value = mutableState.value.copy(voskDownloadProgress = progress)
             }
         }
+        viewModelScope.launch {
+            container.updateChecker.available.collectLatest { info ->
+                mutableState.value = mutableState.value.copy(availableUpdate = info)
+                if (info != null) container.updateNotifier.notifyIfNew(info)
+            }
+        }
+        // One-shot check on launch so users see an update even before the periodic worker runs.
+        viewModelScope.launch { container.updateChecker.check() }
+    }
+
+    fun dismissUpdate() {
+        container.updateChecker.dismiss()
+    }
+
+    fun openUpdateUrl(context: Context, info: UpdateInfo) {
+        val target = info.apkDownloadUrl ?: info.releasePageUrl
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(target)).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
     }
 
     fun refreshPermissionState() {

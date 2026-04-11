@@ -11,6 +11,8 @@ import com.charles.livecaptionn.translation.LanguageCatalogStore
 import com.charles.livecaptionn.translation.LibreTranslateRepository
 import com.charles.livecaptionn.translation.MockTranslationRepository
 import com.charles.livecaptionn.translation.TranslationRepository
+import com.charles.livecaptionn.update.UpdateChecker
+import com.charles.livecaptionn.update.UpdateNotifier
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -27,4 +29,6 @@ class AppContainer(context: Context) {
     val voskRegistry: VoskModelRegistry = VoskModelRegistry(context.applicationContext)
     val localVoskClient: LocalVoskSttClient = LocalVoskSttClient(voskRegistry)
     val languageCatalogStore: LanguageCatalogStore = LanguageCatalogStore(settingsRepository, appScope)
+    val updateChecker: UpdateChecker = UpdateChecker()
+    val updateNotifier: UpdateNotifier = UpdateNotifier(context.applicationContext)
 }

@@ -72,12 +72,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.charles.livecaptionn.settings.AudioSource
 import com.charles.livecaptionn.settings.Language
 import com.charles.livecaptionn.settings.SttBackend
 import com.charles.livecaptionn.speech.RecognitionStatus
 import com.charles.livecaptionn.speech.VoskModelInfo
+import com.charles.livecaptionn.update.UpdateInfo
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -125,6 +128,14 @@ fun MainScreen(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            val updateCtx = LocalContext.current
+            ui.availableUpdate?.let { info ->
+                UpdateAvailableBanner(
+                    info = info,
+                    onDownload = { viewModel.openUpdateUrl(updateCtx, info) },
+                    onDismiss = { viewModel.dismissUpdate() }
+                )
+            }
             CaptionControlCard(ui, onStart, onStop)
             PermissionsCard(ui, onRequestAudioPermission, onOpenOverlaySettings)
             AudioSourceCard(ui, viewModel, onManageModels = { showVoskSheet = true })
@@ -912,3 +923,71 @@ private fun ServerCard(
         }
     }
 }
+
+// ── Update Available Banner ──
+
+@Composable
+private fun UpdateAvailableBanner(
+    info: UpdateInfo,
+    onDownload: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+        ),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Filled.SystemUpdate,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = "Update available",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                    )
+                    Text(
+                        text = info.releaseName,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                    )
+                }
+            }
+            if (info.notes.isNotBlank()) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = info.notes.take(240),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                    maxLines = 4
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = onDownload,
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Filled.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(if (info.apkDownloadUrl != null) "Download APK" else "View release")
+                }
+                OutlinedButton(
+                    onClick = onDismiss,
+                    shape = RoundedCornerShape(10.dp)
+                ) { Text("Later") }
+            }
+        }
+    }
+}
+

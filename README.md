@@ -15,9 +15,9 @@
 
 ---
 
-LiveCaptionN listens through the microphone (or the currently playing app audio), transcribes what it hears in near real time, translates between any supported language pair, and paints the result as a draggable caption window on top of whatever you are watching or browsing. It is built for people watching foreign-language videos, following along in a meeting, or studying another language hands-free.
+LiveCaptionN listens through the microphone (or the currently playing app audio), transcribes what it hears in **real time** — word by word as you speak — translates between any supported language pair, and paints the result as a draggable caption window on top of whatever you are watching or browsing. It is built for people watching foreign-language videos, following along in a meeting, or studying another language hands-free.
 
-The language pickers adapt to whichever engine you choose: with a **LibreTranslate** server you get the full list of languages that server supports, and with **on-device Vosk** you only see models that are installed (plus a built-in downloader for the rest).
+Speech recognition runs **on-device by default** through a streaming Vosk pipeline (one long-lived recognizer fed ~100 ms audio chunks continuously), so captions appear as the words come out, not after a 2-second batch delay. The language pickers adapt to whichever engine you choose: with a **LibreTranslate** server you get the full list of languages that server supports, and with **on-device Vosk** you only see models that are installed (plus a built-in downloader for the rest).
 
 ## Screenshots
 
@@ -33,10 +33,12 @@ The language pickers adapt to whichever engine you choose: with a **LibreTransla
 ## Features
 
 - **Floating caption overlay** — draggable, resizable `SYSTEM_ALERT_WINDOW` window that sits on top of any app, with Pause, Minimize, and Close controls.
-- **Multiple speech engines** — Android's built-in `SpeechRecognizer`, a Whisper HTTP endpoint, or fully offline **Vosk** models.
-- **Mic or system audio** — switch between the microphone and `MediaProjection` audio capture of the currently playing app.
+- **Live streaming on-device recognition** — a continuous Vosk pipeline feeds ~100 ms PCM chunks into one long-lived recognizer and emits partial results as the words are spoken (not batched 2-second chunks), so captions feel like Google Live Caption.
+- **Mic _and_ system audio, same engine** — switch between the microphone and `MediaProjection` audio capture without changing backends. Both paths stream through the same low-latency pipeline.
+- **Multiple speech engines** — streaming on-device Vosk (default), Android's on-device `SpeechRecognizer` (Android 12+, same engine as Google Live Caption), or a remote Whisper HTTP endpoint as a fallback.
 - **Any language your backend supports** — the picker shows the `/languages` list returned by your LibreTranslate server, or only the Vosk models installed on this phone when you choose on-device transcription.
 - **Built-in Vosk model downloader** — grab additional on-device models (≈30–80 MB each) for Spanish, French, German, Russian, Chinese, and more from the Manage models sheet.
+- **Automatic update notifications** — a background WorkManager job polls the GitHub releases API; when a new version is published you get a system notification with a one-tap Download action, plus an in-app banner the next time you open the app.
 - **Transcript history** — every session is saved locally and searchable from the history screen.
 - **Tunable overlay** — text size, opacity, width/height, "show original" toggle, minimized state, and remembered screen position.
 - **Private by default** — speech processing and translation both run against endpoints you configure. No accounts, no telemetry.
@@ -71,29 +73,33 @@ When you select **System Audio → Local Vosk** the source-language picker colla
 1. Download the latest APK from the [releases page](https://github.com/chartmann1590/LiveTranscribe-Android/releases/latest).
 2. On your Android device, enable **Install unknown apps** for your browser / file manager if prompted.
 3. Open the APK and install.
-4. Launch LiveCaptionN and grant **Microphone** and **Display over other apps** permissions.
+4. Launch LiveCaptionN and grant **Microphone**, **Display over other apps**, and **Notifications** permissions. (Notifications are used for update alerts only — no telemetry.)
 5. (Optional) Point the Translation base URL at your own LibreTranslate server.
 6. Tap **Start Captioning**, then switch to any app you want to watch or listen to.
+
+After install, the app checks the GitHub Releases API roughly twice a day in the background. When a new version ships, you'll get a notification with a one-tap Download action — and an in-app banner on the main screen the next time you open the app.
 
 > Minimum Android version: **Android 10 (API 29)**. Target: **Android 15 (API 35)**.
 
 ## How it works
 
 ```
-┌─────────────┐    ┌──────────────────┐    ┌────────────────┐    ┌──────────────┐
-│ Mic / Media │ ─▶ │ Speech engine    │ ─▶ │ Translation    │ ─▶ │ Floating     │
-│ Projection  │    │ (Android / Vosk  │    │ (LibreTranslate│    │ overlay on   │
-│ audio       │    │  / Whisper HTTP) │    │  HTTP server)  │    │ other apps   │
-└─────────────┘    └──────────────────┘    └────────────────┘    └──────────────┘
+┌─────────────┐    ┌─────────────────────────┐    ┌────────────────┐    ┌──────────────┐
+│ Mic / Media │ ─▶ │ StreamingSttEngine      │ ─▶ │ Translation    │ ─▶ │ Floating     │
+│ Projection  │    │ (100ms chunks → Vosk    │    │ (LibreTranslate│    │ overlay on   │
+│ audio       │    │  streaming recognizer)  │    │  HTTP server)  │    │ other apps   │
+└─────────────┘    └─────────────────────────┘    └────────────────┘    └──────────────┘
 ```
 
-A foreground `CaptionForegroundService` wires everything together, debounces translation requests (~400 ms), and pushes updates into a `StateFlow` that both the Compose main screen and the Android-Views overlay observe.
+One `AudioRecord` reads 16 kHz mono PCM in ~100 ms chunks from either the microphone (`VOICE_RECOGNITION`) or `AudioPlaybackCaptureConfiguration`, feeds each chunk straight into a long-lived Vosk `Recognizer`, and emits **partial** results (`isFinal=false`) every chunk plus **final** segments on Vosk's silence boundaries. A foreground `CaptionForegroundService` wires everything together, debounces translation requests (~400 ms), and pushes updates into a `StateFlow` that both the Compose main screen and the Android-Views overlay observe.
 
 ## Architecture at a glance
 
 - **MVVM with manual DI** — all dependencies wired through `AppContainer` (created in `LiveCaptionApp`). No Hilt.
 - **`TranslationRepository`** — abstraction with `LibreTranslateRepository` (Retrofit) and `MockTranslationRepository` for tests.
-- **`SpeechEngine`** — abstraction over Android `SpeechRecognizer`, Whisper HTTP, and on-device Vosk.
+- **`SpeechEngine`** — abstraction implemented by `StreamingSttEngine` (default, streaming Vosk for mic and system audio), `AndroidSpeechRecognizerManager` (platform on-device recognizer, Android 12+), and `SystemAudioEngine` (legacy batch path that POSTs WAVs to a remote Whisper endpoint).
+- **`VoskStreamingSession`** — keeps one `Recognizer` alive for the whole session so partial results stay coherent across chunks.
+- **`UpdateChecker` + `UpdateCheckWorker`** — WorkManager periodic job that queries the GitHub Releases API, compares against `BuildConfig.VERSION_CODE`, and posts a notification via `UpdateNotifier` when a new build is out.
 - **`CaptionRuntimeStore`** — in-memory `MutableStateFlow` holding live caption state.
 - **`SettingsRepository`** — DataStore Preferences persistence for every user-visible setting plus overlay position.
 - **Overlay** — traditional Android Views via `WindowManager` (Compose does not play well with `SYSTEM_ALERT_WINDOW`).
