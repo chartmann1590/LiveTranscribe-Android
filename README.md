@@ -9,7 +9,7 @@
 [![License](https://img.shields.io/github/license/chartmann1590/LiveTranscribe-Android?color=6366f1)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Android%2010%2B-1a1330)](#requirements)
 
-### [Website](https://chartmann1590.github.io/LiveTranscribe-Android/) · [Download APK](https://github.com/chartmann1590/LiveTranscribe-Android/releases/latest) · [Report an issue](https://github.com/chartmann1590/LiveTranscribe-Android/issues)
+### [Website](https://chartmann1590.github.io/LiveTranscribe-Android/) · [Google Play](https://play.google.com/store/apps/details?id=com.charles.livecaptionn) · [Download APK](https://github.com/chartmann1590/LiveTranscribe-Android/releases/latest) · [Report an issue](https://github.com/chartmann1590/LiveTranscribe-Android/issues)
 
 </div>
 
