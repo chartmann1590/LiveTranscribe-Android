@@ -19,6 +19,16 @@ LiveCaptionN listens through the microphone (or the currently playing app audio)
 
 Both stages of the pipeline can run **fully on-device**: streaming Vosk handles speech-to-text (one long-lived recognizer fed ~100 ms audio chunks continuously), and Google ML Kit handles the text-to-text translation with ~59 languages cached offline after a one-time ~30 MB per-pair download. No server required. If you would rather use a LibreTranslate server for wider language coverage or a Whisper ASR endpoint for STT, both paths are still available in settings.
 
+## Demo
+
+<div align="center">
+
+https://github.com/chartmann1590/LiveTranscribe-Android/raw/main/docs/assets/video/demo.mp4
+
+*Quick walkthrough on a Pixel 8 Pro — settings, live captions, history, and model management.*
+
+</div>
+
 ## Screenshots
 
 <div align="center">
