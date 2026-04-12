@@ -22,8 +22,15 @@ import kotlin.coroutines.resumeWithException
  *
  * Supported languages are whatever `TranslateLanguage.getAllLanguages()`
  * exposes — at the time of writing roughly 59 codes (`en`, `vi`, `es`, `fr`,
- * `de`, `ja`, `ko`, `zh`, etc.). Unknown codes fall through to returning the
- * original text.
+ * `de`, `ja`, `ko`, `zh`, etc.).
+ *
+ * Return-value contract:
+ *   - Identity (source == target) or blank input → original text.
+ *   - Unsupported pair → original text (graceful degradation so captions
+ *     keep flowing; the user can switch backend in settings).
+ *   - Runtime failure (download stall, model load error, etc.) → empty
+ *     string. The service treats an empty result as "don't overwrite the
+ *     last good translation".
  */
 class MlKitTranslationRepository : TranslationRepository {
 
@@ -52,10 +59,25 @@ class MlKitTranslationRepository : TranslationRepository {
         return try {
             val translator = translatorFor(src, dst)
             ensureModelDownloaded(translator)
-            translateBlocking(translator, clean)
+            val translated = translateBlocking(translator, clean).trim()
+            Log.d(TAG, "ML Kit $sourceCode→$targetCode ok: '${clean.take(40)}' → '${translated.take(40)}'")
+            translated
         } catch (t: Throwable) {
-            Log.w(TAG, "ML Kit translation failed; returning original text.", t)
-            clean
+            Log.w(TAG, "ML Kit translation failed for $sourceCode→$targetCode", t)
+            ""
+        }
+    }
+
+    override suspend fun prewarm(sourceCode: String, targetCode: String) {
+        val src = TranslateLanguage.fromLanguageTag(sourceCode.lowercase()) ?: return
+        val dst = TranslateLanguage.fromLanguageTag(targetCode.lowercase()) ?: return
+        if (src == dst) return
+        try {
+            val translator = translatorFor(src, dst)
+            ensureModelDownloaded(translator)
+            Log.i(TAG, "ML Kit model ready for $sourceCode → $targetCode")
+        } catch (t: Throwable) {
+            Log.w(TAG, "ML Kit prewarm failed for $sourceCode → $targetCode", t)
         }
     }
 
@@ -74,6 +96,9 @@ class MlKitTranslationRepository : TranslationRepository {
 
     private suspend fun ensureModelDownloaded(translator: Translator) = withContext(Dispatchers.IO) {
         suspendCancellableCoroutine<Unit> { cont ->
+            // DownloadConditions defaults allow cellular — we don't force
+            // Wi-Fi so the first-use download actually completes when the
+            // user isn't on Wi-Fi.
             val conditions = DownloadConditions.Builder().build()
             translator.downloadModelIfNeeded(conditions)
                 .addOnSuccessListener { cont.resume(Unit) }

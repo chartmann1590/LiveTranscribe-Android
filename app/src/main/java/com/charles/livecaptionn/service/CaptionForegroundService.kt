@@ -117,6 +117,18 @@ class CaptionForegroundService : Service() {
                 it.copy(running = true, paused = false, status = RecognitionStatus.LISTENING)
             }
 
+            // Prewarm the active translation backend so the first spoken
+            // word doesn't stall waiting on a 30 MB ML Kit model download.
+            launch(Dispatchers.IO) {
+                val s = app.container.settingsRepository.settingsFlow.first()
+                runCatching {
+                    app.container.translationRepository.prewarm(
+                        s.sourceLanguageCode,
+                        s.targetLanguageCode
+                    )
+                }
+            }
+
             launch(Dispatchers.IO) {
                 translateRequests
                     .debounce(TRANSLATE_DEBOUNCE_MS)
@@ -132,14 +144,25 @@ class CaptionForegroundService : Service() {
                             targetCode = captionSettings.targetLanguageCode,
                             autoDetect = currentAudioSource == AudioSource.SYSTEM || captionSettings.autoDetectSource
                         )
-                        val translatedResult = translated.ifBlank { textSnapshot }
+                        // Empty result means the backend genuinely failed
+                        // (network drop, model not yet downloaded, unsupported
+                        // pair etc.). Preserve the last good translation
+                        // instead of overwriting it with the raw source.
+                        if (translated.isBlank()) {
+                            app.container.runtimeStore.update {
+                                it.copy(
+                                    status = if (paused) RecognitionStatus.PAUSED else RecognitionStatus.LISTENING
+                                )
+                            }
+                            return@collect
+                        }
                         app.container.runtimeStore.update {
                             it.copy(
-                                translatedText = translatedResult,
+                                translatedText = translated,
                                 transcriptLines = updateTranscriptTranslation(
                                     lines = it.transcriptLines,
                                     originalText = textSnapshot,
-                                    translatedText = translatedResult
+                                    translatedText = translated
                                 ),
                                 status = if (paused) RecognitionStatus.PAUSED else RecognitionStatus.LISTENING
                             )
@@ -148,7 +171,7 @@ class CaptionForegroundService : Service() {
                             app.container.transcriptHistory.add(
                                 TranscriptEntry(
                                     originalText = textSnapshot,
-                                    translatedText = translatedResult,
+                                    translatedText = translated,
                                     sourceLanguage = if (currentAudioSource == AudioSource.SYSTEM) {
                                         "auto"
                                     } else {
@@ -308,22 +331,17 @@ class CaptionForegroundService : Service() {
     )
 
     /**
-     * Build the scrolling caption body. Prefer the translated text for each finalized line
-     * (that's what the user actually wants to read), fall back to the raw original, and while
-     * a live partial is arriving (no entry in transcriptLines yet) show whichever of
-     * translated/original is non-blank.
+     * Build the scrolling caption body. The overlay only ever shows translated
+     * text — lines that are still waiting on a translation are intentionally
+     * hidden so the user doesn't see both the raw source and the translation
+     * stacked together. Raw source is still kept in `transcriptLines` for the
+     * transcript history screen; it just isn't rendered in the overlay.
      */
     private fun overlayTranscriptText(runtime: CaptionRuntimeState): String {
         val rendered = runtime.transcriptLines
-            .filter { it.originalText.isNotBlank() || it.translatedText.isNotBlank() }
-            .map { line ->
-                val t = line.translatedText.trim()
-                if (t.isNotBlank()) t else line.originalText.trim()
-            }
+            .mapNotNull { it.translatedText.trim().takeIf { t -> t.isNotBlank() } }
         val historyText = if (rendered.isNotEmpty()) rendered.joinToString("\n") else ""
-        val livePartial = runtime.translatedText.trim().ifBlank { runtime.originalText.trim() }
-        // If the latest live partial isn't already represented in the history tail, append it
-        // so mic partials show up before the debounced translation lands.
+        val livePartial = runtime.translatedText.trim()
         return when {
             historyText.isBlank() -> livePartial
             livePartial.isBlank() -> historyText
@@ -360,13 +378,17 @@ class CaptionForegroundService : Service() {
     ): List<CaptionRuntimeLine> {
         if (originalText.isBlank()) return lines
         val existingIndex = lines.indexOfLast { it.originalText == originalText }
-        return if (existingIndex >= 0) {
-            lines.mapIndexed { index, line ->
+        if (existingIndex >= 0) {
+            return lines.mapIndexed { index, line ->
                 if (index == existingIndex) line.copy(translatedText = translatedText) else line
             }
-        } else {
-            (lines + CaptionRuntimeLine(originalText, translatedText)).takeLast(MAX_TRANSCRIPT_LINES)
         }
+        // No exact match — the live partial moved on between the debounce
+        // trigger and the translation returning. Drop the stale result
+        // rather than spawning an orphan line (which previously caused
+        // double captions in the overlay). The next translate pass will
+        // cover the current partial.
+        return lines
     }
 
     private fun showOverlay() {

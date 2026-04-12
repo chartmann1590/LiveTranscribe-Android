@@ -23,12 +23,17 @@ class RoutingTranslationRepository(
         sourceCode: String,
         targetCode: String,
         autoDetect: Boolean
-    ): String {
+    ): String = activeDelegate().translate(text, sourceCode, targetCode, autoDetect)
+
+    override suspend fun prewarm(sourceCode: String, targetCode: String) {
+        activeDelegate().prewarm(sourceCode, targetCode)
+    }
+
+    private suspend fun activeDelegate(): TranslationRepository {
         val backend = settingsRepository.settingsFlow.first().translationBackend
-        val delegate = when (backend) {
+        return when (backend) {
             TranslationBackend.ML_KIT -> mlKit
             TranslationBackend.LIBRE_TRANSLATE -> libre
         }
-        return delegate.translate(text, sourceCode, targetCode, autoDetect)
     }
 }
