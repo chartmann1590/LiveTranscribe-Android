@@ -78,8 +78,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.charles.livecaptionn.settings.AudioSource
 import com.charles.livecaptionn.settings.Language
 import com.charles.livecaptionn.settings.SttBackend
+import com.charles.livecaptionn.settings.TranslationBackend
 import com.charles.livecaptionn.speech.RecognitionStatus
+import com.charles.livecaptionn.speech.ModelQuality
 import com.charles.livecaptionn.speech.VoskModelInfo
+import com.charles.livecaptionn.translation.MlKitLanguages
 import com.charles.livecaptionn.update.UpdateInfo
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -151,6 +154,7 @@ fun MainScreen(
                 onTranslateUrlChange = { translateUrlDraft = it },
                 onSaveTranslateUrl = { viewModel.updateBaseUrl(translateUrlDraft) },
                 onRefreshLibre = { viewModel.refreshLibreCatalog() },
+                onSelectTranslationBackend = viewModel::updateTranslationBackend,
                 sttUrl = sttUrlDraft,
                 onSttUrlChange = { sttUrlDraft = it },
                 onSaveSttUrl = { viewModel.updateSttUrl(sttUrlDraft) },
@@ -382,11 +386,19 @@ private fun AudioSourceCard(
                 }
                 if (ui.settings.sttBackend == SttBackend.LOCAL_VOSK) {
                     val installed = ui.voskModels.count { it.installed }
+                    val anyLargeInstalled = ui.voskModels.any { it.installed && it.quality == ModelQuality.LARGE }
                     Text(
                         text = "Runs transcription fully on this device. $installed language${if (installed == 1) "" else "s"} installed.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    if (!anyLargeInstalled) {
+                        Text(
+                            text = "Tip: for noticeably stronger transcription, tap Manage models and install a LARGE server-grade model for the languages you use — 80 MB to 2 GB each, fully offline after download.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.tertiary
+                        )
+                    }
                     OutlinedButton(
                         onClick = onManageModels,
                         shape = RoundedCornerShape(8.dp)
@@ -489,6 +501,7 @@ private fun LanguageCard(
             // Context-specific helper text
             val vmAudio = ui.settings.audioSource
             val vmStt = ui.settings.sttBackend
+            val usingMlKit = ui.settings.translationBackend == TranslationBackend.ML_KIT
             when {
                 vmAudio == AudioSource.SYSTEM && vmStt == SttBackend.LOCAL_VOSK -> {
                     Text(
@@ -501,6 +514,13 @@ private fun LanguageCard(
                         Spacer(Modifier.width(6.dp))
                         Text("Download more languages")
                     }
+                }
+                usingMlKit -> {
+                    Text(
+                        text = "On-device translation via Google ML Kit — ${MlKitLanguages.LIST.size} languages, fully offline after first download.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
                 ui.libreLanguages.isEmpty() && ui.libreError != null -> {
                     Text(
@@ -683,18 +703,20 @@ private fun VoskModelSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text("On-device speech models", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Text(
-                text = "Vosk models run fully offline on this phone. Downloading a model is a one-time step; uninstall it any time to free storage. Sizes are approximate.",
+                text = "Vosk models run fully offline on this phone. Downloading a model is a one-time step; uninstall any time to free storage. For the strongest transcription, pick the LARGE server-grade model for the languages you use most.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             val installed = models.filter { it.installed }
-            val available = models.filter { !it.installed }
+            val availableSmall = models.filter { !it.installed && it.quality == ModelQuality.SMALL }
+            val availableLarge = models.filter { !it.installed && it.quality == ModelQuality.LARGE }
 
             if (installed.isNotEmpty()) {
                 Text("Installed", style = MaterialTheme.typography.labelLarge)
@@ -708,9 +730,31 @@ private fun VoskModelSheet(
                 }
             }
 
-            if (available.isNotEmpty()) {
-                Text("Available to download", style = MaterialTheme.typography.labelLarge)
-                available.forEach { model ->
+            if (availableLarge.isNotEmpty()) {
+                Text("Large · server-grade accuracy (recommended)", style = MaterialTheme.typography.labelLarge)
+                Text(
+                    text = "Full Vosk server models with the lowest error rates. Each one is 80 MB to 2 GB but runs entirely on-device after the one-time download. This is the strongest transcription option for every language.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                availableLarge.forEach { model ->
+                    VoskRow(
+                        model = model,
+                        progress = progress[model.modelName],
+                        onDownload = { onDownload(model) },
+                        onDelete = { onDelete(model) }
+                    )
+                }
+            }
+
+            if (availableSmall.isNotEmpty()) {
+                Text("Small · fast & light", style = MaterialTheme.typography.labelLarge)
+                Text(
+                    text = "Compact ~40 MB models for quick installs or low-storage phones. Accuracy is noticeably lower than the large variants.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                availableSmall.forEach { model ->
                     VoskRow(
                         model = model,
                         progress = progress[model.modelName],
@@ -761,7 +805,8 @@ private fun VoskRow(
                     Text(
                         text = buildString {
                             append(model.modelName)
-                            if (model.sizeMb > 0) append(" · ~${model.sizeMb} MB")
+                            if (model.sizeMb > 0) append(" · ~${formatModelSize(model.sizeMb)}")
+                            if (model.quality == ModelQuality.LARGE) append(" · LARGE")
                             if (model.isBundled) append(" · bundled")
                         },
                         style = MaterialTheme.typography.labelSmall,
@@ -804,6 +849,14 @@ private fun VoskRow(
             }
         }
     }
+}
+
+private fun formatModelSize(sizeMb: Int): String {
+    if (sizeMb >= 1024) {
+        val gb = sizeMb / 1024f
+        return if (gb >= 10f) "${gb.toInt()} GB" else String.format("%.1f GB", gb)
+    }
+    return "$sizeMb MB"
 }
 
 // ── Overlay Settings ──
@@ -852,6 +905,7 @@ private fun ServerCard(
     onTranslateUrlChange: (String) -> Unit,
     onSaveTranslateUrl: () -> Unit,
     onRefreshLibre: () -> Unit,
+    onSelectTranslationBackend: (TranslationBackend) -> Unit,
     sttUrl: String,
     onSttUrlChange: (String) -> Unit,
     onSaveSttUrl: () -> Unit,
@@ -862,42 +916,70 @@ private fun ServerCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Filled.Settings, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
-                SectionLabel("Server")
+                SectionLabel("Translation engine")
             }
 
-            OutlinedTextField(
-                value = translateUrl,
-                onValueChange = onTranslateUrlChange,
-                label = { Text("LibreTranslate URL") },
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
-            Text(
-                text = "Example: http://192.168.1.50:5000. The app fetches /languages to populate the dropdowns.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilledTonalButton(
-                    onClick = onSaveTranslateUrl,
-                    shape = RoundedCornerShape(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ChoiceChip(
+                    label = "On-device (ML Kit)",
+                    icon = Icons.Filled.Mic,
+                    selected = ui.settings.translationBackend == TranslationBackend.ML_KIT,
+                    onClick = { onSelectTranslationBackend(TranslationBackend.ML_KIT) },
                     modifier = Modifier.weight(1f)
-                ) { Text("Save") }
-                OutlinedButton(
-                    onClick = onRefreshLibre,
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Refresh")
-                }
-            }
-            if (ui.libreError != null && !ui.libreLoading) {
-                Text(
-                    text = "Language fetch error: ${ui.libreError}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.error
                 )
+                ChoiceChip(
+                    label = "LibreTranslate",
+                    icon = Icons.Filled.Cloud,
+                    selected = ui.settings.translationBackend == TranslationBackend.LIBRE_TRANSLATE,
+                    onClick = { onSelectTranslationBackend(TranslationBackend.LIBRE_TRANSLATE) },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            if (ui.settings.translationBackend == TranslationBackend.ML_KIT) {
+                Text(
+                    text = "Google ML Kit translates fully on this device — no server required. The first time you use a language pair, a ~30 MB model downloads and is then cached offline forever.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                OutlinedTextField(
+                    value = translateUrl,
+                    onValueChange = onTranslateUrlChange,
+                    label = { Text("LibreTranslate URL") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                Text(
+                    text = "Example: http://192.168.1.50:5000. The app fetches /languages to populate the dropdowns.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilledTonalButton(
+                        onClick = onSaveTranslateUrl,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.weight(1f)
+                    ) { Text("Save") }
+                    OutlinedButton(
+                        onClick = onRefreshLibre,
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Refresh")
+                    }
+                }
+                if (ui.libreError != null && !ui.libreLoading) {
+                    Text(
+                        text = "Language fetch error: ${ui.libreError}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
             }
 
             if (showStt) {

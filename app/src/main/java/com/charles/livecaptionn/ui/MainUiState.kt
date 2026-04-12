@@ -3,7 +3,9 @@ package com.charles.livecaptionn.ui
 import com.charles.livecaptionn.service.CaptionRuntimeState
 import com.charles.livecaptionn.settings.CaptionSettings
 import com.charles.livecaptionn.settings.Language
+import com.charles.livecaptionn.settings.TranslationBackend
 import com.charles.livecaptionn.speech.VoskModelInfo
+import com.charles.livecaptionn.translation.MlKitLanguages
 import com.charles.livecaptionn.update.UpdateInfo
 
 data class MainUiState(
@@ -23,21 +25,28 @@ data class MainUiState(
     val availableSourceLanguages: List<Language>
         get() {
             val installedVosk = voskModels.filter { it.installed }
-            val libre = if (libreLanguages.isNotEmpty()) libreLanguages else Language.FALLBACK
             return when {
                 // System audio + local Vosk: hard limit to what's on device.
                 settings.audioSource == com.charles.livecaptionn.settings.AudioSource.SYSTEM &&
                     settings.sttBackend == com.charles.livecaptionn.settings.SttBackend.LOCAL_VOSK -> {
-                    installedVosk.map { Language(it.languageCode, it.languageName) }
+                    installedVosk
+                        .distinctBy { it.languageCode.lowercase() }
+                        .map { Language(it.languageCode, it.languageName) }
                 }
                 // Every other path can, in principle, recognise whatever the
-                // translation server supports — the UI also shows a hint so
+                // translation engine supports — the UI also shows a hint so
                 // the user knows their locale may not actually be available.
-                else -> libre
+                else -> translationLanguages()
             }
         }
 
-    /** Target language list is always driven by the translation server. */
+    /** Target language list is driven by whichever translation engine is active. */
     val availableTargetLanguages: List<Language>
-        get() = if (libreLanguages.isNotEmpty()) libreLanguages else Language.FALLBACK
+        get() = translationLanguages()
+
+    private fun translationLanguages(): List<Language> = when (settings.translationBackend) {
+        TranslationBackend.ML_KIT -> MlKitLanguages.LIST
+        TranslationBackend.LIBRE_TRANSLATE ->
+            if (libreLanguages.isNotEmpty()) libreLanguages else Language.FALLBACK
+    }
 }

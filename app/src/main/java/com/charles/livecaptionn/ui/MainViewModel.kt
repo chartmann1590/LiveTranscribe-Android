@@ -13,6 +13,7 @@ import androidx.lifecycle.viewModelScope
 import com.charles.livecaptionn.di.AppContainer
 import com.charles.livecaptionn.settings.AudioSource
 import com.charles.livecaptionn.settings.SttBackend
+import com.charles.livecaptionn.settings.TranslationBackend
 import com.charles.livecaptionn.speech.VoskModelInfo
 import com.charles.livecaptionn.update.UpdateInfo
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -148,6 +149,10 @@ class MainViewModel(
 
     fun updateSttBackend(backend: SttBackend) {
         viewModelScope.launch { container.settingsRepository.update { it.copy(sttBackend = backend) } }
+    }
+
+    fun updateTranslationBackend(backend: TranslationBackend) {
+        viewModelScope.launch { container.settingsRepository.update { it.copy(translationBackend = backend) } }
     }
 
     fun updateSttUrl(url: String) {

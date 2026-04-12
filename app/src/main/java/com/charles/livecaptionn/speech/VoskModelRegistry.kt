@@ -81,11 +81,16 @@ class VoskModelRegistry(private val context: Context) {
     fun installedModels(): List<VoskModelInfo> =
         mutableModels.value.filter { it.installed }
 
-    /** Resolves the on-disk directory for a language code, or null if not installed. */
+    /** Resolves the on-disk directory for a language code, or null if not installed.
+     *  When both small and large variants are installed for the same language,
+     *  the large one wins since the user explicitly opted into it. */
     fun resolveModelDir(languageCode: String): File? {
-        val candidate = mutableModels.value.firstOrNull {
+        val installed = mutableModels.value.filter {
             it.languageCode.equals(languageCode, ignoreCase = true) && it.installed
-        } ?: return null
+        }
+        val candidate = installed.firstOrNull { it.quality == ModelQuality.LARGE }
+            ?: installed.firstOrNull()
+            ?: return null
 
         return when (candidate.source) {
             VoskSource.BUNDLED -> ensureBundledCopied(candidate.modelName)

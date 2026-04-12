@@ -6,7 +6,7 @@
 
 <!-- Primary SEO -->
 <title>LiveCaptionN — Real-time speech captions & translation overlay for Android</title>
-<meta name="description" content="LiveCaptionN is a free, open-source Android app that streams live on-device speech recognition from your mic or system audio, transcribes word-by-word with a streaming Vosk pipeline, translates between any language pair your LibreTranslate server supports, and shows captions as a draggable overlay on top of any app.">
+<meta name="description" content="LiveCaptionN is a free, open-source Android app that streams live on-device speech recognition from your mic or system audio via a streaming Vosk pipeline, translates on-device with Google ML Kit (or a LibreTranslate server), and shows captions as a draggable overlay on top of any app. 100% offline after first run — no server required.">
 <meta name="keywords" content="live captions android, speech to text overlay, real-time translation android, multilingual translation, whisper android app, vosk android offline, floating caption overlay, libretranslate android, accessibility captions, system audio transcription">
 <meta name="author" content="chartmann1590">
 <meta name="robots" content="index, follow, max-image-preview:large">
@@ -41,7 +41,7 @@
   "operatingSystem": "Android 10+",
   "applicationCategory": "UtilitiesApplication",
   "applicationSubCategory": "Accessibility",
-  "description": "Free, open-source Android app with a streaming on-device Vosk pipeline that captions speech word-by-word from the mic or system audio and translates between any language pair your LibreTranslate server supports, inside a floating overlay.",
+  "description": "Free, open-source Android app with a streaming on-device Vosk pipeline that captions speech word-by-word from the mic or system audio, then translates on-device using Google ML Kit (or optionally a LibreTranslate server), inside a floating overlay. Runs 100% offline after first run — no accounts, no telemetry.",
   "url": "https://chartmann1590.github.io/LiveTranscribe-Android/",
   "downloadUrl": "https://github.com/chartmann1590/LiveTranscribe-Android/releases/latest",
   "softwareVersion": "1.0.x",
@@ -60,9 +60,10 @@
     "Streaming on-device speech-to-text with live word-by-word partials",
     "Same low-latency pipeline for mic and system audio capture",
     "Google Live Caption-grade on-device recognizer on Android 12+",
+    "On-device translation via Google ML Kit (~59 languages, offline after first download)",
+    "Optional LibreTranslate server backend for wider language coverage",
     "Remote Whisper ASR fallback backend",
-    "Any language pair supported by your LibreTranslate server",
-    "Built-in downloader for additional on-device Vosk models",
+    "Built-in downloader for on-device Vosk speech models, small and large server-grade tiers",
     "In-app update notifications via the GitHub Releases API",
     "Draggable, resizable floating caption overlay",
     "Persistent transcript history"
@@ -116,7 +117,7 @@
       <span class="eyebrow">Open Source · Android · Free</span>
       <h1>Live, streaming captions and translation on top of any app.</h1>
       <p class="hero-tagline">
-        LiveCaptionN streams speech recognition on-device — word by word, as you speak — from your microphone <em>or</em> the audio another app is playing, then translates between any language pair your LibreTranslate server supports, all inside a floating overlay you can drag anywhere on screen.
+        LiveCaptionN streams speech recognition on-device — word by word, as you speak — from your microphone <em>or</em> the audio another app is playing, then translates on-device with Google ML Kit (or a LibreTranslate server if you prefer), all inside a floating overlay you can drag anywhere on screen. 100% offline after first run.
       </p>
       <div class="hero-ctas">
         <a class="btn btn-primary" href="https://github.com/chartmann1590/LiveTranscribe-Android/releases/latest">
@@ -185,8 +186,8 @@
         <div class="feature-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
         </div>
-        <h3>Any language your server supports</h3>
-        <p>LiveCaptionN reads <code>/languages</code> from your LibreTranslate endpoint and populates the pickers dynamically — add more on the server, they show up in the app.</p>
+        <h3>On-device translation</h3>
+        <p>Google ML Kit's pre-trained Translate models run entirely on the phone. ~59 languages, ~30 MB per pair, downloaded once and cached offline forever. LibreTranslate is still available in settings as an alternative backend if you want even broader language coverage.</p>
       </div>
 
       <div class="feature-card">
@@ -229,32 +230,37 @@
   <div class="container">
     <div class="section-head">
       <span class="eyebrow">Languages &amp; translation</span>
-      <h2>Two ways to translate — pick whichever fits your setup</h2>
-      <p>LiveCaptionN is a two-stage pipeline: <strong>speech → text</strong> runs in a speech engine, then <strong>text → text</strong> runs in LibreTranslate. The language pickers adapt to whichever path you choose so you only ever see options that actually work.</p>
+      <h2>Fully offline by default — server backends optional</h2>
+      <p>LiveCaptionN is a two-stage pipeline: <strong>speech → text</strong> runs in a speech engine, then <strong>text → text</strong> runs in a translation engine. Both stages default to fully on-device so the app works without any servers, but each stage can be switched to a remote backend independently.</p>
     </div>
 
     <div class="feature-grid">
       <div class="feature-card">
         <div class="feature-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         </div>
-        <h3>Path A — LibreTranslate</h3>
-        <p>Point the app at any LibreTranslate-compatible server. On launch it calls <code>GET /languages</code> and populates both Source and Target pickers with whatever the server reports — typically 25–35+ languages depending on which Argos Translate packages are installed.</p>
-        <p>Want more languages? SSH into your LibreTranslate host and install extra packages:</p>
-        <pre style="background:#0b0717;border:1px solid rgba(167,139,250,0.25);border-radius:10px;padding:12px;overflow-x:auto;font-size:13px;color:#ddd;"><code>argospm update
-argospm install translate-en_ja translate-en_ko translate-en_fa
-# …then restart LibreTranslate</code></pre>
-        <p>Change the base URL in-app and LiveCaptionN refetches the list automatically.</p>
+        <h3>Speech → text: on-device Vosk</h3>
+        <p>Pick <strong>Local Vosk</strong> and the source-language picker collapses to just the models installed on this phone. Two small models ship inside the APK (English and Vietnamese) so it works out of the box with zero downloads.</p>
+        <p>Tap <strong>Manage on-device models</strong> to grab more. The sheet offers two quality tiers for every supported language:</p>
+        <ul>
+          <li><strong>Large · server-grade accuracy</strong> — full Vosk models with the lowest error rates. ~80 MB to ~2 GB each, downloaded once and cached forever. This is the strongest on-device transcription option.</li>
+          <li><strong>Small · fast &amp; light</strong> — compact ~40 MB models for quick installs or low-storage phones.</li>
+        </ul>
+        <p>Supported languages include English, Vietnamese, Spanish, French, German, Italian, Portuguese, Dutch, Russian, Ukrainian, Polish, Czech, Turkish, Arabic, Persian, Hindi, Chinese, Japanese, Korean, and Indonesian. Models are fetched from <code>alphacephei.com/vosk/models</code> over HTTPS and unzipped to app-private storage.</p>
       </div>
 
       <div class="feature-card">
         <div class="feature-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
         </div>
-        <h3>Path B — On-device Vosk</h3>
-        <p>Select <strong>System Audio → Local Vosk</strong> and the source-language picker collapses to just the Vosk models installed on this phone. Two models ship inside the APK (English and Vietnamese) so it works out of the box with zero downloads.</p>
-        <p>Tap <strong>Manage on-device models</strong> to grab more (≈30–80 MB each): Spanish, French, German, Italian, Portuguese, Dutch, Russian, Ukrainian, Polish, Czech, Turkish, Arabic, Persian, Hindi, Chinese, Japanese, Korean, Indonesian. Models are fetched from <code>alphacephei.com/vosk/models</code> over HTTPS and unzipped to app-private storage.</p>
-        <p>On-device transcription still uses LibreTranslate for the text → text step. If the source and target match (English speech → English captions), no translation call is made.</p>
+        <h3>Text → text: Google ML Kit (on-device) or LibreTranslate</h3>
+        <p>By default LiveCaptionN uses <strong>Google ML Kit</strong>'s pre-trained Translate models, which run entirely on this device. ~59 supported languages, ~30 MB per language pair (downloaded the first time you use the pair, then cached offline forever). No server, no account, no telemetry.</p>
+        <p>If you want more languages or you already run your own infrastructure, switch to the <strong>LibreTranslate</strong> backend in settings and point the app at any LibreTranslate-compatible server. On URL change the app calls <code>GET /languages</code> and repopulates the pickers with whatever packages the server has.</p>
+        <p>Want to add more LibreTranslate languages? SSH into the host and install extra Argos packages:</p>
+        <pre style="background:#0b0717;border:1px solid rgba(167,139,250,0.25);border-radius:10px;padding:12px;overflow-x:auto;font-size:13px;color:#ddd;"><code>argospm update
+argospm install translate-en_ja translate-en_ko translate-en_fa
+# …then restart LibreTranslate</code></pre>
+        <p>If the source and target language match (English speech → English captions), no translation call is made regardless of backend.</p>
       </div>
     </div>
   </div>
@@ -305,7 +311,7 @@ argospm install translate-en_ja translate-en_ko translate-en_fa
       </div>
       <div class="step">
         <h3>Pick audio source and backend</h3>
-        <p>Choose mic or system audio, and pick remote Whisper for best accuracy or local Vosk for offline captioning.</p>
+        <p>Choose mic or system audio. Both stages of the pipeline default to fully on-device — streaming Vosk for transcription, Google ML Kit for translation — so it works offline out of the box. Swap in LibreTranslate or Whisper any time from settings.</p>
       </div>
       <div class="step">
         <h3>Tap start and switch apps</h3>
@@ -332,9 +338,10 @@ argospm install translate-en_ja translate-en_ko translate-en_fa
       <span>Retrofit + OkHttp</span>
       <span>MediaProjection</span>
       <span>SpeechRecognizer</span>
-      <span>Whisper ASR</span>
-      <span>Vosk on-device</span>
-      <span>LibreTranslate</span>
+      <span>Vosk (streaming + server-grade)</span>
+      <span>Google ML Kit Translate</span>
+      <span>LibreTranslate (optional)</span>
+      <span>Whisper ASR (optional)</span>
       <span>Foreground Service</span>
     </div>
   </div>
@@ -358,20 +365,20 @@ argospm install translate-en_ja translate-en_ko translate-en_fa
         <p>Android 10 (API 29) and above. Some features like <code>createConfigForDefaultDisplay()</code> for MediaProjection are used on Android 14+ where available.</p>
       </details>
       <details>
-        <summary>Do I need my own Whisper server?</summary>
-        <p>For the remote Whisper backend, yes — any Whisper-compatible HTTP endpoint works (e.g. <code>faster-whisper-server</code>, <code>whisper-asr-webservice</code>). If you don't want to run a server, switch to the on-device Vosk backend instead.</p>
+        <summary>Do I need my own server?</summary>
+        <p>No. The default pipeline is fully on-device: streaming Vosk handles speech-to-text and Google ML Kit handles translation. You only need a server if you want Whisper-based STT or LibreTranslate's wider language coverage — both are optional backends you can enable in settings.</p>
       </details>
       <details>
         <summary>What about translation?</summary>
-        <p>Translation goes through any LibreTranslate-compatible endpoint. Self-host LibreTranslate or point at a public instance you trust. The app fetches <code>GET /languages</code> from whatever server you configure and populates the language pickers from that list — so whichever Argos Translate packages are installed on your server is exactly what you'll see in the app.</p>
+        <p>Translation runs on-device by default via Google ML Kit — ~59 languages, roughly a one-time ~30 MB download per language pair, then cached forever. Prefer a server? Switch to LibreTranslate in settings and the app will fetch <code>GET /languages</code> from your endpoint and populate the pickers from whichever Argos Translate packages you have installed.</p>
       </details>
       <details>
         <summary>How do I add more languages?</summary>
-        <p>For translation, install extra Argos Translate packages on your LibreTranslate server (<code>argospm install translate-en_ja</code>, etc.) and the app will pick them up on the next refresh. For on-device speech recognition, tap <strong>Manage on-device models</strong> inside the app to download additional Vosk models for Spanish, French, German, Russian, Chinese, Japanese, Korean, and many more.</p>
+        <p>For on-device speech recognition, tap <strong>Manage on-device models</strong> inside the app to download additional Vosk models — both <strong>Small</strong> (~30–80 MB) and <strong>Large</strong> server-grade (80 MB to 2 GB, lowest error rate) variants for Spanish, French, German, Russian, Chinese, Japanese, Arabic, Hindi, and more. For translation, ML Kit already covers ~59 languages out of the box; if you need something it doesn't, switch to LibreTranslate and <code>argospm install</code> extra packages on your server.</p>
       </details>
       <details>
-        <summary>Does on-device mode need internet?</summary>
-        <p>Only for the translation step. Speech recognition via Vosk is fully offline once the model is downloaded. If your source and target language match (e.g. English speech → English captions), no translation call is made and the app works entirely offline.</p>
+        <summary>Does the app need internet?</summary>
+        <p>Not for captioning. Once you've downloaded a Vosk model and the ML Kit translation pair you want, speech recognition and translation both run entirely on-device. Internet is only needed for the one-time model downloads and for optional backends (Whisper ASR, LibreTranslate) if you choose to use them.</p>
       </details>
       <details>
         <summary>Can it caption YouTube or TikTok directly?</summary>

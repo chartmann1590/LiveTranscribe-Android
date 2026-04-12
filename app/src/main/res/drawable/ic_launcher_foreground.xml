@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Outer glow halo behind the bubble -->
+    <path
+        android:pathData="M54,22m-34,0a34,34 0,1 1,68 0a34,34 0,1 1,-68 0"
+        android:fillColor="#14FFFFFF" />
+
+    <!-- Speech bubble body (rounded rect + tail) -->
+    <path
+        android:pathData="M32,28
+                          H76
+                          Q88,28 88,40
+                          V62
+                          Q88,74 76,74
+                          H50
+                          L38,86
+                          L38,74
+                          H32
+                          Q20,74 20,62
+                          V40
+                          Q20,28 32,28
+                          Z"
+        android:fillColor="#FFFFFF" />
+
+    <!-- Caption bar line 1 -->
+    <path
+        android:pathData="M28,38 h52 a2,2 0 0 1 2,2 v4 a2,2 0 0 1 -2,2 h-52 a2,2 0 0 1 -2,-2 v-4 a2,2 0 0 1 2,-2 z"
+        android:fillColor="#6366F1" />
+
+    <!-- Caption bar line 2 -->
+    <path
+        android:pathData="M28,50 h44 a2,2 0 0 1 2,2 v4 a2,2 0 0 1 -2,2 h-44 a2,2 0 0 1 -2,-2 v-4 a2,2 0 0 1 2,-2 z"
+        android:fillColor="#8B5CF6" />
+
+    <!-- Caption bar line 3 -->
+    <path
+        android:pathData="M28,62 h36 a2,2 0 0 1 2,2 v4 a2,2 0 0 1 -2,2 h-36 a2,2 0 0 1 -2,-2 v-4 a2,2 0 0 1 2,-2 z"
+        android:fillColor="#A78BFA" />
+
+</vector>

@@ -17,7 +17,7 @@
 
 LiveCaptionN listens through the microphone (or the currently playing app audio), transcribes what it hears in **real time** — word by word as you speak — translates between any supported language pair, and paints the result as a draggable caption window on top of whatever you are watching or browsing. It is built for people watching foreign-language videos, following along in a meeting, or studying another language hands-free.
 
-Speech recognition runs **on-device by default** through a streaming Vosk pipeline (one long-lived recognizer fed ~100 ms audio chunks continuously), so captions appear as the words come out, not after a 2-second batch delay. The language pickers adapt to whichever engine you choose: with a **LibreTranslate** server you get the full list of languages that server supports, and with **on-device Vosk** you only see models that are installed (plus a built-in downloader for the rest).
+Both stages of the pipeline can run **fully on-device**: streaming Vosk handles speech-to-text (one long-lived recognizer fed ~100 ms audio chunks continuously), and Google ML Kit handles the text-to-text translation with ~59 languages cached offline after a one-time ~30 MB per-pair download. No server required. If you would rather use a LibreTranslate server for wider language coverage or a Whisper ASR endpoint for STT, both paths are still available in settings.
 
 ## Screenshots
 
@@ -36,8 +36,9 @@ Speech recognition runs **on-device by default** through a streaming Vosk pipeli
 - **Live streaming on-device recognition** — a continuous Vosk pipeline feeds ~100 ms PCM chunks into one long-lived recognizer and emits partial results as the words are spoken (not batched 2-second chunks), so captions feel like Google Live Caption.
 - **Mic _and_ system audio, same engine** — switch between the microphone and `MediaProjection` audio capture without changing backends. Both paths stream through the same low-latency pipeline.
 - **Multiple speech engines** — streaming on-device Vosk (default), Android's on-device `SpeechRecognizer` (Android 12+, same engine as Google Live Caption), or a remote Whisper HTTP endpoint as a fallback.
-- **Any language your backend supports** — the picker shows the `/languages` list returned by your LibreTranslate server, or only the Vosk models installed on this phone when you choose on-device transcription.
-- **Built-in Vosk model downloader** — grab additional on-device models (≈30–80 MB each) for Spanish, French, German, Russian, Chinese, and more from the Manage models sheet.
+- **On-device translation via ML Kit** — Google's pre-trained Translate models run entirely on the phone. ~59 supported languages, ~30 MB per language pair (one-time download), cached offline forever after that. LibreTranslate is still available as an alternative backend for wider coverage.
+- **Any language your backend supports** — the picker shows ML Kit's supported languages, your LibreTranslate server's `/languages` list, or only the Vosk models installed on this phone, whichever combination you choose.
+- **Built-in Vosk model downloader** — two quality tiers: **Small** (~30–80 MB, fast and light) and **Large** server-grade models (80 MB to 2 GB, lowest error rates) for Spanish, French, German, Russian, Chinese, Japanese, Hindi, Arabic, and more.
 - **Automatic update notifications** — a background WorkManager job polls the GitHub releases API; when a new version is published you get a system notification with a one-tap Download action, plus an in-app banner the next time you open the app.
 - **Transcript history** — every session is saved locally and searchable from the history screen.
 - **Tunable overlay** — text size, opacity, width/height, "show original" toggle, minimized state, and remembered screen position.
