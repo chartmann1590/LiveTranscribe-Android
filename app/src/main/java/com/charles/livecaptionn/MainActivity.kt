@@ -11,14 +11,18 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.charles.livecaptionn.ads.BannerAd
 import com.charles.livecaptionn.service.CaptionForegroundService
 import com.charles.livecaptionn.service.MediaProjectionHolder
 import com.charles.livecaptionn.settings.AudioSource
@@ -55,20 +59,27 @@ class MainActivity : ComponentActivity() {
             val vm: MainViewModel = viewModel(factory = MainViewModelFactory(app.container, application))
             MaterialTheme {
                 Surface(color = MaterialTheme.colorScheme.background) {
-                    if (showHistory) {
-                        HistoryScreen(
-                            historyStore = app.container.transcriptHistory,
-                            onBack = { showHistory = false }
-                        )
-                    } else {
-                        MainScreen(
-                            viewModel = vm,
-                            onRequestAudioPermission = { requestAudioPermission() },
-                            onStart = { startCaptioning() },
-                            onStop = { stopCaptionService() },
-                            onOpenOverlaySettings = { vm.openOverlayPermissionSettings(this) },
-                            onHistory = { showHistory = true }
-                        )
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        // Main content fills remaining space above the
+                        // persistent banner ad at the bottom.
+                        if (showHistory) {
+                            HistoryScreen(
+                                historyStore = app.container.transcriptHistory,
+                                onBack = { showHistory = false },
+                                modifier = Modifier.weight(1f)
+                            )
+                        } else {
+                            MainScreen(
+                                viewModel = vm,
+                                onRequestAudioPermission = { requestAudioPermission() },
+                                onStart = { startCaptioning() },
+                                onStop = { stopCaptionService() },
+                                onOpenOverlaySettings = { vm.openOverlayPermissionSettings(this@MainActivity) },
+                                onHistory = { showHistory = true },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        BannerAd()
                     }
                 }
             }

@@ -19,6 +19,12 @@
         android:theme="@style/Theme.LiveCaptionN"
         android:usesCleartextTraffic="true">
 
+        <!-- Google Mobile Ads (AdMob). The value is the public App ID,
+             safe to commit: no secret material. -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-8382831211800454~6962874109" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true">

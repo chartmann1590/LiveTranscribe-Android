@@ -93,7 +93,8 @@ fun MainScreen(
     onOpenOverlaySettings: () -> Unit,
     onStart: () -> Unit,
     onStop: () -> Unit,
-    onHistory: () -> Unit = {}
+    onHistory: () -> Unit = {},
+    modifier: Modifier = Modifier
 ) {
     val ui by viewModel.state.collectAsStateWithLifecycle()
     var translateUrlDraft by remember(ui.settings.serverBaseUrl) { mutableStateOf(ui.settings.serverBaseUrl) }
@@ -102,6 +103,7 @@ fun MainScreen(
     LaunchedEffect(Unit) { viewModel.refreshPermissionState() }
 
     Scaffold(
+        modifier = modifier,
         topBar = {
             TopAppBar(
                 title = {

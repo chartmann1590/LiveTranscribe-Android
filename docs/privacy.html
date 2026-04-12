@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Privacy policy — LiveCaptionN</title>
+<meta name="description" content="LiveCaptionN privacy policy. No accounts, no telemetry, on-device speech recognition and translation. Full breakdown of what data the app touches and what it doesn't.">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://chartmann1590.github.io/LiveTranscribe-Android/privacy.html">
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<meta name="theme-color" content="#0b0717">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+<style>
+  .legal {
+    padding: 160px 0 120px;
+  }
+  .legal .container {
+    max-width: 860px;
+  }
+  .legal h1 {
+    font-size: clamp(2rem, 4vw, 3rem);
+    line-height: 1.1;
+    margin: 0 0 8px;
+  }
+  .legal .updated {
+    color: #9a94c7;
+    font-size: 0.95rem;
+    margin: 0 0 42px;
+  }
+  .legal h2 {
+    margin-top: 48px;
+    font-size: 1.35rem;
+  }
+  .legal h3 {
+    margin-top: 28px;
+    font-size: 1.1rem;
+    color: #d6cdff;
+  }
+  .legal p, .legal li {
+    color: #c8c1ea;
+    line-height: 1.7;
+  }
+  .legal ul {
+    padding-left: 22px;
+  }
+  .legal code {
+    background: rgba(139,92,246,0.14);
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 0.92em;
+    color: #ddd3ff;
+  }
+  .legal a {
+    color: #c4b5fd;
+  }
+  .tl-dr {
+    background: rgba(139,92,246,0.10);
+    border: 1px solid rgba(139,92,246,0.35);
+    border-radius: 18px;
+    padding: 22px 26px;
+    margin: 28px 0 8px;
+  }
+  .tl-dr strong {
+    color: #ffffff;
+  }
+</style>
+</head>
+<body>
+
+<!-- ============== NAV ============== -->
+<nav class="nav">
+  <div class="container nav-inner">
+    <a href="index.html" class="brand">
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <defs>
+          <linearGradient id="navg" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#a78bfa"/>
+            <stop offset="100%" stop-color="#6d28d9"/>
+          </linearGradient>
+        </defs>
+        <rect width="64" height="64" rx="14" fill="url(#navg)"/>
+        <g fill="#fff">
+          <rect x="12" y="22" width="40" height="4" rx="2"/>
+          <rect x="12" y="30" width="28" height="4" rx="2"/>
+          <rect x="12" y="38" width="34" height="4" rx="2"/>
+          <circle cx="48" cy="46" r="4"/>
+        </g>
+      </svg>
+      LiveCaptionN
+    </a>
+    <div class="nav-links">
+      <a href="index.html#features">Features</a>
+      <a href="index.html#languages">Languages</a>
+      <a href="index.html#screenshots">Screenshots</a>
+      <a href="index.html#faq">FAQ</a>
+      <a class="btn btn-primary btn-sm" href="https://github.com/chartmann1590/LiveTranscribe-Android/releases/latest">Download</a>
+    </div>
+  </div>
+</nav>
+
+<section class="legal">
+  <div class="container">
+    <h1>Privacy policy</h1>
+    <p class="updated">Last updated: 12 April 2026</p>
+
+    <div class="tl-dr">
+      <p><strong>Short version.</strong> LiveCaptionN has no accounts, no analytics, and no telemetry. Speech recognition and translation both run on your device by default. The app includes Google AdMob ads (a banner and an app-open ad) which are served by Google&rsquo;s ad network and are governed by <a href="https://policies.google.com/privacy">Google&rsquo;s privacy policy</a>. Apart from ads, the app only reaches the internet when you explicitly tell it to &mdash; to download a Vosk speech model, download a Google ML Kit translation model, check GitHub for a new release, or send audio/text to an optional server you have configured yourself. Your captions and transcripts never leave your phone.</p>
+    </div>
+
+    <h2>1. Who this policy is from</h2>
+    <p>LiveCaptionN is a free, open-source Android application maintained by <a href="https://github.com/chartmann1590">chartmann1590</a>. The full source code is available on <a href="https://github.com/chartmann1590/LiveTranscribe-Android">GitHub</a> and every release is built reproducibly by GitHub Actions from a public commit you can audit.</p>
+
+    <h2>2. What data LiveCaptionN processes</h2>
+
+    <h3>Microphone / system audio</h3>
+    <p>When you start a captioning session, LiveCaptionN reads raw PCM audio from either your microphone (via Android&rsquo;s <code>VOICE_RECOGNITION</code> source) or the currently playing app (via <code>MediaProjection</code> + <code>AudioPlaybackCapture</code>). That audio is fed in ~100 ms chunks into the speech recognizer you have selected and is <strong>never written to disk and never sent over the network</strong> under the default configuration. Audio chunks are held in memory only for as long as it takes the recognizer to consume them, then discarded.</p>
+
+    <h3>Transcripts</h3>
+    <p>Finalized transcript lines (original and translated text) are saved locally in a JSON file inside the app&rsquo;s private storage so you can review them on the <em>History</em> screen. That file is not shared with anyone and is removed when you uninstall the app or clear its data from Android&rsquo;s system settings. There is no cloud backup.</p>
+
+    <h3>Settings</h3>
+    <p>Your configuration (language pair, overlay position, chosen backends, server URLs you entered, etc.) is stored locally via Android DataStore Preferences in the app&rsquo;s private storage. It never leaves your device.</p>
+
+    <h2>3. Network connections LiveCaptionN may make</h2>
+    <p>By default the captioning pipeline is fully on-device. The app connects to the network only for the following reasons:</p>
+    <ul>
+      <li><strong>Vosk speech model downloads.</strong> When you tap <em>Manage on-device models</em> and pick a new language, the app downloads the model zip from <a href="https://alphacephei.com/vosk/models"><code>alphacephei.com</code></a>, unzips it to app-private storage, and then never contacts that server again for that model.</li>
+      <li><strong>Google ML Kit translation model downloads.</strong> The first time you use a given language pair, Google ML Kit downloads a ~30 MB translation model from Google&rsquo;s model service. After that the translation step is fully offline. The download is performed by Google Play Services on your behalf &mdash; see <a href="https://developers.google.com/ml-kit/terms">Google&rsquo;s ML Kit terms</a> and <a href="https://policies.google.com/privacy">Google&rsquo;s privacy policy</a> for details about that traffic.</li>
+      <li><strong>GitHub release check.</strong> Roughly twice a day, a background WorkManager job calls the public <code>api.github.com/repos/chartmann1590/LiveTranscribe-Android/releases/latest</code> endpoint to see whether a new version of the app has been published. The request sends no personal information beyond the standard HTTP metadata every app sends to any web server (IP address, User-Agent). You can disable update notifications by turning off the app&rsquo;s notification permission.</li>
+      <li><strong>Optional LibreTranslate server (only if you enable it).</strong> If you switch the translation backend to LibreTranslate in settings, the recognized text is POSTed to the LibreTranslate URL <em>you</em> configured. LiveCaptionN ships no default LibreTranslate server &mdash; you provide one. No data ever goes to a server the developer controls.</li>
+      <li><strong>Optional remote Whisper server (only if you enable it).</strong> If you switch the speech backend to the remote Whisper endpoint, captured audio is POSTed to the Whisper URL <em>you</em> configured. Same deal: you provide the URL, nothing goes to the developer.</li>
+    </ul>
+    <p>If you use neither the Whisper nor the LibreTranslate backend, and you have already downloaded the Vosk and ML Kit models you need, the captioning pipeline itself works while your phone is in airplane mode (ads require a network connection to load).</p>
+
+    <h2>4. Advertising</h2>
+    <p>LiveCaptionN displays ads served by <strong>Google AdMob</strong>: a banner at the bottom of the main UI and an app-open ad when you return to the app. Ads are displayed only inside the app&rsquo;s own activity &mdash; they never appear in the floating caption overlay.</p>
+    <p>The AdMob SDK may collect and process certain data as described in <a href="https://policies.google.com/privacy">Google&rsquo;s privacy policy</a> and <a href="https://policies.google.com/technologies/ads">Google&rsquo;s advertising policy</a>. This may include device identifiers, IP address, and interaction data for the purpose of serving and measuring ads. LiveCaptionN does <strong>not</strong> send any of your audio, transcripts, or settings to Google&rsquo;s ad network &mdash; only the standard data that the AdMob SDK collects on its own.</p>
+    <p>You can opt out of personalized advertising in your Android device settings under <em>Google &rarr; Ads &rarr; Opt out of Ads Personalization</em>, or by using an ad blocker. Opting out does not remove ads entirely but prevents Google from using your data to personalize them.</p>
+
+    <h2>5. What LiveCaptionN does <em>not</em> do</h2>
+    <ul>
+      <li>No account creation or login of any kind.</li>
+      <li>No first-party analytics, crash reporting, or telemetry SDK.</li>
+      <li>No data sold or shared with third parties outside of what the AdMob SDK collects as described in section 4.</li>
+      <li>No background audio capture &mdash; audio is only read while a captioning session is actively running and a foreground service notification is visible.</li>
+      <li>No access to your contacts, calendar, photos, SMS, call logs, or files outside the app&rsquo;s private storage.</li>
+    </ul>
+
+    <h2>6. Permissions the app requests and why</h2>
+    <ul>
+      <li><code>RECORD_AUDIO</code> &mdash; needed to capture microphone audio for speech recognition. Only used while a captioning session is active.</li>
+      <li><code>SYSTEM_ALERT_WINDOW</code> &mdash; needed to draw the floating caption window on top of other apps. No data crosses this boundary; it is a rendering permission.</li>
+      <li><code>FOREGROUND_SERVICE</code>, <code>FOREGROUND_SERVICE_MICROPHONE</code>, <code>FOREGROUND_SERVICE_MEDIA_PROJECTION</code> &mdash; required by Android 14+ so the captioning service can run with a persistent notification while you switch to another app.</li>
+      <li><code>POST_NOTIFICATIONS</code> &mdash; used for the captioning session notification and for optional in-app update alerts.</li>
+      <li><code>INTERNET</code> &mdash; used only for the network connections listed in section 3.</li>
+    </ul>
+    <p>LiveCaptionN does <strong>not</strong> request location, contacts, storage (outside its own private directory), SMS, phone state, or biometric permissions.</p>
+
+    <h2>7. Children</h2>
+    <p>LiveCaptionN is a general-purpose accessibility tool and is not directed at children under 13. It does not knowingly collect any information from children.</p>
+
+    <h2>8. Changes to this policy</h2>
+    <p>If this policy ever changes, the updated version will be published at this URL and the &ldquo;Last updated&rdquo; date at the top will change. Because the app has no way to phone home, you will not receive an in-app notification about policy changes &mdash; check this page when a new release notes it.</p>
+
+    <h2>9. Contact</h2>
+    <p>Questions, concerns, or security reports should be filed as an issue on the project&rsquo;s GitHub repository: <a href="https://github.com/chartmann1590/LiveTranscribe-Android/issues">github.com/chartmann1590/LiveTranscribe-Android/issues</a>. For sensitive security reports you can open a private security advisory via the same repository&rsquo;s <em>Security</em> tab.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <div class="brand">
+      <svg viewBox="0 0 64 64" aria-hidden="true" width="22" height="22">
+        <rect width="64" height="64" rx="14" fill="#8b5cf6"/>
+        <g fill="#fff">
+          <rect x="12" y="22" width="40" height="4" rx="2"/>
+          <rect x="12" y="30" width="28" height="4" rx="2"/>
+          <rect x="12" y="38" width="34" height="4" rx="2"/>
+          <circle cx="48" cy="46" r="4"/>
+        </g>
+      </svg>
+      LiveCaptionN
+    </div>
+    <p>
+      <a href="index.html">Home</a> ·
+      <a href="https://github.com/chartmann1590/LiveTranscribe-Android">GitHub</a> ·
+      <a href="https://github.com/chartmann1590/LiveTranscribe-Android/releases">Releases</a> ·
+      <a href="https://github.com/chartmann1590/LiveTranscribe-Android/issues">Report an issue</a>
+    </p>
+    <p>&copy; 2026 chartmann1590. Open source under the MIT license.</p>
+  </div>
+</footer>
+
+</body>
+</html>

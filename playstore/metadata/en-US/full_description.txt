@@ -1,0 +1,32 @@
+LiveCaptionN turns your Android phone into a real-time speech captioning and translation tool that floats on top of any other app. It listens through the microphone or the currently playing app's audio, transcribes what it hears word-by-word as you speak, translates it into the language you pick, and paints the result as a draggable caption window on top of whatever you're watching, scrolling, or studying.
+
+Both halves of the pipeline run fully on-device by default:
+
+• Streaming Vosk speech recognition — one long-lived recognizer is fed ~100 ms audio chunks continuously, so captions feel instant instead of arriving in 2-second bursts.
+• Google ML Kit on-device translation — ~59 supported languages, a one-time ~30 MB download per language pair, then cached offline forever.
+
+No account. No telemetry. No server required for the default pipeline.
+
+FEATURES
+
+• Floating caption overlay that sits on top of any app, with drag-to-move, pinch-resize, pause, minimize, and close controls
+• Mic or system audio (via MediaProjection) feeding the same low-latency pipeline
+• Streaming on-device Vosk recognizer — feels like Google Live Caption
+• Built-in downloader for additional on-device Vosk models, with two quality tiers: Small (~30 to 80 MB) and Large server-grade (80 MB to 2 GB, lowest error rate) for Spanish, French, German, Italian, Portuguese, Dutch, Russian, Ukrainian, Persian, Hindi, Chinese, Japanese, Arabic, Vietnamese and more
+• On-device translation via Google ML Kit, with LibreTranslate as an optional server backend for wider language coverage
+• Transcript history, searchable from inside the app
+• Tunable overlay: text size, opacity, width, height, remembered screen position
+• Automatic update notifications via the GitHub Releases API
+
+PRIVACY-FIRST
+
+LiveCaptionN does not create an account, does not track you, and has no analytics. Speech recognition and translation both run on your phone. The app only reaches the internet to download Vosk models (from alphacephei.com) and ML Kit translation pairs (from Google's model service) when you ask it to, and to check GitHub for new release builds. If you enable an optional Whisper or LibreTranslate server in settings, traffic goes to the URL you configure and nothing else.
+
+REQUIREMENTS
+
+• Android 10 (API 29) or newer
+• Microphone permission (for mic mode)
+• "Display over other apps" permission (for the floating caption window)
+• Notification permission (for optional update alerts)
+
+LiveCaptionN is fully open source. Every release is built by GitHub Actions from a public commit you can inspect. Issues, feedback, and pull requests are welcome on GitHub.

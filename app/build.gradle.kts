@@ -11,6 +11,14 @@ val localProps = Properties().apply {
     if (f.exists()) f.inputStream().use { load(it) }
 }
 
+// Play Store upload key lives in keystore.properties at the repo root. File
+// is gitignored; a template lives at playstore/keystore.properties.example.
+val keystoreProps = Properties().apply {
+    val f = rootProject.file("keystore.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+val hasReleaseSigning: Boolean = keystoreProps.getProperty("storeFile")?.isNotBlank() == true
+
 // CI builds encode GitHub's run number into versionCode so the app's build
 // number matches the release tag (v1.0.<run_number>). Local dev builds get 1.
 val ciRunNumber: Int = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
@@ -43,6 +51,19 @@ android {
         buildConfigField("String", "UPDATE_REPO_NAME", "\"LiveTranscribe-Android\"")
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                val storeFileName = keystoreProps.getProperty("storeFile")
+                val resolved = rootProject.file(storeFileName)
+                storeFile = if (resolved.exists()) resolved else file(storeFileName)
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -50,6 +71,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
     compileOptions {
@@ -101,6 +125,14 @@ dependencies {
 
     // On-device translation (Google Translate models cached offline).
     implementation("com.google.mlkit:translate:17.0.3")
+
+    // Google Mobile Ads (AdMob). Powers the banner at the bottom of the
+    // main UI and the app-open ad.
+    implementation("com.google.android.gms:play-services-ads:23.6.0")
+
+    // ProcessLifecycleOwner — used by AppOpenAdManager to detect when the
+    // app comes to the foreground so the app-open ad can be shown.
+    implementation("androidx.lifecycle:lifecycle-process:2.8.6")
 
     implementation("androidx.core:core-splashscreen:1.0.1")
     implementation("com.google.android.material:material:1.11.0")

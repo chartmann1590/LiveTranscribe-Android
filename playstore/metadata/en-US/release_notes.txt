@@ -1,0 +1,8 @@
+First Play Store release.
+
+• Streaming on-device Vosk speech recognition with live word-by-word partials
+• On-device translation via Google ML Kit (~59 languages)
+• Built-in downloader for large server-grade Vosk models in 15 languages
+• Floating, draggable caption overlay
+• Transcript history
+• Brand-new adaptive app icon

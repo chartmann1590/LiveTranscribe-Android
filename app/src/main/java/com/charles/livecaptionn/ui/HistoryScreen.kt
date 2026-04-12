@@ -55,7 +55,8 @@ import java.util.Locale
 @Composable
 fun HistoryScreen(
     historyStore: TranscriptHistoryStore,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val scope = rememberCoroutineScope()
     var entries by remember { mutableStateOf<List<TranscriptEntry>>(emptyList()) }
@@ -65,6 +66,7 @@ fun HistoryScreen(
     }
 
     Scaffold(
+        modifier = modifier,
         topBar = {
             TopAppBar(
                 title = { Text("Transcript History") },
