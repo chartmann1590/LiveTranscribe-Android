@@ -23,9 +23,9 @@ Both stages of the pipeline can run **fully on-device**: streaming Vosk handles 
 
 <div align="center">
 
-https://github.com/chartmann1590/LiveTranscribe-Android/raw/main/docs/assets/video/demo.mp4
+[![LiveCaptionN Promo Video](https://img.youtube.com/vi/ZK5CztBTgYI/maxresdefault.jpg)](https://youtu.be/ZK5CztBTgYI)
 
-*Quick walkthrough on a Pixel 8 Pro — settings, live captions, history, and model management.*
+*Click to watch the promo video on YouTube.*
 
 </div>
 
