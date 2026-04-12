@@ -13,6 +13,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.getValue
@@ -59,7 +60,7 @@ class MainActivity : ComponentActivity() {
             val vm: MainViewModel = viewModel(factory = MainViewModelFactory(app.container, application))
             MaterialTheme {
                 Surface(color = MaterialTheme.colorScheme.background) {
-                    Column(modifier = Modifier.fillMaxSize()) {
+                    Column(modifier = Modifier.fillMaxSize().navigationBarsPadding()) {
                         // Main content fills remaining space above the
                         // persistent banner ad at the bottom.
                         if (showHistory) {
