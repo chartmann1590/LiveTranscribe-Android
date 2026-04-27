@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.provider.Settings
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
@@ -27,7 +28,9 @@ class MainViewModel(
     application: Application
 ) : AndroidViewModel(application) {
 
-    private val mutableState = MutableStateFlow(MainUiState())
+    private val mutableState = MutableStateFlow(
+        MainUiState(installedFromPlayStore = detectPlayStoreInstall())
+    )
     val state: StateFlow<MainUiState> = mutableState.asStateFlow()
 
     init {
@@ -184,4 +187,31 @@ class MainViewModel(
     }
 
     private fun hasOverlayPermission(): Boolean = Settings.canDrawOverlays(getApplication())
+
+    /**
+     * Detects whether the current install came from the Play Store. Used to warn
+     * those users before they switch to a GitHub release (which would break Play
+     * auto-update and may run pre-release code). Sideloaded users see the normal
+     * update banner with no warning.
+     */
+    private fun detectPlayStoreInstall(): Boolean {
+        val context: Context = getApplication()
+        val pm = context.packageManager
+        val pkg = context.packageName
+        return try {
+            val installer = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                pm.getInstallSourceInfo(pkg).installingPackageName
+            } else {
+                @Suppress("DEPRECATION")
+                pm.getInstallerPackageName(pkg)
+            }
+            installer == PLAY_STORE_INSTALLER
+        } catch (_: Throwable) {
+            false
+        }
+    }
+
+    private companion object {
+        const val PLAY_STORE_INSTALLER = "com.android.vending"
+    }
 }

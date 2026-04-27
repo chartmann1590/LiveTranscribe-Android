@@ -18,25 +18,32 @@ data class MainUiState(
     val libreError: String? = null,
     val voskModels: List<VoskModelInfo> = emptyList(),
     val voskDownloadProgress: Map<String, Float> = emptyMap(),
-    val availableUpdate: UpdateInfo? = null
+    val availableUpdate: UpdateInfo? = null,
+    /** True when the running APK was installed from the Google Play Store. Used
+     *  to warn Play Store users before they grab a (potentially unstable)
+     *  GitHub release that would break Play auto-update. */
+    val installedFromPlayStore: Boolean = false
 ) {
     /** Languages the user is allowed to pick as the speech source, given the
      *  current audio source + STT backend combination. */
     val availableSourceLanguages: List<Language>
         get() {
             val installedVosk = voskModels.filter { it.installed }
-            return when {
-                // System audio + local Vosk: hard limit to what's on device.
-                settings.audioSource == com.charles.livecaptionn.settings.AudioSource.SYSTEM &&
-                    settings.sttBackend == com.charles.livecaptionn.settings.SttBackend.LOCAL_VOSK -> {
+            return when (settings.sttBackend) {
+                // Vosk does the recognition for BOTH mic and system audio, so
+                // the picker has to limit to languages with an installed model
+                // either way — otherwise the user picks something we can't
+                // recognize and StreamingSttEngine errors with "No on-device
+                // model installed".
+                com.charles.livecaptionn.settings.SttBackend.LOCAL_VOSK ->
                     installedVosk
                         .distinctBy { it.languageCode.lowercase() }
                         .map { Language(it.languageCode, it.languageName) }
-                }
-                // Every other path can, in principle, recognise whatever the
-                // translation engine supports — the UI also shows a hint so
-                // the user knows their locale may not actually be available.
-                else -> translationLanguages()
+                // Remote Whisper (system audio) and AndroidSpeechRecognizer
+                // (mic) can in principle handle any locale the translation
+                // engine supports.
+                com.charles.livecaptionn.settings.SttBackend.REMOTE_WHISPER ->
+                    translationLanguages()
             }
         }
 

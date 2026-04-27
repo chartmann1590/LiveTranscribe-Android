@@ -75,12 +75,34 @@ class CaptionForegroundService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_START -> startFlow()
+            ACTION_START -> {
+                // CRITICAL: call startForeground synchronously here, BEFORE
+                // any conditional / async work. Android's 5-second deadline
+                // after startForegroundService() is enforced strictly (and
+                // tighter on slower devices like the Fire tablet, which was
+                // crashing during cold-start DataStore reads). Any early-exit
+                // path below must therefore use stopForeground + stopSelf
+                // instead of raw stopSelf, which previously crashed the app.
+                val audioSource = intent.getStringExtra(EXTRA_AUDIO_SOURCE)
+                    ?.let { runCatching { AudioSource.valueOf(it) }.getOrNull() }
+                    ?: AudioSource.MIC
+                currentAudioSource = audioSource
+                enterForeground(audioSource)
+                startFlow()
+            }
             ACTION_STOP -> stopFlow()
             ACTION_PAUSE_RESUME -> togglePause()
             ACTION_TOGGLE_MINIMIZE -> toggleMinimized()
         }
         return START_STICKY
+    }
+
+    private fun enterForeground(audioSource: AudioSource) {
+        val type = if (audioSource == AudioSource.SYSTEM)
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
+        else
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+        startForeground(NOTIF_ID, buildNotification(), type)
     }
 
     private fun startFlow() {
@@ -89,6 +111,7 @@ class CaptionForegroundService : Service() {
         if (!Settings.canDrawOverlays(this)) {
             captionSessionActive.set(false)
             Log.e("CaptionService", "Overlay permission missing.")
+            stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
             return
         }
@@ -99,19 +122,15 @@ class CaptionForegroundService : Service() {
             app.container.settingsRepository.update { it.copy(overlayMinimized = false) }
             val settings = app.container.settingsRepository.settingsFlow.first()
             Log.d("CaptionService", "startFlow settings minimized=${settings.overlayMinimized} w=${settings.overlayWidthDp}dp h=${settings.overlayHeightDp}dp audio=${settings.audioSource}")
-            currentAudioSource = settings.audioSource
+            // If the activity sent the wrong audio source in the intent extra
+            // (legacy intent, settings changed between launch and service start),
+            // re-enter foreground with the correct service type.
+            if (settings.audioSource != currentAudioSource) {
+                currentAudioSource = settings.audioSource
+                enterForeground(currentAudioSource)
+            }
             val sttLanguageCode = settings.sourceLanguageCode.ifBlank { "en" }
             val localeForSpeechRec = LocaleMap.bcp47(sttLanguageCode)
-
-            // Start foreground with appropriate service type
-            startForeground(
-                NOTIF_ID,
-                buildNotification(),
-                if (currentAudioSource == AudioSource.SYSTEM)
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
-                else
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
-            )
 
             app.container.runtimeStore.update {
                 it.copy(running = true, paused = false, status = RecognitionStatus.LISTENING)
@@ -495,6 +514,7 @@ class CaptionForegroundService : Service() {
         const val ACTION_STOP = "caption.action.STOP"
         const val ACTION_PAUSE_RESUME = "caption.action.PAUSE_RESUME"
         const val ACTION_TOGGLE_MINIMIZE = "caption.action.TOGGLE_MINIMIZE"
+        const val EXTRA_AUDIO_SOURCE = "caption.extra.AUDIO_SOURCE"
 
         private const val CHANNEL_ID = "caption_channel"
         private const val NOTIF_ID = 2001
