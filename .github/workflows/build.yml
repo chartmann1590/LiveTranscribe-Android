@@ -49,9 +49,14 @@ jobs:
           ADMOB_NATIVE_ID_DEBUG: ${{ secrets.ADMOB_NATIVE_ID_DEBUG }}
           ADMOB_NATIVE_ID_RELEASE: ${{ secrets.ADMOB_NATIVE_ID_RELEASE }}
           GOOGLE_SERVICES_JSON_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
+          ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          ANDROID_KEYSTORE_FILE: ${{ secrets.ANDROID_KEYSTORE_FILE }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           missing=0
-          for key in ADS_ENABLED ADMOB_APP_ID ADMOB_APP_OPEN_ID_DEBUG ADMOB_APP_OPEN_ID_RELEASE ADMOB_BANNER_ID_DEBUG ADMOB_BANNER_ID_RELEASE ADMOB_NATIVE_ID_DEBUG ADMOB_NATIVE_ID_RELEASE GOOGLE_SERVICES_JSON_B64; do
+          for key in ADS_ENABLED ADMOB_APP_ID ADMOB_APP_OPEN_ID_DEBUG ADMOB_APP_OPEN_ID_RELEASE ADMOB_BANNER_ID_DEBUG ADMOB_BANNER_ID_RELEASE ADMOB_NATIVE_ID_DEBUG ADMOB_NATIVE_ID_RELEASE GOOGLE_SERVICES_JSON_B64 ANDROID_KEYSTORE_B64 ANDROID_KEYSTORE_FILE ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
             if [[ -z "${!key}" ]]; then
               echo "::error::$key is not set in GitHub repository secrets."
               missing=1
@@ -68,6 +73,23 @@ jobs:
         run: |
           mkdir -p app
           echo "$GOOGLE_SERVICES_JSON_B64" | base64 --decode > app/google-services.json
+
+      - name: Generate signing files from secrets
+        if: github.event_name == 'push'
+        env:
+          ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          ANDROID_KEYSTORE_FILE: ${{ secrets.ANDROID_KEYSTORE_FILE }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          echo "$ANDROID_KEYSTORE_B64" | base64 --decode > "$ANDROID_KEYSTORE_FILE"
+          cat > keystore.properties <<EOF
+          storeFile=$ANDROID_KEYSTORE_FILE
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          keyPassword=$ANDROID_KEY_PASSWORD
+          EOF
 
       - name: Generate CI local.properties (ads enabled)
         if: github.event_name == 'push'
@@ -106,29 +128,7 @@ jobs:
       - name: Build release App Bundle (AAB)
         run: ./gradlew bundleRelease
 
-      - name: Upload debug APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
-
-      - name: Upload release APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-release
-          path: app/build/outputs/apk/release/app-release-unsigned.apk
-
-      - name: Upload release AAB
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-release-aab
-          path: app/build/outputs/bundle/release/app-release.aab
-
-      # Compute a tag name for the release.
-      # - Tag push (refs/tags/v*): reuse the tag the user pushed.
-      # - Main branch push: synthesize v1.0.<run_number> so every commit to main
-      #   publishes a fresh release with a monotonically increasing version.
-      # - Pull requests: no release, step is skipped via the `if` below.
+      # Compute a tag name for release filenames and GitHub release publishing.
       - name: Compute release tag
         id: tag
         if: github.event_name == 'push'
@@ -138,6 +138,40 @@ jobs:
           else
             echo "name=v1.0.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Prepare release files with live-caption names
+        if: github.event_name == 'push'
+        run: |
+          TAG="${{ steps.tag.outputs.name }}"
+          APK_SRC="app/build/outputs/apk/release/app-release.apk"
+          if [[ ! -f "$APK_SRC" ]]; then
+            APK_SRC="app/build/outputs/apk/release/app-release-unsigned.apk"
+          fi
+          AAB_SRC="app/build/outputs/bundle/release/app-release.aab"
+          test -f "$APK_SRC"
+          test -f "$AAB_SRC"
+          cp "$APK_SRC" "app/build/outputs/apk/release/live-caption-${TAG}.apk"
+          cp "$AAB_SRC" "app/build/outputs/bundle/release/live-caption-${TAG}.aab"
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload release APK
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-caption-release-apk
+          path: app/build/outputs/apk/release/live-caption-${{ steps.tag.outputs.name }}.apk
+
+      - name: Upload release AAB
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-caption-release-aab
+          path: app/build/outputs/bundle/release/live-caption-${{ steps.tag.outputs.name }}.aab
 
       - name: Create GitHub Release
         if: github.event_name == 'push'
@@ -151,7 +185,7 @@ jobs:
           fail_on_unmatched_files: true
           files: |
             app/build/outputs/apk/debug/app-debug.apk
-            app/build/outputs/apk/release/app-release-unsigned.apk
-            app/build/outputs/bundle/release/app-release.aab
+            app/build/outputs/apk/release/live-caption-${{ steps.tag.outputs.name }}.apk
+            app/build/outputs/bundle/release/live-caption-${{ steps.tag.outputs.name }}.aab
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
