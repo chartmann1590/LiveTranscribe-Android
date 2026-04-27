@@ -144,9 +144,6 @@ jobs:
         run: |
           TAG="${{ steps.tag.outputs.name }}"
           APK_SRC="app/build/outputs/apk/release/app-release.apk"
-          if [[ ! -f "$APK_SRC" ]]; then
-            APK_SRC="app/build/outputs/apk/release/app-release-unsigned.apk"
-          fi
           AAB_SRC="app/build/outputs/bundle/release/app-release.aab"
           test -f "$APK_SRC"
           test -f "$AAB_SRC"
