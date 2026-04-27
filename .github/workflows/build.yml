@@ -2,7 +2,7 @@ name: Build & Release
 
 on:
   push:
-    branches: [ main ]
+    branches: [ '**' ]
     tags: [ 'v*' ]
   pull_request:
     branches: [ main ]
@@ -13,6 +13,11 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # app/build.gradle.kts reads GITHUB_RUN_NUMBER for versionCode/versionName.
+      # Set it explicitly from this workflow context so CI releases always
+      # get monotonically increasing Play Store-safe version codes.
+      GITHUB_RUN_NUMBER: ${{ github.run_number }}
 
     steps:
       - uses: actions/checkout@v4
@@ -32,6 +37,63 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      - name: Validate AdMob secrets
+        if: github.event_name == 'push'
+        env:
+          ADS_ENABLED: ${{ secrets.ADS_ENABLED }}
+          ADMOB_APP_ID: ${{ secrets.ADMOB_APP_ID }}
+          ADMOB_APP_OPEN_ID_DEBUG: ${{ secrets.ADMOB_APP_OPEN_ID_DEBUG }}
+          ADMOB_APP_OPEN_ID_RELEASE: ${{ secrets.ADMOB_APP_OPEN_ID_RELEASE }}
+          ADMOB_BANNER_ID_DEBUG: ${{ secrets.ADMOB_BANNER_ID_DEBUG }}
+          ADMOB_BANNER_ID_RELEASE: ${{ secrets.ADMOB_BANNER_ID_RELEASE }}
+          ADMOB_NATIVE_ID_DEBUG: ${{ secrets.ADMOB_NATIVE_ID_DEBUG }}
+          ADMOB_NATIVE_ID_RELEASE: ${{ secrets.ADMOB_NATIVE_ID_RELEASE }}
+          GOOGLE_SERVICES_JSON_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
+        run: |
+          missing=0
+          for key in ADS_ENABLED ADMOB_APP_ID ADMOB_APP_OPEN_ID_DEBUG ADMOB_APP_OPEN_ID_RELEASE ADMOB_BANNER_ID_DEBUG ADMOB_BANNER_ID_RELEASE ADMOB_NATIVE_ID_DEBUG ADMOB_NATIVE_ID_RELEASE GOOGLE_SERVICES_JSON_B64; do
+            if [[ -z "${!key}" ]]; then
+              echo "::error::$key is not set in GitHub repository secrets."
+              missing=1
+            fi
+          done
+          if [[ "$missing" -ne 0 ]]; then
+            exit 1
+          fi
+
+      - name: Generate app/google-services.json from secret
+        if: github.event_name == 'push'
+        env:
+          GOOGLE_SERVICES_JSON_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
+        run: |
+          mkdir -p app
+          echo "$GOOGLE_SERVICES_JSON_B64" | base64 --decode > app/google-services.json
+
+      - name: Generate CI local.properties (ads enabled)
+        if: github.event_name == 'push'
+        env:
+          ADS_ENABLED: ${{ secrets.ADS_ENABLED }}
+          ADMOB_APP_ID: ${{ secrets.ADMOB_APP_ID }}
+          ADMOB_APP_OPEN_ID_DEBUG: ${{ secrets.ADMOB_APP_OPEN_ID_DEBUG }}
+          ADMOB_APP_OPEN_ID_RELEASE: ${{ secrets.ADMOB_APP_OPEN_ID_RELEASE }}
+          ADMOB_BANNER_ID_DEBUG: ${{ secrets.ADMOB_BANNER_ID_DEBUG }}
+          ADMOB_BANNER_ID_RELEASE: ${{ secrets.ADMOB_BANNER_ID_RELEASE }}
+          ADMOB_NATIVE_ID_DEBUG: ${{ secrets.ADMOB_NATIVE_ID_DEBUG }}
+          ADMOB_NATIVE_ID_RELEASE: ${{ secrets.ADMOB_NATIVE_ID_RELEASE }}
+        run: |
+          cat > local.properties <<EOF
+          translate.url=http://localhost:3006
+          stt.url=http://localhost:9000/asr?output=json
+          ads.enabled=${ADS_ENABLED:-true}
+          ads.admob.app.id=$ADMOB_APP_ID
+          ads.admob.app.open.id.debug=$ADMOB_APP_OPEN_ID_DEBUG
+          ads.admob.app.open.id.release=$ADMOB_APP_OPEN_ID_RELEASE
+          ads.admob.banner.id.debug=$ADMOB_BANNER_ID_DEBUG
+          ads.admob.banner.id.release=$ADMOB_BANNER_ID_RELEASE
+          ads.admob.native.id.debug=$ADMOB_NATIVE_ID_DEBUG
+          ads.admob.native.id.release=$ADMOB_NATIVE_ID_RELEASE
+          EOF
+
       - name: Run unit tests
         run: ./gradlew testDebugUnitTest
 
@@ -40,6 +102,9 @@ jobs:
 
       - name: Build release APK
         run: ./gradlew assembleRelease
+
+      - name: Build release App Bundle (AAB)
+        run: ./gradlew bundleRelease
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
@@ -52,6 +117,12 @@ jobs:
         with:
           name: app-release
           path: app/build/outputs/apk/release/app-release-unsigned.apk
+
+      - name: Upload release AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-aab
+          path: app/build/outputs/bundle/release/app-release.aab
 
       # Compute a tag name for the release.
       # - Tag push (refs/tags/v*): reuse the tag the user pushed.
@@ -81,5 +152,6 @@ jobs:
           files: |
             app/build/outputs/apk/debug/app-debug.apk
             app/build/outputs/apk/release/app-release-unsigned.apk
+            app/build/outputs/bundle/release/app-release.aab
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -3,12 +3,20 @@ import java.util.Properties
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("com.google.gms.google-services")
+    id("com.google.firebase.crashlytics")
+    id("com.google.firebase.firebase-perf")
 }
 
 // Load local.properties for private server URLs (not committed to git)
 val localProps = Properties().apply {
     val f = rootProject.file("local.properties")
     if (f.exists()) f.inputStream().use { load(it) }
+}
+fun localBool(key: String, default: Boolean): Boolean {
+    return localProps.getProperty(key)?.trim()?.lowercase()?.let {
+        it == "true" || it == "1" || it == "yes" || it == "on"
+    } ?: default
 }
 
 // Play Store upload key lives in keystore.properties at the repo root. File
@@ -45,6 +53,44 @@ android {
             "\"${localProps.getProperty("translate.url", "http://localhost:3006")}\"")
         buildConfigField("String", "DEFAULT_STT_URL",
             "\"${localProps.getProperty("stt.url", "http://localhost:9000/asr?output=json")}\"")
+        buildConfigField("boolean", "ADS_ENABLED", localBool("ads.enabled", true).toString())
+        buildConfigField(
+            "String",
+            "ADMOB_APP_ID",
+            "\"${localProps.getProperty("ads.admob.app.id", "ca-app-pub-3940256099942544~3347511713")}\""
+        )
+        buildConfigField(
+            "String",
+            "ADMOB_APP_OPEN_ID_DEBUG",
+            "\"${localProps.getProperty("ads.admob.app.open.id.debug", "ca-app-pub-3940256099942544/9257395921")}\""
+        )
+        buildConfigField(
+            "String",
+            "ADMOB_APP_OPEN_ID_RELEASE",
+            "\"${localProps.getProperty("ads.admob.app.open.id.release", "")}\""
+        )
+        buildConfigField(
+            "String",
+            "ADMOB_BANNER_ID_DEBUG",
+            "\"${localProps.getProperty("ads.admob.banner.id.debug", "ca-app-pub-3940256099942544/9214589741")}\""
+        )
+        buildConfigField(
+            "String",
+            "ADMOB_BANNER_ID_RELEASE",
+            "\"${localProps.getProperty("ads.admob.banner.id.release", "")}\""
+        )
+        buildConfigField(
+            "String",
+            "ADMOB_NATIVE_ID_DEBUG",
+            "\"${localProps.getProperty("ads.admob.native.id.debug", "ca-app-pub-3940256099942544/2247696110")}\""
+        )
+        buildConfigField(
+            "String",
+            "ADMOB_NATIVE_ID_RELEASE",
+            "\"${localProps.getProperty("ads.admob.native.id.release", "")}\""
+        )
+        manifestPlaceholders["admobAppId"] =
+            localProps.getProperty("ads.admob.app.id", "ca-app-pub-3940256099942544~3347511713")
 
         // GitHub repo that the in-app update checker queries for new releases.
         buildConfigField("String", "UPDATE_REPO_OWNER", "\"chartmann1590\"")
@@ -125,6 +171,14 @@ dependencies {
 
     // On-device translation (Google Translate models cached offline).
     implementation("com.google.mlkit:translate:17.0.3")
+
+    // Firebase BoM pins compatible versions of every Firebase SDK below.
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+    implementation("com.google.firebase:firebase-analytics-ktx")
+    implementation("com.google.firebase:firebase-crashlytics-ktx")
+    implementation("com.google.firebase:firebase-perf-ktx")
+    implementation("com.google.firebase:firebase-messaging-ktx")
+    implementation("com.google.firebase:firebase-config-ktx")
 
     // Google Mobile Ads (AdMob). Powers the banner at the bottom of the
     // main UI and the app-open ad.

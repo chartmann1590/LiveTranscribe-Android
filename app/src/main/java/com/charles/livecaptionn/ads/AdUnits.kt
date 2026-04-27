@@ -10,13 +10,20 @@ import com.charles.livecaptionn.BuildConfig
  * up. Release builds use the real production ad units.
  */
 object AdUnits {
+    val ENABLED: Boolean = BuildConfig.ADS_ENABLED
+
     val APP_OPEN: String = if (BuildConfig.DEBUG)
-        "ca-app-pub-3940256099942544/9257395921"
+        BuildConfig.ADMOB_APP_OPEN_ID_DEBUG
     else
-        "ca-app-pub-8382831211800454/6447868787"
+        BuildConfig.ADMOB_APP_OPEN_ID_RELEASE
 
     val BANNER: String = if (BuildConfig.DEBUG)
-        "ca-app-pub-3940256099942544/9214589741"
+        BuildConfig.ADMOB_BANNER_ID_DEBUG
     else
-        "ca-app-pub-8382831211800454/2231636617"
+        BuildConfig.ADMOB_BANNER_ID_RELEASE
+
+    val NATIVE: String = if (BuildConfig.DEBUG)
+        BuildConfig.ADMOB_NATIVE_ID_DEBUG
+    else
+        BuildConfig.ADMOB_NATIVE_ID_RELEASE
 }

@@ -23,7 +23,7 @@
              safe to commit: no secret material. -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-8382831211800454~6962874109" />
+            android:value="${admobAppId}" />
 
         <activity
             android:name=".MainActivity"

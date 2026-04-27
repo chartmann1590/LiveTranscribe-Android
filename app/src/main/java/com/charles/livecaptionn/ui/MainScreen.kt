@@ -61,6 +61,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -74,7 +75,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.charles.livecaptionn.ads.AdUnits
+import com.charles.livecaptionn.ads.NativeAdCard
 import com.charles.livecaptionn.settings.AudioSource
 import com.charles.livecaptionn.settings.Language
 import com.charles.livecaptionn.settings.SttBackend
@@ -101,6 +107,18 @@ fun MainScreen(
     var sttUrlDraft by remember(ui.settings.sttBaseUrl) { mutableStateOf(ui.settings.sttBaseUrl) }
     var showVoskSheet by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { viewModel.refreshPermissionState() }
+
+    // Re-check permission state on every resume so granting overlay/mic
+    // access in system Settings is reflected immediately when the user
+    // returns to the app — instead of requiring a close + reopen.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) viewModel.refreshPermissionState()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     Scaffold(
         modifier = modifier,
@@ -137,6 +155,7 @@ fun MainScreen(
             ui.availableUpdate?.let { info ->
                 UpdateAvailableBanner(
                     info = info,
+                    fromPlayStore = ui.installedFromPlayStore,
                     onDownload = { viewModel.openUpdateUrl(updateCtx, info) },
                     onDismiss = { viewModel.dismissUpdate() }
                 )
@@ -150,6 +169,9 @@ fun MainScreen(
                 onManageModels = { showVoskSheet = true }
             )
             OverlaySettingsCard(ui, viewModel)
+            if (AdUnits.ENABLED && AdUnits.NATIVE.isNotBlank()) {
+                NativeAdCard()
+            }
             ServerCard(
                 ui = ui,
                 translateUrl = translateUrlDraft,
@@ -360,65 +382,68 @@ private fun AudioSourceCard(
                 )
             }
 
-            if (ui.settings.audioSource == AudioSource.SYSTEM) {
+            val isSystem = ui.settings.audioSource == AudioSource.SYSTEM
+            Text(
+                text = if (isSystem)
+                    "Captures audio from videos and apps that allow playback capture. If Android asks, choose Share entire screen."
+                else
+                    "Uses the device microphone.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            // Engine selector applies to BOTH audio sources — Vosk (on-device)
+            // handles mic and system audio identically, and the alternate
+            // backend differs by source (Whisper HTTP for system, Android's
+            // built-in recognizer for mic). The two-chip choice is the same.
+            Text("Transcription engine", style = MaterialTheme.typography.labelMedium)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ChoiceChip(
+                    label = if (isSystem) "Remote Whisper" else "Android built-in",
+                    icon = Icons.Filled.Cloud,
+                    selected = ui.settings.sttBackend == SttBackend.REMOTE_WHISPER,
+                    onClick = { viewModel.updateSttBackend(SttBackend.REMOTE_WHISPER) },
+                    modifier = Modifier.weight(1f)
+                )
+                ChoiceChip(
+                    label = "Local Vosk",
+                    icon = Icons.Filled.Mic,
+                    selected = ui.settings.sttBackend == SttBackend.LOCAL_VOSK,
+                    onClick = { viewModel.updateSttBackend(SttBackend.LOCAL_VOSK) },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            if (ui.settings.sttBackend == SttBackend.LOCAL_VOSK) {
+                val installed = ui.voskModels.count { it.installed }
+                val anyLargeInstalled = ui.voskModels.any { it.installed && it.quality == ModelQuality.LARGE }
                 Text(
-                    text = "Captures audio from videos and apps that allow playback capture. If Android asks, choose Share entire screen.",
+                    text = "Runs transcription fully on this device. $installed language${if (installed == 1) "" else "s"} installed.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Text("Transcription engine", style = MaterialTheme.typography.labelMedium)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    ChoiceChip(
-                        label = "Remote Whisper",
-                        icon = Icons.Filled.Cloud,
-                        selected = ui.settings.sttBackend == SttBackend.REMOTE_WHISPER,
-                        onClick = { viewModel.updateSttBackend(SttBackend.REMOTE_WHISPER) },
-                        modifier = Modifier.weight(1f)
-                    )
-                    ChoiceChip(
-                        label = "Local Vosk",
-                        icon = Icons.Filled.Mic,
-                        selected = ui.settings.sttBackend == SttBackend.LOCAL_VOSK,
-                        onClick = { viewModel.updateSttBackend(SttBackend.LOCAL_VOSK) },
-                        modifier = Modifier.weight(1f)
+                if (!anyLargeInstalled) {
+                    Text(
+                        text = "Tip: for noticeably stronger transcription, tap Manage models and install a LARGE server-grade model for the languages you use — 80 MB to 2 GB each, fully offline after download.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.tertiary
                     )
                 }
-                if (ui.settings.sttBackend == SttBackend.LOCAL_VOSK) {
-                    val installed = ui.voskModels.count { it.installed }
-                    val anyLargeInstalled = ui.voskModels.any { it.installed && it.quality == ModelQuality.LARGE }
-                    Text(
-                        text = "Runs transcription fully on this device. $installed language${if (installed == 1) "" else "s"} installed.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    if (!anyLargeInstalled) {
-                        Text(
-                            text = "Tip: for noticeably stronger transcription, tap Manage models and install a LARGE server-grade model for the languages you use — 80 MB to 2 GB each, fully offline after download.",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.tertiary
-                        )
-                    }
-                    OutlinedButton(
-                        onClick = onManageModels,
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Icon(Icons.Filled.Download, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("Manage on-device models")
-                    }
-                } else {
-                    Text(
-                        text = "Sends captured audio to the configured Whisper ASR endpoint.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                OutlinedButton(
+                    onClick = onManageModels,
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Icon(Icons.Filled.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Manage on-device models")
                 }
             } else {
                 Text(
-                    text = "Uses the device microphone. Android's built-in recognizer decides which locales are available.",
+                    text = if (isSystem)
+                        "Sends captured audio to the configured Whisper ASR endpoint."
+                    else
+                        "Uses Android's built-in recognizer. Available locales depend on what's installed on this device.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1013,6 +1038,7 @@ private fun ServerCard(
 @Composable
 private fun UpdateAvailableBanner(
     info: UpdateInfo,
+    fromPlayStore: Boolean,
     onDownload: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -1054,6 +1080,32 @@ private fun UpdateAvailableBanner(
                     color = MaterialTheme.colorScheme.onTertiaryContainer,
                     maxLines = 4
                 )
+            }
+            if (fromPlayStore) {
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(MaterialTheme.colorScheme.errorContainer)
+                        .padding(10.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Icon(
+                        Icons.Filled.Error,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = "You installed this app from the Play Store. The GitHub " +
+                            "build is a pre-release and may be unstable. Installing it " +
+                            "will also disable Play Store auto-updates for this app.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                }
             }
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

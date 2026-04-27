@@ -42,6 +42,8 @@ class AppOpenAdManager(
     fun attach() {
         application.registerActivityLifecycleCallbacks(this)
         ProcessLifecycleOwner.get().lifecycle.addObserver(this)
+        // Preload immediately so the first foreground opportunity can show fast.
+        loadAd()
     }
 
     // ── Foreground signal ──
@@ -74,6 +76,7 @@ class AppOpenAdManager(
     // ── Load / show ──
 
     private fun loadAd() {
+        if (!AdUnits.ENABLED || AdUnits.APP_OPEN.isBlank()) return
         if (isLoadingAd || isAdAvailable()) return
         isLoadingAd = true
         val request = AdRequest.Builder().build()

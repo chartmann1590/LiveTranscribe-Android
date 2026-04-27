@@ -14,6 +14,8 @@ import com.google.android.gms.ads.LoadAdError
 
 @Composable
 fun BannerAd(modifier: Modifier = Modifier) {
+    if (!AdUnits.ENABLED || AdUnits.BANNER.isBlank()) return
+
     AndroidView(
         modifier = modifier.fillMaxWidth(),
         factory = { context ->

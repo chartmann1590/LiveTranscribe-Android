@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.charles.livecaptionn.ads.AdUnits
 import com.charles.livecaptionn.ads.BannerAd
 import com.charles.livecaptionn.service.CaptionForegroundService
 import com.charles.livecaptionn.service.MediaProjectionHolder
@@ -49,7 +50,7 @@ class MainActivity : ComponentActivity() {
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK && result.data != null) {
             MediaProjectionHolder.set(result.resultCode, result.data!!.clone() as Intent)
-            startCaptionService()
+            startCaptionService(AudioSource.SYSTEM)
         }
     }
 
@@ -80,7 +81,9 @@ class MainActivity : ComponentActivity() {
                                 modifier = Modifier.weight(1f)
                             )
                         }
-                        BannerAd()
+                        if (AdUnits.ENABLED && AdUnits.BANNER.isNotBlank()) {
+                            BannerAd()
+                        }
                     }
                 }
             }
@@ -112,7 +115,7 @@ class MainActivity : ComponentActivity() {
                         this@MainActivity, Manifest.permission.RECORD_AUDIO
                     ) == PackageManager.PERMISSION_GRANTED
                     if (hasMic) {
-                        startCaptionService()
+                        startCaptionService(AudioSource.MIC)
                     } else {
                         audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                     }
@@ -121,9 +124,14 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun startCaptionService() {
+    private fun startCaptionService(audioSource: AudioSource) {
         val intent = Intent(this, CaptionForegroundService::class.java).apply {
             action = CaptionForegroundService.ACTION_START
+            // Passed eagerly so the service can call startForeground() with the
+            // correct service type synchronously inside Android's 5-second
+            // post-startForegroundService deadline (DataStore reads were racing
+            // it on slow devices, crashing the app).
+            putExtra(CaptionForegroundService.EXTRA_AUDIO_SOURCE, audioSource.name)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(intent)
