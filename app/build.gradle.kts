@@ -97,6 +97,19 @@ android {
         buildConfigField("String", "UPDATE_REPO_NAME", "\"LiveTranscribe-Android\"")
     }
 
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("github") {
+            dimension = "distribution"
+            isDefault = true
+            buildConfigField("boolean", "GITHUB_SELF_UPDATE_ENABLED", "true")
+        }
+        create("playstore") {
+            dimension = "distribution"
+            buildConfigField("boolean", "GITHUB_SELF_UPDATE_ENABLED", "false")
+        }
+    }
+
     signingConfigs {
         if (hasReleaseSigning) {
             create("release") {

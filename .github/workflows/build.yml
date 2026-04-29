@@ -117,16 +117,13 @@ jobs:
           EOF
 
       - name: Run unit tests
-        run: ./gradlew testDebugUnitTest
+        run: ./gradlew testGithubDebugUnitTest testPlaystoreDebugUnitTest
 
-      - name: Build debug APK
+      - name: Build debug APKs
         run: ./gradlew assembleDebug
 
-      - name: Build release APK
-        run: ./gradlew assembleRelease
-
-      - name: Build release App Bundle (AAB)
-        run: ./gradlew bundleRelease
+      - name: Build release APKs and App Bundles
+        run: ./gradlew assembleRelease bundleRelease
 
       # Compute a tag name for release filenames and GitHub release publishing.
       - name: Compute release tag
@@ -143,32 +140,48 @@ jobs:
         if: github.event_name == 'push'
         run: |
           TAG="${{ steps.tag.outputs.name }}"
-          APK_SRC="app/build/outputs/apk/release/app-release.apk"
-          AAB_SRC="app/build/outputs/bundle/release/app-release.aab"
-          test -f "$APK_SRC"
-          test -f "$AAB_SRC"
-          cp "$APK_SRC" "app/build/outputs/apk/release/live-caption-${TAG}.apk"
-          cp "$AAB_SRC" "app/build/outputs/bundle/release/live-caption-${TAG}.aab"
+          GITHUB_APK="app/build/outputs/apk/github/release/app-github-release.apk"
+          GITHUB_AAB="app/build/outputs/bundle/githubRelease/app-github-release.aab"
+          PLAY_AAB="app/build/outputs/bundle/playstoreRelease/app-playstore-release.aab"
+          test -f "$GITHUB_APK"
+          test -f "$GITHUB_AAB"
+          test -f "$PLAY_AAB"
+          cp "$GITHUB_APK" "app/build/outputs/apk/github/release/live-caption-${TAG}-github.apk"
+          cp "$GITHUB_AAB" "app/build/outputs/bundle/githubRelease/live-caption-${TAG}-github.aab"
+          cp "$PLAY_AAB" "app/build/outputs/bundle/playstoreRelease/live-caption-${TAG}-playstore.aab"
 
-      - name: Upload debug APK
+      - name: Upload debug APK (github flavor)
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: app-debug-github
+          path: app/build/outputs/apk/github/debug/app-github-debug.apk
 
-      - name: Upload release APK
+      - name: Upload debug APK (playstore flavor)
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-playstore
+          path: app/build/outputs/apk/playstore/debug/app-playstore-debug.apk
+
+      - name: Upload release APK (GitHub / self-update)
         if: github.event_name == 'push'
         uses: actions/upload-artifact@v4
         with:
-          name: live-caption-release-apk
-          path: app/build/outputs/apk/release/live-caption-${{ steps.tag.outputs.name }}.apk
+          name: live-caption-release-apk-github
+          path: app/build/outputs/apk/github/release/live-caption-${{ steps.tag.outputs.name }}-github.apk
 
-      - name: Upload release AAB
+      - name: Upload release AAB (GitHub / self-update)
         if: github.event_name == 'push'
         uses: actions/upload-artifact@v4
         with:
-          name: live-caption-release-aab
-          path: app/build/outputs/bundle/release/live-caption-${{ steps.tag.outputs.name }}.aab
+          name: live-caption-release-aab-github
+          path: app/build/outputs/bundle/githubRelease/live-caption-${{ steps.tag.outputs.name }}-github.aab
+
+      - name: Upload release AAB (Play Store)
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-caption-release-aab-playstore
+          path: app/build/outputs/bundle/playstoreRelease/live-caption-${{ steps.tag.outputs.name }}-playstore.aab
 
       - name: Create GitHub Release
         if: github.event_name == 'push'
@@ -181,8 +194,9 @@ jobs:
           generate_release_notes: true
           fail_on_unmatched_files: true
           files: |
-            app/build/outputs/apk/debug/app-debug.apk
-            app/build/outputs/apk/release/live-caption-${{ steps.tag.outputs.name }}.apk
-            app/build/outputs/bundle/release/live-caption-${{ steps.tag.outputs.name }}.aab
+            app/build/outputs/apk/github/debug/app-github-debug.apk
+            app/build/outputs/apk/github/release/live-caption-${{ steps.tag.outputs.name }}-github.apk
+            app/build/outputs/bundle/githubRelease/live-caption-${{ steps.tag.outputs.name }}-github.aab
+            app/build/outputs/bundle/playstoreRelease/live-caption-${{ steps.tag.outputs.name }}-playstore.aab
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

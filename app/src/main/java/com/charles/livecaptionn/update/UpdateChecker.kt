@@ -40,6 +40,7 @@ class UpdateChecker {
      * found (and pushes it into [available]), or null otherwise.
      */
     suspend fun check(): UpdateInfo? = withContext(Dispatchers.IO) {
+        if (!BuildConfig.GITHUB_SELF_UPDATE_ENABLED) return@withContext null
         val url = "https://api.github.com/repos/${BuildConfig.UPDATE_REPO_OWNER}/" +
             "${BuildConfig.UPDATE_REPO_NAME}/releases/latest"
         val request = Request.Builder()

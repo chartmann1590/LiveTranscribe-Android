@@ -8,6 +8,7 @@ import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import com.charles.livecaptionn.BuildConfig
 import java.util.concurrent.TimeUnit
 
 /**
@@ -23,6 +24,7 @@ class UpdateCheckWorker(
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
+        if (!BuildConfig.GITHUB_SELF_UPDATE_ENABLED) return Result.success()
         val checker = UpdateChecker()
         val info = checker.check() ?: return Result.success()
         UpdateNotifier(applicationContext).notifyIfNew(info)
@@ -33,6 +35,11 @@ class UpdateCheckWorker(
         private const val UNIQUE_NAME = "livecaption_update_check"
 
         fun schedule(context: Context) {
+            val wm = WorkManager.getInstance(context)
+            if (!BuildConfig.GITHUB_SELF_UPDATE_ENABLED) {
+                wm.cancelUniqueWork(UNIQUE_NAME)
+                return
+            }
             val constraints = Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.CONNECTED)
                 .build()
@@ -44,7 +51,7 @@ class UpdateCheckWorker(
                 .setInitialDelay(15, TimeUnit.MINUTES)
                 .build()
 
-            WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+            wm.enqueueUniquePeriodicWork(
                 UNIQUE_NAME,
                 ExistingPeriodicWorkPolicy.KEEP,
                 request

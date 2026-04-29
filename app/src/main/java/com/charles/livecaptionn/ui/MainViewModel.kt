@@ -11,6 +11,7 @@ import android.provider.Settings
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.charles.livecaptionn.BuildConfig
 import com.charles.livecaptionn.di.AppContainer
 import com.charles.livecaptionn.settings.AudioSource
 import com.charles.livecaptionn.settings.SttBackend
@@ -71,14 +72,16 @@ class MainViewModel(
                 mutableState.value = mutableState.value.copy(voskDownloadProgress = progress)
             }
         }
-        viewModelScope.launch {
-            container.updateChecker.available.collectLatest { info ->
-                mutableState.value = mutableState.value.copy(availableUpdate = info)
-                if (info != null) container.updateNotifier.notifyIfNew(info)
+        if (BuildConfig.GITHUB_SELF_UPDATE_ENABLED) {
+            viewModelScope.launch {
+                container.updateChecker.available.collectLatest { info ->
+                    mutableState.value = mutableState.value.copy(availableUpdate = info)
+                    if (info != null) container.updateNotifier.notifyIfNew(info)
+                }
             }
+            // One-shot check on launch so users see an update even before the periodic worker runs.
+            viewModelScope.launch { container.updateChecker.check() }
         }
-        // One-shot check on launch so users see an update even before the periodic worker runs.
-        viewModelScope.launch { container.updateChecker.check() }
     }
 
     fun dismissUpdate() {
