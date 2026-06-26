@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**LiveCaptionN** — an Android app (Kotlin) that captures speech via microphone, transcribes it in real time using Android's `SpeechRecognizer`, translates between English and Vietnamese via a LibreTranslate-compatible HTTP server, and displays captions as a draggable floating overlay (`SYSTEM_ALERT_WINDOW`) on top of other apps.
+**LiveCaptionN** (`com.charles.livecaptionn`) — an Android app (Kotlin) that captures speech from the **microphone or system audio** (`MediaProjection`), transcribes it in real time, translates between language pairs, and renders captions in a draggable `SYSTEM_ALERT_WINDOW` overlay on top of any other app.
+
+Both stages of the pipeline are designed to run **fully on-device by default**: streaming Vosk for STT, Google ML Kit for translation. Remote backends (LibreTranslate, Whisper HTTP) are still selectable as fallbacks.
 
 ## Build Commands
 
@@ -12,7 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Build debug APK
 ./gradlew assembleDebug
 
-# Build release APK
+# Build release APK (signs only if keystore.properties exists at repo root)
 ./gradlew assembleRelease
 
 # Run unit tests
@@ -28,45 +30,84 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ./gradlew clean
 ```
 
-Requires JDK 17. Target/compile SDK 35, min SDK 29.
+Requires JDK 17. `compileSdk`/`targetSdk` 35, `minSdk` 29. APKs land in `app/build/outputs/apk/`.
+
+### Build-time configuration
+
+- `local.properties` (gitignored) supplies dev-time defaults via `BuildConfig`:
+  - `translate.url` → `BuildConfig.DEFAULT_TRANSLATE_URL` (fallback `http://localhost:3006`)
+  - `stt.url` → `BuildConfig.DEFAULT_STT_URL` (fallback `http://localhost:9000/asr?output=json`)
+- `keystore.properties` (gitignored, template at `playstore/keystore.properties.example`) enables release signing. Without it, `assembleRelease` produces an unsigned APK.
+- CI builds derive `versionCode`/`versionName` from `GITHUB_RUN_NUMBER` (local builds get `1`).
+- `BuildConfig.UPDATE_REPO_OWNER`/`UPDATE_REPO_NAME` point the in-app update checker at the GitHub releases API.
 
 ## Architecture
 
-MVVM with manual dependency injection. No Hilt/Dagger — dependencies are wired through `AppContainer` (created in `LiveCaptionApp`, the `Application` subclass).
+MVVM with manual dependency injection. No Hilt/Dagger — every dependency is wired through `AppContainer` (created once in `LiveCaptionApp`, the `Application` subclass).
 
-### Data Flow
+### Data flow
 
-1. **Speech** → `AndroidSpeechRecognizerManager` wraps Android `SpeechRecognizer`, emits recognized text via callback
-2. **Service** → `CaptionForegroundService` orchestrates everything: receives speech results, debounces translation requests (400ms), updates runtime state
-3. **Translation** → `LibreTranslateRepository` calls a configurable LibreTranslate HTTP endpoint via Retrofit. Falls back to showing original text on failure
-4. **Overlay** → `OverlayController` manages a `WindowManager`-based floating view (Android Views, not Compose). Draggable with position persisted to DataStore
-5. **UI** → `MainScreen` (Jetpack Compose) with `MainViewModel` for the settings/control screen
+1. **Audio** — one `AudioRecord` reads 16 kHz mono PCM in ~100 ms chunks from either the microphone (`VOICE_RECOGNITION`) or `MediaProjection`'s `AudioPlaybackCaptureConfiguration`. `MediaProjectionHolder` stashes the projection result intent across the activity → service handoff.
+2. **STT** — chunks are fed straight into a single long-lived Vosk `Recognizer` (`VoskStreamingSession`), which emits `partial` results every chunk and `final` segments on silence boundaries. `StreamingSttEngine` is the default and handles both mic and system audio.
+3. **Service** — `CaptionForegroundService` orchestrates everything: chooses speech engine + foreground-service type, owns the translate-debounce flow, and writes runtime state.
+4. **Translation** — speech results are coalesced via a `MutableSharedFlow` + `.debounce(450 ms)` (mic partials arrive faster than that; without this they'd cancel each other). `RoutingTranslationRepository` re-reads `settings.translationBackend` per call and dispatches to `MlKitTranslationRepository` or `LibreTranslateRepository`. **An empty translation result is treated as failure** and preserves the last good translation (do not overwrite with raw source).
+5. **State** — `CaptionRuntimeStore` holds a `MutableStateFlow<CaptionRuntimeState>` (transcript lines, originalText, translatedText, status, lastError).
+6. **Overlay** — `OverlayController` drives a `WindowManager` view from a `combine(runtimeStore, settingsFlow, overlayReady)` stream, gated by `collectLatest`. The overlay-ready signal exists because `combine` was skipping while the view was still null on startup.
+7. **History** — finals (`isFinal=true`) flag `historyOnNextTranslate`, so when the next translation completes the pair is appended to `TranscriptHistoryStore` for the History screen.
 
-### Key Interfaces
+### Key abstractions
 
-- `TranslationRepository` — translation abstraction with `LibreTranslateRepository` (real) and `MockTranslationRepository` (testing)
-- `SettingsRepository` → `SettingsDataStore` — wraps DataStore Preferences for all persisted settings
-- `SpeechEngine` — speech recognition abstraction
-- `CaptionRuntimeStore` — in-memory `StateFlow` holding live caption state (original text, translated text, status)
+- `SpeechEngine` — implementations:
+  - `StreamingSttEngine` — default. Streaming Vosk for both mic and system audio.
+  - `AndroidSpeechRecognizerManager` — Google's on-device recognizer (mic only). Used when `sttBackend = REMOTE_WHISPER` + `audioSource = MIC`.
+  - `SystemAudioEngine` — legacy batch path that POSTs WAVs to a remote Whisper endpoint. Used when `sttBackend = REMOTE_WHISPER` + `audioSource = SYSTEM`.
+- `TranslationRepository` — implementations:
+  - `MlKitTranslationRepository` — on-device, ~30 MB per language pair, lazily downloaded.
+  - `LibreTranslateRepository` — Retrofit client for a configurable HTTP server.
+  - `RoutingTranslationRepository` — picks one per call based on settings.
+  - `MockTranslationRepository` — for tests.
+  - All implement `prewarm(source, target)` — the service prewarms on session start so the first utterance doesn't stall on a model download.
+- `SettingsRepository` → `SettingsDataStore` — DataStore Preferences for `CaptionSettings`.
+- `LanguageCatalogStore` — lazy-loads ML Kit's static list, LibreTranslate's `/languages`, or installed Vosk models depending on selected backends.
+- `VoskModelRegistry` — manages bundled + downloaded Vosk models on disk; `LocalVoskSttClient` is the runtime entry point.
+- `UpdateChecker` + `UpdateCheckWorker` + `UpdateNotifier` — periodic WorkManager job (12 h, network-required, KEEP policy) polls the GitHub Releases API, compares against `BuildConfig.VERSION_CODE`, and posts a notification with a one-tap Download action.
+- `AppOpenAdManager` + `BannerAd` — AdMob integration. App-open ad is wired through `ProcessLifecycleOwner` to detect foreground entries.
 
-### State Management
+### Settings model
 
-- **Persistent settings** (`CaptionSettings`): language pair, text size, overlay opacity/position, show-original toggle, translation base URL — stored in DataStore via `SettingsRepository`
-- **Runtime state** (`CaptionRuntimeState`): running/paused flags, current transcript, translated text, recognition status — held in `CaptionRuntimeStore` (in-memory `MutableStateFlow`)
+`CaptionSettings` (DataStore-persisted) carries: `sourceLanguageCode`, `targetLanguageCode`, `autoDetectSource`, `audioSource` (MIC/SYSTEM), `sttBackend` (LOCAL_VOSK/REMOTE_WHISPER), `translationBackend` (ML_KIT/LIBRE_TRANSLATE), `serverBaseUrl`, `sttBaseUrl`, plus overlay tuning (`textSizeSp`, `overlayOpacity`, `overlayX/Y`, `overlayWidthDp/HeightDp`, `overlayMinimized`, `showOriginal`).
 
-### Overlay
+`CaptionRuntimeState` is purely in-memory (running, paused, transcript lines, current original/translated text, status, lastError) and resets on stop.
 
-The floating overlay uses traditional Android Views (not Compose) because `WindowManager` overlays require direct view manipulation. It is separate from the Compose-based main settings screen.
+### Engine routing in the service
 
-## Translation API
+```
+sttBackend = LOCAL_VOSK  → StreamingSttEngine (mic OR system audio)
+sttBackend = REMOTE_WHISPER + audioSource = SYSTEM → SystemAudioEngine (batch WAV → Whisper)
+sttBackend = REMOTE_WHISPER + audioSource = MIC    → AndroidSpeechRecognizerManager
+```
 
-Targets a LibreTranslate-compatible server. Default endpoint is configurable in-app. Two endpoints used:
-- `GET /languages` — list available languages
+Foreground service type is `MEDIA_PROJECTION` for system audio and `MICROPHONE` otherwise — picked at `startForeground` time based on `audioSource`.
+
+### Overlay specifics
+
+The overlay uses traditional Android Views (not Compose) because `WindowManager`-managed overlays don't play well with Compose's lifecycle. It is fully separate from the Compose-based settings/history UI.
+
+The overlay body only renders the **translated** stream — partial lines without a translation yet are kept in `transcriptLines` (for the history screen) but suppressed in the overlay so users don't see source + target stacked.
+
+## Translation API (LibreTranslate)
+
+Default endpoint configurable in-app, default sourced from `BuildConfig.DEFAULT_TRANSLATE_URL`. Endpoints:
+- `GET /languages` — used by `LanguageCatalogStore` to populate pickers
 - `POST /translate` — body: `{q, source, target, format:"text"}`
 
-## Dependencies
+## Dependencies (notable)
 
-- **UI**: Jetpack Compose + Material 3 (main screen), Android Views (overlay)
+- **UI**: Jetpack Compose + Material 3 (settings/history), Android Views (overlay)
 - **Networking**: Retrofit + OkHttp + Moshi
 - **Persistence**: DataStore Preferences
+- **STT**: `com.alphacephei:vosk-android` (streaming on-device)
+- **Translation**: `com.google.mlkit:translate` (on-device)
+- **Background**: WorkManager (update checks)
+- **Ads**: `play-services-ads` (banner + app-open)
 - **Kotlin**: Coroutines + Flow
