@@ -74,7 +74,15 @@ class CaptionForegroundService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        when (intent?.action) {
+        if (intent == null) {
+            // System restarted our sticky service with a null intent
+            // (e.g., after process death). We cannot proceed without an
+            // action, so stop cleanly to avoid foreground crash.
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+            return START_NOT_STICKY
+        }
+        when (intent.action) {
             ACTION_START -> {
                 // CRITICAL: call startForeground synchronously here, BEFORE
                 // any conditional / async work. Android's 5-second deadline
@@ -349,65 +357,10 @@ class CaptionForegroundService : Service() {
         minimized = settings.overlayMinimized
     )
 
-    /**
-     * Build the scrolling caption body. The overlay only ever shows translated
-     * text — lines that are still waiting on a translation are intentionally
-     * hidden so the user doesn't see both the raw source and the translation
-     * stacked together. Raw source is still kept in `transcriptLines` for the
-     * transcript history screen; it just isn't rendered in the overlay.
-     */
-    private fun overlayTranscriptText(runtime: CaptionRuntimeState): String {
-        val rendered = runtime.transcriptLines
-            .mapNotNull { it.translatedText.trim().takeIf { t -> t.isNotBlank() } }
-        val historyText = if (rendered.isNotEmpty()) rendered.joinToString("\n") else ""
-        val livePartial = runtime.translatedText.trim()
-        return when {
-            historyText.isBlank() -> livePartial
-            livePartial.isBlank() -> historyText
-            historyText.endsWith(livePartial) -> historyText
-            else -> "$historyText\n$livePartial"
-        }
-    }
-
     private fun queueTranslation(text: String, isFinal: Boolean = false) {
         bufferedText = text
         if (isFinal) historyOnNextTranslate = true
         translateRequests.tryEmit(Unit)
-    }
-
-    private fun recordTranscriptResult(
-        lines: List<CaptionRuntimeLine>,
-        originalText: String,
-        replaceOpenLine: Boolean
-    ): List<CaptionRuntimeLine> {
-        if (originalText.isBlank()) return lines
-        val last = lines.lastOrNull()
-        if (last?.originalText == originalText && last.translatedText.isBlank()) return lines
-        if (replaceOpenLine && last?.translatedText.isNullOrBlank()) {
-            return (lines.dropLast(1) + CaptionRuntimeLine(originalText = originalText))
-                .takeLast(MAX_TRANSCRIPT_LINES)
-        }
-        return (lines + CaptionRuntimeLine(originalText = originalText)).takeLast(MAX_TRANSCRIPT_LINES)
-    }
-
-    private fun updateTranscriptTranslation(
-        lines: List<CaptionRuntimeLine>,
-        originalText: String,
-        translatedText: String
-    ): List<CaptionRuntimeLine> {
-        if (originalText.isBlank()) return lines
-        val existingIndex = lines.indexOfLast { it.originalText == originalText }
-        if (existingIndex >= 0) {
-            return lines.mapIndexed { index, line ->
-                if (index == existingIndex) line.copy(translatedText = translatedText) else line
-            }
-        }
-        // No exact match — the live partial moved on between the debounce
-        // trigger and the translation returning. Drop the stale result
-        // rather than spawning an orphan line (which previously caused
-        // double captions in the overlay). The next translate pass will
-        // cover the current partial.
-        return lines
     }
 
     private fun showOverlay() {
@@ -519,6 +472,5 @@ class CaptionForegroundService : Service() {
         private const val CHANNEL_ID = "caption_channel"
         private const val NOTIF_ID = 2001
         private const val TRANSLATE_DEBOUNCE_MS = 450L
-        private const val MAX_TRANSCRIPT_LINES = 30
     }
 }

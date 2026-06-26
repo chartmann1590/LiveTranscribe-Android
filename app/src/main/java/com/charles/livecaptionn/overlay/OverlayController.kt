@@ -16,6 +16,7 @@ import android.widget.ScrollView
 import android.widget.TextView
 import com.charles.livecaptionn.data.SettingsRepository
 import com.charles.livecaptionn.settings.CaptionSettings
+import com.charles.livecaptionn.speech.RecognitionStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -103,35 +104,53 @@ class OverlayController(
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         }
 
-        pauseButton = makeButton(android.R.drawable.ic_media_pause) { onPauseResume() }
-        val minButton = makeButton(android.R.drawable.arrow_down_float) { onToggleMinimize() }
-        val closeButton = makeButton(android.R.drawable.ic_menu_close_clear_cancel) { onClose() }
+        pauseButton = makeButton(android.R.drawable.ic_media_pause, "Pause captioning") { onPauseResume() }
+        val minButton = makeButton(android.R.drawable.arrow_down_float, "Minimize overlay") { onToggleMinimize() }
+        val closeButton = makeButton(android.R.drawable.ic_menu_close_clear_cancel, "Close overlay") { onClose() }
 
         header.addView(statusText)
         header.addView(pauseButton)
         header.addView(minButton)
         header.addView(closeButton)
 
-        // Scrollable body for transcript text. Use top-gravity + WRAP_CONTENT so the single
-        // transcript TextView anchors predictably; fillViewport+BOTTOM was causing the body
-        // to render as empty in some window sizes.
-        transcriptText = TextView(context).apply {
+        // Original text (shown when showOriginal is enabled, italic + smaller)
+        originalText = TextView(context).apply {
             setTextColor(Color.WHITE)
             text = ""
-            setLineSpacing(dp(3).toFloat(), 1.0f)
-            setPadding(0, dp(4), 0, dp(4))
+            setLineSpacing(dp(2).toFloat(), 1.0f)
+            setPadding(0, dp(4), 0, dp(2))
+            textSize = 14f
+            // visibility managed by update()
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.WRAP_CONTENT
             )
         }
-        // Kept for compatibility with OverlayUiState fields; these are hidden but still
-        // referenced by update() so we instantiate empty stubs.
-        originalText = TextView(context)
-        translatedText = TextView(context)
+        // Translated text / scrolling history (the primary caption body)
+        translatedText = TextView(context).apply {
+            setTextColor(Color.WHITE)
+            text = "…"
+            setLineSpacing(dp(3).toFloat(), 1.0f)
+            setPadding(0, dp(2), 0, dp(4))
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
+        transcriptText = translatedText // alias for update() compatibility
+
+        // Container that holds both caption TextViews, inside the scroll body
+        val captionContainer = FrameLayout(context).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
+        captionContainer.addView(originalText)
+        captionContainer.addView(translatedText)
 
         body = ScrollView(context).apply {
-            addView(transcriptText)
+            addView(captionContainer)
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f
             )
@@ -167,23 +186,27 @@ class OverlayController(
     fun update(ui: OverlayUiState) {
         val frame = root ?: return
         val container = frame.getChildAt(0) as? LinearLayout ?: return
+        // Enforce minimum 0.5 opacity for WCAG AA contrast (white text on dark bg)
+        val effectiveOpacity = ui.opacity.coerceIn(0.5f, 1.0f)
         (container.background as? GradientDrawable)?.setColor(
-            Color.argb((ui.opacity * 255).roundToInt(), 17, 17, 17)
+            Color.argb((effectiveOpacity * 255).roundToInt(), 17, 17, 17)
         )
         statusText?.text = buildString {
-            append("Status: ${ui.status.name.lowercase().replaceFirstChar { it.uppercase() }}")
+            append("Status: ${ui.status.displayName}")
             val detail = ui.statusDetail?.trim().orEmpty()
             if (detail.isNotEmpty()) {
                 append("\n")
                 append(detail)
             }
         }
-        transcriptText?.text = ui.transcriptText.ifBlank { "…" }
-        transcriptText?.textSize = ui.textSizeSp
-        transcriptText?.visibility = View.VISIBLE
+        originalText?.text = ui.originalText.ifBlank { "…" }
+        originalText?.visibility = if (ui.showOriginal && ui.originalText.isNotBlank()) View.VISIBLE else View.GONE
+        translatedText?.text = ui.transcriptText.ifBlank { "…" }
+        translatedText?.textSize = ui.textSizeSp
+        translatedText?.visibility = View.VISIBLE
         body?.visibility = if (ui.minimized) View.GONE else View.VISIBLE
         pauseButton?.setImageResource(
-            if (ui.status.name == "PAUSED") android.R.drawable.ic_media_play
+            if (ui.status == RecognitionStatus.PAUSED) android.R.drawable.ic_media_play
             else android.R.drawable.ic_media_pause
         )
         // Auto-scroll to bottom on new text
@@ -199,8 +222,9 @@ class OverlayController(
 
     private fun dp(value: Int): Int = (value * density).roundToInt()
 
-    private fun makeButton(resId: Int, onClick: () -> Unit) = ImageButton(context).apply {
+    private fun makeButton(resId: Int, contentDesc: String, onClick: () -> Unit) = ImageButton(context).apply {
         setImageResource(resId)
+        contentDescription = contentDesc
         setBackgroundColor(Color.TRANSPARENT)
         setColorFilter(Color.WHITE)
         val size = dp(32)

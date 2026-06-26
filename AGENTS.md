@@ -7,6 +7,8 @@ LiveCaptionN is a single-module Android project. The root Gradle files (`setting
 - `ui/` for Jetpack Compose screens and view models.
 - `service/`, `speech/`, and `overlay/` for caption runtime behavior.
 - `translation/`, `data/`, `settings/`, and `di/` for repositories, models, persistence, and manual dependency wiring.
+- `ads/` for AdMob integration (banner, native, app-open).
+- `update/` for GitHub releases checking, notification, and WorkManager scheduling.
 
 Resources are in `app/src/main/res/`. Unit tests are in `app/src/test/java/com/charles/livecaptionn/`. CI configuration is in `.github/workflows/build.yml`.
 

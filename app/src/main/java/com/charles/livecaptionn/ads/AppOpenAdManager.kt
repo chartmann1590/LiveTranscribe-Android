@@ -38,6 +38,10 @@ class AppOpenAdManager(
     private var loadTime: Long = 0
 
     private var currentActivity: Activity? = null
+    /** Only show the app-open ad once per process lifetime (cold start),
+     *  not on every warm resume. Repeated ads on every foreground are
+     *  intrusive and contradict the app's utility-focused design. */
+    private var hasShownAd = false
 
     fun attach() {
         application.registerActivityLifecycleCallbacks(this)
@@ -49,7 +53,9 @@ class AppOpenAdManager(
     // ── Foreground signal ──
 
     override fun onStart(owner: LifecycleOwner) {
-        // Fires on every cold and warm resume of the process.
+        // Only show on first start (cold start), not warm resumes.
+        if (hasShownAd) return
+        hasShownAd = true
         val activity = currentActivity ?: return
         showAdIfAvailable(activity)
     }

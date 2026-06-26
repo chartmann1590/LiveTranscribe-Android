@@ -60,10 +60,16 @@ class SystemAudioEngine(
         paused = false
         captureJob?.cancel()
         captureJob = null
-        audioRecord?.stop()
-        audioRecord?.release()
+        try {
+            audioRecord?.stop()
+        } catch (_: Throwable) {}
+        try {
+            audioRecord?.release()
+        } catch (_: Throwable) {}
         audioRecord = null
-        projection.stop()
+        try {
+            projection.stop()
+        } catch (_: Throwable) {}
         statusMutable.value = RecognitionStatus.IDLE
     }
 

@@ -5,5 +5,14 @@ enum class RecognitionStatus {
     LISTENING,
     PROCESSING,
     PAUSED,
-    ERROR
+    ERROR;
+
+    val displayName: String
+        get() = when (this) {
+            IDLE -> "Idle"
+            LISTENING -> "Listening"
+            PROCESSING -> "Processing"
+            PAUSED -> "Paused"
+            ERROR -> "Error"
+        }
 }

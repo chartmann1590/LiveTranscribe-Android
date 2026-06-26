@@ -113,6 +113,17 @@ class MlKitTranslationRepository : TranslationRepository {
                 .addOnFailureListener { e -> cont.resumeWithException(e) }
         }
 
+    override fun close() {
+        val toClose = synchronized(this) {
+            val current = translators.values.toList()
+            translators.clear()
+            current
+        }
+        toClose.forEach { translator ->
+            try { translator.close() } catch (_: Throwable) {}
+        }
+    }
+
     companion object {
         private const val TAG = "MlKitTranslator"
     }

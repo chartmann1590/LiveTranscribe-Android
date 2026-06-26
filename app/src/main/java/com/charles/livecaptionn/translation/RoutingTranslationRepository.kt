@@ -7,16 +7,18 @@ import kotlinx.coroutines.flow.first
 /**
  * Dispatches each translation call to the backend selected in user settings.
  *
- * The repository is intentionally pass-through: both child repositories are
- * cheap to keep alive (ML Kit lazily downloads models, LibreTranslate lazily
- * builds Retrofit clients), so we can flip between them per-call without
- * re-initializing anything.
+ * Caches the active backend so we don't read settings flow on every call.
+ * Settings changes are rare relative to translation call frequency, so a
+ * lazy fresh-on-mismatch strategy avoids coroutine overhead per call.
  */
 class RoutingTranslationRepository(
     private val settingsRepository: SettingsRepository,
     private val mlKit: TranslationRepository,
     private val libre: TranslationRepository
 ) : TranslationRepository {
+
+    private var cachedBackend: TranslationBackend? = null
+    private var cachedDelegate: TranslationRepository? = null
 
     override suspend fun translate(
         text: String,
@@ -31,9 +33,20 @@ class RoutingTranslationRepository(
 
     private suspend fun activeDelegate(): TranslationRepository {
         val backend = settingsRepository.settingsFlow.first().translationBackend
-        return when (backend) {
+        if (cachedBackend == backend && cachedDelegate != null) {
+            return cachedDelegate!!
+        }
+        val delegate = when (backend) {
             TranslationBackend.ML_KIT -> mlKit
             TranslationBackend.LIBRE_TRANSLATE -> libre
         }
+        cachedBackend = backend
+        cachedDelegate = delegate
+        return delegate
+    }
+
+    override fun close() {
+        mlKit.close()
+        libre.close()
     }
 }

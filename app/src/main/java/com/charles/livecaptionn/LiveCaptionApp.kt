@@ -12,8 +12,6 @@ import com.google.firebase.analytics.ktx.analytics
 import com.google.firebase.crashlytics.ktx.crashlytics
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.perf.ktx.performance
-import com.google.firebase.remoteconfig.ktx.remoteConfig
-import com.google.firebase.remoteconfig.ktx.remoteConfigSettings
 
 class LiveCaptionApp : Application() {
     lateinit var container: AppContainer
@@ -32,13 +30,6 @@ class LiveCaptionApp : Application() {
         Firebase.crashlytics.isCrashlyticsCollectionEnabled = collectInProd
         Firebase.analytics.setAnalyticsCollectionEnabled(collectInProd)
         Firebase.performance.isPerformanceCollectionEnabled = collectInProd
-
-        Firebase.remoteConfig.apply {
-            setConfigSettingsAsync(remoteConfigSettings {
-                minimumFetchIntervalInSeconds = if (BuildConfig.DEBUG) 0 else 3600
-            })
-            fetchAndActivate()
-        }
 
         if (!AdUnits.ENABLED) return
 
