@@ -91,7 +91,13 @@ import com.charles.livecaptionn.speech.RecognitionStatus
 import com.charles.livecaptionn.speech.ModelQuality
 import com.charles.livecaptionn.speech.VoskModelInfo
 import com.charles.livecaptionn.translation.MlKitLanguages
+import com.charles.livecaptionn.ui.feedback.FeedbackViewModel
+import com.charles.livecaptionn.ui.feedback.IssueDetailsDialog
+import com.charles.livecaptionn.ui.feedback.ReportProblemDialog
+import com.charles.livecaptionn.ui.feedback.SubmitSuccessSnackbar
+import com.charles.livecaptionn.ui.feedback.SupportAndFeedbackCard
 import com.charles.livecaptionn.update.UpdateInfo
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -109,6 +115,13 @@ fun MainScreen(
     var sttUrlDraft by remember(ui.settings.sttBaseUrl) { mutableStateOf(ui.settings.sttBaseUrl) }
     var showVoskSheet by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { viewModel.refreshPermissionState() }
+
+    val feedbackCtx = LocalContext.current
+    val feedbackApp = feedbackCtx.applicationContext as com.charles.livecaptionn.LiveCaptionApp
+    val feedbackVm: FeedbackViewModel = viewModel(
+        factory = FeedbackViewModel.Factory(feedbackCtx, feedbackApp.container.bugReportRepo)
+    )
+    val feedbackState by feedbackVm.state.collectAsStateWithLifecycle()
 
     // Re-check permission state on every resume so granting overlay/mic
     // access in system Settings is reflected immediately when the user
@@ -188,6 +201,16 @@ fun MainScreen(
                     ui.settings.sttBackend == SttBackend.REMOTE_WHISPER
             )
 
+            SupportAndFeedbackCard(
+                state = feedbackState,
+                onReportProblem = { feedbackVm.showReportDialog() },
+                onOpenReport = { feedbackVm.openIssueDetails(it) }
+            )
+
+            if (feedbackState.submitSuccess) {
+                SubmitSuccessSnackbar(onDismiss = { feedbackVm.clearSubmitSuccess() })
+            }
+
             Spacer(Modifier.height(8.dp))
         }
 
@@ -198,6 +221,32 @@ fun MainScreen(
                 onDismiss = { showVoskSheet = false },
                 onDownload = viewModel::downloadVoskModel,
                 onDelete = viewModel::deleteVoskModel
+            )
+        }
+
+        if (feedbackState.showReportDialog) {
+            ReportProblemDialog(
+                state = feedbackState,
+                onDismiss = { feedbackVm.hideReportDialog() },
+                onTitleChange = { feedbackVm.updateReportTitle(it) },
+                onDescriptionChange = { feedbackVm.updateReportDescription(it) },
+                onNameChange = { feedbackVm.updateReporterName(it) },
+                onEmailChange = { feedbackVm.updateReporterEmail(it) },
+                onIncludeDiagnosticsChange = { feedbackVm.updateIncludeDiagnostics(it) },
+                onAttachmentSelected = { feedbackVm.updateAttachmentUri(it) },
+                onClearAttachment = { feedbackVm.clearAttachment() },
+                onSubmit = { feedbackVm.submitReport() }
+            )
+        }
+
+        if (feedbackState.showIssueDetails) {
+            IssueDetailsDialog(
+                state = feedbackState,
+                onDismiss = { feedbackVm.closeIssueDetails() },
+                onReplyTextChange = { feedbackVm.updateReplyText(it) },
+                onReplyAttachmentSelected = { feedbackVm.updateReplyAttachmentUri(it) },
+                onClearReplyAttachment = { feedbackVm.clearReplyAttachment() },
+                onPostReply = { feedbackVm.postReply() }
             )
         }
     }

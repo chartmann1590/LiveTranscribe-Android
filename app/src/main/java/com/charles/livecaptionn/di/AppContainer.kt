@@ -4,6 +4,7 @@ import android.content.Context
 import com.charles.livecaptionn.data.SettingsDataStore
 import com.charles.livecaptionn.data.SettingsRepository
 import com.charles.livecaptionn.data.TranscriptHistoryStore
+import com.charles.livecaptionn.data.feedback.BugReportRepo
 import com.charles.livecaptionn.service.CaptionRuntimeStore
 import com.charles.livecaptionn.speech.LocalVoskSttClient
 import com.charles.livecaptionn.speech.VoskModelRegistry
@@ -39,4 +40,5 @@ class AppContainer(context: Context) {
     val languageCatalogStore: LanguageCatalogStore = LanguageCatalogStore(settingsRepository, appScope)
     val updateChecker: UpdateChecker = UpdateChecker()
     val updateNotifier: UpdateNotifier = UpdateNotifier(context.applicationContext)
+    val bugReportRepo: BugReportRepo = BugReportRepo(context.applicationContext)
 }
