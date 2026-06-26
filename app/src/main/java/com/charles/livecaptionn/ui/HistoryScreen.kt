@@ -19,12 +19,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -40,6 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -60,9 +66,47 @@ fun HistoryScreen(
 ) {
     val scope = rememberCoroutineScope()
     var entries by remember { mutableStateOf<List<TranscriptEntry>>(emptyList()) }
+    var searchQuery by remember { mutableStateOf("") }
+    var deleteTarget by remember { mutableStateOf<TranscriptEntry?>(null) }
 
     LaunchedEffect(Unit) {
         entries = historyStore.getAll()
+    }
+
+    val filteredEntries = remember(entries, searchQuery) {
+        if (searchQuery.isBlank()) entries
+        else entries.filter { entry ->
+            entry.originalText.contains(searchQuery, ignoreCase = true) ||
+                entry.translatedText.contains(searchQuery, ignoreCase = true)
+        }
+    }
+
+    if (deleteTarget != null) {
+        AlertDialog(
+            onDismissRequest = { deleteTarget = null },
+            title = { Text("Delete entry") },
+            text = {
+                Text("Delete this transcript entry?\n\n" +
+                    "\"${deleteTarget?.originalText?.take(60)}\"")
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val target = deleteTarget ?: return@TextButton
+                    scope.launch {
+                        historyStore.delete(target.timestamp)
+                        entries = historyStore.getAll()
+                    }
+                    deleteTarget = null
+                }) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteTarget = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -96,45 +140,79 @@ fun HistoryScreen(
             )
         }
     ) { padding ->
-        if (entries.isEmpty()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    "No transcripts yet",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    "Transcripts will appear here as you use captioning.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.outline
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            if (entries.isNotEmpty()) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    placeholder = { Text("Search transcripts…") },
+                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, modifier = Modifier.size(20.dp)) },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(Icons.Filled.Close, contentDescription = "Clear search", modifier = Modifier.size(20.dp))
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp)
                 )
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                items(entries, key = { it.timestamp }) { entry ->
-                    TranscriptCard(entry)
+
+            if (filteredEntries.isEmpty()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        if (searchQuery.isNotBlank()) "No matching transcripts"
+                        else "No transcripts yet",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        if (searchQuery.isNotBlank()) "Try a different search term."
+                        else "Transcripts will appear here as you use captioning.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.outline
+                    )
                 }
-                item { Spacer(Modifier.height(16.dp)) }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(filteredEntries, key = { it.timestamp }) { entry ->
+                        TranscriptCard(
+                            entry = entry,
+                            onDelete = { deleteTarget = entry }
+                        )
+                    }
+                    item { Spacer(Modifier.height(16.dp)) }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun TranscriptCard(entry: TranscriptEntry) {
+private fun TranscriptCard(
+    entry: TranscriptEntry,
+    onDelete: () -> Unit
+) {
     val context = LocalContext.current
     val timeStr = remember(entry.timestamp) {
         val fmt = SimpleDateFormat("MMM d, h:mm a", Locale.getDefault())
@@ -180,6 +258,17 @@ private fun TranscriptCard(entry: TranscriptEntry) {
                             modifier = Modifier.size(16.dp)
                         )
                     }
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            Icons.Filled.Delete,
+                            contentDescription = "Delete",
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             }
 
@@ -188,6 +277,7 @@ private fun TranscriptCard(entry: TranscriptEntry) {
             Text(
                 text = entry.originalText,
                 style = MaterialTheme.typography.bodySmall,
+                fontStyle = FontStyle.Italic,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 4,
                 overflow = TextOverflow.Ellipsis

@@ -57,13 +57,17 @@ object VoskModelCatalog {
         small("pl", "Polish",        "vosk-model-small-pl-0.22",     50),
         small("cs", "Czech",         "vosk-model-small-cs-0.4-rhasspy", 44),
         small("tr", "Turkish",       "vosk-model-small-tr-0.3",      35),
-        small("ar", "Arabic",        "vosk-model-ar-mgb2-0.4",       318), // no small variant
         small("fa", "Persian",       "vosk-model-small-fa-0.42",     47),
         small("hi", "Hindi",         "vosk-model-small-hi-0.22",     42),
         small("zh", "Chinese",       "vosk-model-small-cn-0.22",     42),
         small("ja", "Japanese",      "vosk-model-small-ja-0.22",     48),
         small("ko", "Korean",        "vosk-model-small-ko-0.22",     82),
         small("id", "Indonesian",    "vosk-model-small-id-0.22",     30),
+
+        // ── Medium / fallthrough (no small variant available) ────────────
+        // 318 MB — no small variant exists; listed separately so users
+        // aren't surprised by a 300+ MB "small" download.
+        large("ar", "Arabic",        "vosk-model-ar-mgb2-0.4",       318),
 
         // ── Large / accurate (optional, for users with space to burn) ─────
         // Small variants stay listed above so users can pick the tier that

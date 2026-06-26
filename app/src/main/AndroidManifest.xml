@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
@@ -17,13 +18,20 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.LiveCaptionN"
-        android:usesCleartextTraffic="true">
+        android:networkSecurityConfig="@xml/network_security_config">
 
         <!-- Google Mobile Ads (AdMob). The value is the public App ID,
              safe to commit: no secret material. -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="${admobAppId}" />
+
+        <!-- Resolve conflict between play-services-ads and play-services-measurement-api
+             which both inject this property pointing to different XML file names. -->
+        <property
+            android:name="android.adservices.AD_SERVICES_CONFIG"
+            android:resource="@xml/gma_ad_services_config"
+            tools:replace="android:resource" />
 
         <activity
             android:name=".MainActivity"

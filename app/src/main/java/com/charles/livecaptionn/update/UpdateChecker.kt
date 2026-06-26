@@ -118,12 +118,23 @@ class UpdateChecker {
     companion object {
         private const val TAG = "UpdateChecker"
 
-        /** Extracts `42` from `v1.0.42`. Returns null if the tag doesn't match. */
+        /**
+         * Extracts a comparable build number from a semver tag.
+         *
+         * Accepts `v1.0.42`, `1.2.3`, `v2.0.0-beta`, etc. — anything matching
+         * `v?X.Y.Z(...)`. Returns (major * 1_000_000 + minor * 1_000 + patch)
+         * so comparisons work naturally with [BuildConfig.VERSION_CODE].
+         *
+         * Returns null for non-semver tags (e.g. `v1`, `v1.0`, `latest`).
+         */
         internal fun parseBuildNumber(tag: String): Int? {
             val match = TAG_REGEX.matchEntire(tag.trim()) ?: return null
-            return match.groupValues[1].toIntOrNull()
+            val major = match.groupValues[1].toIntOrNull() ?: return null
+            val minor = match.groupValues[2].toIntOrNull() ?: return null
+            val patch = match.groupValues[3].toIntOrNull() ?: return null
+            return major * 1_000_000 + minor * 1_000 + patch
         }
 
-        private val TAG_REGEX = Regex("""v?1\.0\.(\d+)""")
+        private val TAG_REGEX = Regex("""v?(\d+)\.(\d+)\.(\d+)(?:[.\-].*)?""")
     }
 }

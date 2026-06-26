@@ -2,6 +2,8 @@ package com.charles.livecaptionn.speech
 
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import org.vosk.Model
@@ -19,11 +21,13 @@ import org.vosk.Recognizer
  *    be used and is what makes live captions feel live.
  *
  * Models are cached by language code so back-to-back sessions in the same
- * language don't pay the disk-load cost.
+ * language don't pay the disk-load cost. Model access is guarded by a mutex
+ * to prevent races between concurrent openSession/transcribe calls.
  */
 class LocalVoskSttClient(private val registry: VoskModelRegistry) {
     private var cachedLanguageCode: String? = null
     private var cachedModel: Model? = null
+    private val modelMutex = Mutex()
 
     /** Open a streaming session for [languageCode] at [sampleRate]. Returns null if no model. */
     suspend fun openSession(
@@ -71,7 +75,7 @@ class LocalVoskSttClient(private val registry: VoskModelRegistry) {
         }
     }
 
-    private fun modelFor(languageCode: String): Model? {
+    private suspend fun modelFor(languageCode: String): Model? = modelMutex.withLock {
         val cached = cachedModel
         if (cached != null && cachedLanguageCode.equals(languageCode, ignoreCase = true)) return cached
 
@@ -79,7 +83,7 @@ class LocalVoskSttClient(private val registry: VoskModelRegistry) {
         cachedModel = null
         cachedLanguageCode = null
 
-        val modelDir = registry.resolveModelDir(languageCode) ?: return null
+        val modelDir = registry.resolveModelDir(languageCode) ?: return@withLock null
         return Model(modelDir.absolutePath).also {
             cachedLanguageCode = languageCode
             cachedModel = it

@@ -5,4 +5,75 @@
     <string name="notification_channel_desc">Shows when live captioning is active.</string>
     <string name="notification_title">Captioning in progress</string>
     <string name="notification_text">Listening and translating speech.</string>
+
+    <!-- Main screen -->
+    <string name="start">Start</string>
+    <string name="stop">Stop</string>
+    <string name="ready">Ready</string>
+    <string name="status_label">Status: %s</string>
+    <string name="history">History</string>
+    <string name="history_title">Transcript History</string>
+    <string name="no_transcripts">No transcripts yet</string>
+    <string name="no_transcripts_hint">Transcripts will appear here as you use captioning.</string>
+    <string name="no_matching_transcripts">No matching transcripts</string>
+    <string name="search_hint">Search transcripts…</string>
+    <string name="clear_search">Clear search</string>
+    <string name="clear_all">Clear</string>
+    <string name="copy">Copy</string>
+    <string name="delete_entry">Delete</string>
+    <string name="delete_title">Delete entry</string>
+    <string name="delete_message">Delete this transcript entry?</string>
+    <string name="cancel">Cancel</string>
+    <string name="back">Back</string>
+    <string name="manage_models">Manage on-device models</string>
+    <string name="choose_language">Choose language</string>
+
+    <!-- Permissions -->
+    <string name="permissions">Permissions</string>
+    <string name="mic_permission">Microphone</string>
+    <string name="overlay_permission">Display over other apps</string>
+    <string name="grant">Grant</string>
+    <string name="granted">Granted</string>
+
+    <!-- Audio source -->
+    <string name="audio_source">Audio source</string>
+
+    <!-- Overlay settings -->
+    <string name="overlay">Overlay</string>
+    <string name="text_size">Text size</string>
+    <string name="opacity">Opacity</string>
+    <string name="show_original">Show original text</string>
+
+    <!-- Server settings -->
+    <string name="server">Server</string>
+    <string name="translation_backend">Translation backend</string>
+    <string name="translate_url">Translate URL</string>
+    <string name="stt_url">STT URL</string>
+    <string name="save">Save</string>
+    <string name="refresh">Refresh</string>
+
+    <!-- Vosk model sheet -->
+    <string name="vosk_models">Vosk speech models</string>
+    <string name="small_fast">Small · fast &amp; light</string>
+    <string name="medium">Medium</string>
+    <string name="large_accurate">Large · accurate</string>
+    <string name="freeing_space">Freeing space…</string>
+    <string name="download">Download</string>
+    <string name="downloaded">Downloaded</string>
+    <string name="bundled">Built-in</string>
+    <string name="uninstall_confirm">Uninstall model?</string>
+    <string name="uninstall_confirm_detail">Remove the downloaded model \u201c%s\u201d? It can be re-downloaded later.</string>
+
+    <!-- Overlay button descriptions -->
+    <string name="overlay_pause">Pause captioning</string>
+    <string name="overlay_resume">Resume captioning</string>
+    <string name="overlay_minimize">Minimize overlay</string>
+    <string name="overlay_maximize">Maximize overlay</string>
+    <string name="overlay_close">Close overlay</string>
+
+    <!-- Update banner -->
+    <string name="update_available">Update available</string>
+    <string name="download_update">Download</string>
+    <string name="dismiss">Dismiss</string>
+    <string name="play_store_warning">Installed via Play Store. Downloading a GitHub release may break auto-updates.</string>
 </resources>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Allow cleartext traffic to localhost for local dev servers
+         (LibreTranslate, Whisper). LAN/private-IP servers must use HTTPS
+         or be accessed via localhost port-forwarding. -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">localhost</domain>
+    </domain-config>
+    <!-- All other traffic requires TLS. -->
+    <base-config cleartextTrafficPermitted="false" />
+</network-security-config>

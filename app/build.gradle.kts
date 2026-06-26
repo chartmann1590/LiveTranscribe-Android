@@ -153,6 +153,9 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+        jniLibs {
+            useLegacyPackaging = false
+        }
     }
 }
 
@@ -190,8 +193,7 @@ dependencies {
     implementation("com.google.firebase:firebase-analytics-ktx")
     implementation("com.google.firebase:firebase-crashlytics-ktx")
     implementation("com.google.firebase:firebase-perf-ktx")
-    implementation("com.google.firebase:firebase-messaging-ktx")
-    implementation("com.google.firebase:firebase-config-ktx")
+    // firebase-messaging and firebase-config were removed — not used.
 
     // Google Mobile Ads (AdMob). Powers the banner at the bottom of the
     // main UI and the app-open ad.
@@ -205,6 +207,7 @@ dependencies {
     implementation("com.google.android.material:material:1.11.0")
 
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")

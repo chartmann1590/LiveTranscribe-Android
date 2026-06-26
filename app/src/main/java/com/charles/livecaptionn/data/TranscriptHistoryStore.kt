@@ -44,6 +44,23 @@ class TranscriptHistoryStore(context: Context) {
         }
     }
 
+    suspend fun delete(timestamp: Long): Boolean = mutex.withLock {
+        withContext(Dispatchers.IO) {
+            val arr = readArray()
+            val before = arr.length()
+            val result = JSONArray()
+            for (i in 0 until arr.length()) {
+                val obj = arr.getJSONObject(i)
+                if (obj.optLong("timestamp", 0L) != timestamp) {
+                    result.put(obj)
+                }
+            }
+            if (result.length() == before) return@withContext false
+            file.writeText(result.toString())
+            true
+        }
+    }
+
     suspend fun clear() = mutex.withLock {
         withContext(Dispatchers.IO) { file.delete() }
     }

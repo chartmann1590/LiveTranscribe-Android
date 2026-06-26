@@ -75,10 +75,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.charles.livecaptionn.R
 import com.charles.livecaptionn.ads.AdUnits
 import com.charles.livecaptionn.ads.NativeAdCard
 import com.charles.livecaptionn.settings.AudioSource
@@ -133,7 +135,7 @@ fun MainScreen(
                 },
                 actions = {
                     IconButton(onClick = onHistory) {
-                        Icon(Icons.Filled.History, contentDescription = "History")
+                        Icon(Icons.Filled.History, contentDescription = stringResource(R.string.history))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -245,7 +247,8 @@ private fun CaptionControlCard(ui: MainUiState, onStart: () -> Unit, onStop: () 
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    text = if (isRunning) "Status: ${ui.runtime.status.name}" else "Ready",
+                    text = if (isRunning) stringResource(R.string.status_label, ui.runtime.status.displayName)
+                    else stringResource(R.string.ready),
                     style = MaterialTheme.typography.labelLarge
                 )
             }
@@ -289,7 +292,7 @@ private fun CaptionControlCard(ui: MainUiState, onStart: () -> Unit, onStop: () 
                 ) {
                     Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Start")
+                    Text(stringResource(R.string.start))
                 }
                 Button(
                     onClick = onStop,

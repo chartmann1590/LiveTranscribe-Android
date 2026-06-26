@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "571461813603",
+    "project_id": "livecaptionn",
+    "storage_bucket": "livecaptionn.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:571461813603:android:86c99048fd13316bff3f56",
+        "android_client_info": {
+          "package_name": "com.charles.livecaptionn"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyABDfjmz4a_tgFrlvmy2RxBGrgQispgro4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -50,9 +50,9 @@ Both stages of the pipeline can run **fully on-device**: streaming Vosk handles 
 - **Any language your backend supports** — the picker shows ML Kit's supported languages, your LibreTranslate server's `/languages` list, or only the Vosk models installed on this phone, whichever combination you choose.
 - **Built-in Vosk model downloader** — two quality tiers: **Small** (~30–80 MB, fast and light) and **Large** server-grade models (80 MB to 2 GB, lowest error rates) for Spanish, French, German, Russian, Chinese, Japanese, Hindi, Arabic, and more.
 - **Automatic update notifications** — a background WorkManager job polls the GitHub releases API; when a new version is published you get a system notification with a one-tap Download action, plus an in-app banner the next time you open the app.
-- **Transcript history** — every session is saved locally and searchable from the history screen.
-- **Tunable overlay** — text size, opacity, width/height, "show original" toggle, minimized state, and remembered screen position.
-- **Private by default** — speech processing and translation both run against endpoints you configure. No accounts, no telemetry.
+- **Transcript history** — every session is saved locally, searchable with per-entry delete from the history screen.
+- **Tunable overlay** — text size, opacity, width/height, "show original" toggle (dual-line original + translated display), minimized state, and remembered screen position.
+- **Private by default** — speech processing and translation both run against endpoints you configure. No accounts, no mandatory telemetry (Firebase Analytics/Crashlytics only in release builds, disabled in debug).
 
 ## Translating different languages
 
