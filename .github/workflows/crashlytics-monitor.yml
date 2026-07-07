@@ -1,0 +1,149 @@
+name: Crashlytics Monitor
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+env:
+  FIREBASE_PROJECT_NUMBER: '571461813603'
+  FIREBASE_APP_ID: '1:571461813603:android:86c99048fd13316bff3f56'
+  FIREBASE_PROJECT_ID: 'livecaptionn'
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Exchange Firebase refresh token for access token
+        id: auth
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          FIREBASE_OAUTH_CLIENT_ID: ${{ secrets.FIREBASE_OAUTH_CLIENT_ID }}
+          FIREBASE_OAUTH_CLIENT_SECRET: ${{ secrets.FIREBASE_OAUTH_CLIENT_SECRET }}
+        run: |
+          RESPONSE=$(curl -s -X POST "https://oauth2.googleapis.com/token" \
+            --data-urlencode "client_id=${FIREBASE_OAUTH_CLIENT_ID}" \
+            --data-urlencode "client_secret=${FIREBASE_OAUTH_CLIENT_SECRET}" \
+            --data-urlencode "refresh_token=${FIREBASE_TOKEN}" \
+            --data-urlencode "grant_type=refresh_token")
+          ACCESS_TOKEN=$(echo "$RESPONSE" | jq -r '.access_token')
+          if [ "$ACCESS_TOKEN" = "null" ] || [ -z "$ACCESS_TOKEN" ]; then
+            echo "Failed to obtain access token"; echo "$RESPONSE" | jq .; exit 1
+          fi
+          echo "::add-mask::${ACCESS_TOKEN}"
+          echo "access_token=$ACCESS_TOKEN" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch Crashlytics top issues
+        id: fetch
+        env:
+          ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+        run: |
+          curl -s \
+            -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+            "https://firebasecrashlytics.googleapis.com/v1alpha/projects/${FIREBASE_PROJECT_NUMBER}/apps/${FIREBASE_APP_ID}/reports/topIssues?pageSize=25" \
+            > crashlytics_issues.json
+          cat crashlytics_issues.json | jq .
+          if cat crashlytics_issues.json | jq -e '.error' > /dev/null 2>&1; then
+            echo "Crashlytics API returned an error (see above)"; exit 1
+          fi
+
+      - name: Sync to GitHub Issues
+        uses: actions/github-script@v7
+        env:
+          FIREBASE_PROJECT_ID: ${{ env.FIREBASE_PROJECT_ID }}
+          FIREBASE_APP_ID: ${{ env.FIREBASE_APP_ID }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const data = JSON.parse(fs.readFileSync('crashlytics_issues.json', 'utf8'));
+            const { owner, repo } = context.repo;
+            const projectId = process.env.FIREBASE_PROJECT_ID;
+            const rawGroups = data.groups || data.issues || [];
+            const errorEmoji = { FATAL: '💥', ANR: '⏳', NON_FATAL: '⚠️' };
+            const signalEmoji = { SIGNAL_REGRESSED: '🔴 Regressed', SIGNAL_FRESH: '🆕 New', SIGNAL_EARLY: '⚡ Early-session', SIGNAL_REPETITIVE: '🔁 Repetitive' };
+            const crashlyticsIssues = rawGroups.map(entry => {
+              const inner = entry.issue || entry;
+              const m = entry.metrics?.[0] || {};
+              return {
+                id: inner.id || inner.issueId,
+                title: inner.title || 'Unknown crash',
+                subtitle: inner.subtitle || '',
+                state: (inner.state || 'OPEN').toUpperCase(),
+                errorType: inner.errorType || 'FATAL',
+                firstSeenVersion: inner.firstSeenVersion || '—',
+                lastSeenVersion: inner.lastSeenVersion || '—',
+                signals: inner.signals || [],
+                consoleUri: inner.uri || '',
+                eventCount: parseInt(String(m.eventsCount || inner.eventCount || '0'), 10),
+                impactedUsers: parseInt(String(m.impactedUsersCount || '0'), 10),
+                sessionsCount: parseInt(String(m.sessionsCount || '0'), 10),
+                metricsStart: m.startTime || '',
+                metricsEnd: m.endTime || '',
+              };
+            }).filter(i => i.id);
+            console.log(`Crashlytics returned ${crashlyticsIssues.length} issues`);
+            function buildIssueBody(ci) {
+              const emoji = errorEmoji[ci.errorType] || '🐛';
+              const typeLabel = ci.errorType === 'ANR' ? 'ANR (App Not Responding)' : ci.errorType === 'NON_FATAL' ? 'Non-Fatal Exception' : 'Fatal Crash';
+              const range = ci.metricsStart ? `${ci.metricsStart.slice(0,10)} – ${ci.metricsEnd.slice(0,10)}` : 'Last 7 days';
+              const signalLines = ci.signals.map(s => `- ${signalEmoji[s.signal] || s.signal}: ${s.description}`).join('\n');
+              const url = ci.consoleUri || `https://console.firebase.google.com/project/${projectId}/crashlytics/app/android:com.charles.livecaptionn/issues/${ci.id}`;
+              return [
+                `## ${emoji} ${typeLabel}`,
+                ``,
+                `| Field | Value |`,
+                `|-------|-------|`,
+                `| **Crashlytics ID** | \`${ci.id}\` |`,
+                `| **Exception** | ${ci.subtitle || '—'} |`,
+                `| **Blame frame** | \`${ci.title}\` |`,
+                `| **Error type** | ${typeLabel} |`,
+                `| **First seen** | ${ci.firstSeenVersion} |`,
+                `| **Last seen** | ${ci.lastSeenVersion} |`,
+                `| **Events (${range})** | ${ci.eventCount.toLocaleString()} |`,
+                `| **Impacted users** | ${ci.impactedUsers.toLocaleString()} |`,
+                `| **Sessions affected** | ${ci.sessionsCount.toLocaleString()} |`,
+                ``,
+                signalLines ? `### Signals\n${signalLines}\n` : '',
+                `[🔥 View in Firebase Console](${url})`,
+                ``,
+                `<!-- crashlytics-events:${ci.eventCount} -->`,
+              ].filter(l => l !== '').join('\n');
+            }
+            try { await github.rest.issues.getLabel({ owner, repo, name: 'crashlytics' }); }
+            catch { await github.rest.issues.createLabel({ owner, repo, name: 'crashlytics', color: 'ee0701', description: 'Firebase Crashlytics crash report' }); }
+            const { data: openGHIssues } = await github.rest.issues.listForRepo({ owner, repo, labels: 'crashlytics', state: 'open', per_page: 100 });
+            const ghMap = {};
+            for (const gh of openGHIssues) for (const lbl of gh.labels) if (lbl.name?.startsWith('crashlytics:')) ghMap[lbl.name.slice('crashlytics:'.length)] = gh;
+            const openIds = new Set();
+            for (const ci of crashlyticsIssues) {
+              if (ci.state !== 'OPEN') continue;
+              openIds.add(ci.id);
+              const labelName = `crashlytics:${ci.id}`.substring(0, 50);
+              try { await github.rest.issues.getLabel({ owner, repo, name: labelName }); }
+              catch { await github.rest.issues.createLabel({ owner, repo, name: labelName, color: 'b60205', description: `Crashlytics issue ${ci.id}` }); }
+              const existing = ghMap[ci.id];
+              if (!existing) {
+                const created = await github.rest.issues.create({ owner, repo, title: `[Crashlytics] ${ci.subtitle || ci.title}`, body: buildIssueBody(ci), labels: ['crashlytics', labelName] });
+                console.log(`Created GitHub issue #${created.data.number} for Crashlytics ${ci.id}`);
+              } else {
+                const prevMatch = (existing.body || '').match(/<!-- crashlytics-events:(\d+) -->/);
+                const prev = prevMatch ? parseInt(prevMatch[1], 10) : 0;
+                if (ci.eventCount > prev) {
+                  await github.rest.issues.createComment({ owner, repo, issue_number: existing.number, body: `📈 **Event count updated:** ${prev.toLocaleString()} → ${ci.eventCount.toLocaleString()} (+${(ci.eventCount - prev).toLocaleString()})\n- **Impacted users:** ${ci.impactedUsers.toLocaleString()}\n- **Sessions affected:** ${ci.sessionsCount.toLocaleString()}\n- **Last seen:** ${ci.lastSeenVersion}\n\n*Checked: ${new Date().toISOString()}*` });
+                  await github.rest.issues.update({ owner, repo, issue_number: existing.number, body: (existing.body || '').replace(/<!-- crashlytics-events:\d+ -->/, `<!-- crashlytics-events:${ci.eventCount} -->`) });
+                  console.log(`Updated #${existing.number}: ${prev} → ${ci.eventCount} events`);
+                } else { console.log(`Issue #${existing.number} unchanged at ${ci.eventCount} events`); }
+              }
+            }
+            for (const [cid, gh] of Object.entries(ghMap)) {
+              if (!openIds.has(cid)) {
+                await github.rest.issues.createComment({ owner, repo, issue_number: gh.number, body: `✅ Crashlytics issue \`${cid}\` is no longer in the open list — auto-closing.\n\n*Checked: ${new Date().toISOString()}*` });
+                await github.rest.issues.update({ owner, repo, issue_number: gh.number, state: 'closed' });
+                console.log(`Auto-closed #${gh.number}`);
+              }
+            }
