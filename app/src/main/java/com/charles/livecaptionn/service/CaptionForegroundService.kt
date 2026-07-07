@@ -59,6 +59,9 @@ class CaptionForegroundService : Service() {
     private var overlayController: OverlayController? = null
     private var paused = false
     private var bufferedText = ""
+    private val lineIdCounter = java.util.concurrent.atomic.AtomicLong(0)
+    @Volatile
+    private var bufferedLineId: Long = NO_LINE_ID
     @Volatile
     private var historyOnNextTranslate = false
 
@@ -161,6 +164,7 @@ class CaptionForegroundService : Service() {
                     .debounce(TRANSLATE_DEBOUNCE_MS)
                     .collect {
                         val textSnapshot = bufferedText
+                        val lineIdSnapshot = bufferedLineId
                         if (textSnapshot.isBlank()) return@collect
                         val saveHistory = historyOnNextTranslate
                         historyOnNextTranslate = false
@@ -184,11 +188,12 @@ class CaptionForegroundService : Service() {
                             return@collect
                         }
                         app.container.runtimeStore.update {
+                            val stillCurrent = it.transcriptLines.any { line -> line.id == lineIdSnapshot }
                             it.copy(
-                                translatedText = translated,
+                                translatedText = if (stillCurrent) translated else it.translatedText,
                                 transcriptLines = updateTranscriptTranslation(
                                     lines = it.transcriptLines,
-                                    originalText = textSnapshot,
+                                    lineId = lineIdSnapshot,
                                     translatedText = translated
                                 ),
                                 status = if (paused) RecognitionStatus.PAUSED else RecognitionStatus.LISTENING
@@ -214,6 +219,7 @@ class CaptionForegroundService : Service() {
             val onSpeechResult = { result: SpeechResult ->
                 val transcript = result.text.trim()
                 Log.d("CaptionService", "onSpeechResult final=${result.isFinal} text='$transcript'")
+                val candidateId = lineIdCounter.incrementAndGet()
                 app.container.runtimeStore.update {
                     it.copy(
                         originalText = transcript,
@@ -223,13 +229,14 @@ class CaptionForegroundService : Service() {
                         transcriptLines = recordTranscriptResult(
                             lines = it.transcriptLines,
                             originalText = transcript,
-                            replaceOpenLine = !result.isFinal
+                            isFinal = result.isFinal,
+                            newLineId = candidateId
                         ),
                         status = RecognitionStatus.PROCESSING,
                         lastError = null
                     )
                 }
-                queueTranslation(transcript, result.isFinal)
+                queueTranslation(transcript, candidateId, result.isFinal)
             }
 
             val mediaProjection = if (currentAudioSource == AudioSource.SYSTEM) {
@@ -357,8 +364,9 @@ class CaptionForegroundService : Service() {
         minimized = settings.overlayMinimized
     )
 
-    private fun queueTranslation(text: String, isFinal: Boolean = false) {
+    private fun queueTranslation(text: String, lineId: Long, isFinal: Boolean = false) {
         bufferedText = text
+        bufferedLineId = lineId
         if (isFinal) historyOnNextTranslate = true
         translateRequests.tryEmit(Unit)
     }
@@ -472,5 +480,6 @@ class CaptionForegroundService : Service() {
         private const val CHANNEL_ID = "caption_channel"
         private const val NOTIF_ID = 2001
         private const val TRANSLATE_DEBOUNCE_MS = 450L
+        private const val NO_LINE_ID = -1L
     }
 }
