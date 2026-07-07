@@ -7,8 +7,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 data class CaptionRuntimeLine(
+    val id: Long,
     val originalText: String,
-    val translatedText: String = ""
+    val translatedText: String = "",
+    val isFinal: Boolean = false
 )
 
 data class CaptionRuntimeState(
