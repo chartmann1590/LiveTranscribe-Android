@@ -5,7 +5,7 @@ Both halves of the pipeline run fully on-device by default:
 • Streaming Vosk speech recognition — one long-lived recognizer is fed ~100 ms audio chunks continuously, so captions feel instant instead of arriving in 2-second bursts.
 • Google ML Kit on-device translation — ~59 supported languages, a one-time ~30 MB download per language pair, then cached offline forever.
 
-No account. No telemetry. No server required for the default pipeline.
+No account required. No server required for the default pipeline.
 
 FEATURES
 
@@ -18,9 +18,16 @@ FEATURES
 • Tunable overlay: text size, opacity, width, height, remembered screen position
 • Automatic update notifications via the GitHub Releases API
 
+FREE FOREVER, WITH OPTIONAL UPGRADES
+
+Every feature above is free, permanently — nothing gets taken away or paywalled. Two optional monthly subscriptions add more on top:
+
+• Ad-Free ($1.99/mo) — removes the banner and app-open ads
+• Pro ($4.99/mo) — unlocks larger server-grade Vosk speech models, additional Google ML Kit translation languages, and extra overlay color themes/fonts, all still fully on-device
+
 PRIVACY-FIRST
 
-LiveCaptionN does not create an account, does not track you, and has no analytics. Speech recognition and translation both run on your phone. The app only reaches the internet to download Vosk models (from alphacephei.com) and ML Kit translation pairs (from Google's model service) when you ask it to, and to check GitHub for new release builds. If you enable an optional Whisper or LibreTranslate server in settings, traffic goes to the URL you configure and nothing else.
+LiveCaptionN does not create an account. Speech recognition and translation both run on your phone, and your captions never leave it. The app shows AdMob ads and uses Firebase Crashlytics/Analytics for crash reports and basic feature-usage stats in release builds — see the privacy policy for details. The app only reaches the internet for ads, for downloading Vosk models (from alphacephei.com) and ML Kit translation pairs (from Google's model service) when you ask it to, to check GitHub for new release builds, and — only if you subscribe — to process your subscription through Google Play Billing. If you enable an optional Whisper or LibreTranslate server in settings, traffic goes to the URL you configure and nothing else.
 
 REQUIREMENTS
 

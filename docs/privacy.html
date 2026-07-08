@@ -13,7 +13,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <title>Privacy policy — LiveCaptionN</title>
-<meta name="description" content="LiveCaptionN privacy policy. No accounts, no telemetry, on-device speech recognition and translation. Full breakdown of what data the app touches and what it doesn't.">
+<meta name="description" content="LiveCaptionN privacy policy. No accounts, on-device speech recognition and translation, and a full breakdown of ads, analytics, and optional subscription billing.">
 <meta name="robots" content="index, follow">
 <link rel="canonical" href="https://chartmann1590.github.io/LiveTranscribe-Android/privacy.html">
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
@@ -114,10 +114,10 @@
 <section class="legal">
   <div class="container">
     <h1>Privacy policy</h1>
-    <p class="updated">Last updated: 12 April 2026</p>
+    <p class="updated">Last updated: 8 July 2026</p>
 
     <div class="tl-dr">
-      <p><strong>Short version.</strong> LiveCaptionN has no accounts, no analytics, and no telemetry. Speech recognition and translation both run on your device by default. The app includes Google AdMob ads (a banner and an app-open ad) which are served by Google&rsquo;s ad network and are governed by <a href="https://policies.google.com/privacy">Google&rsquo;s privacy policy</a>. Apart from ads, the app only reaches the internet when you explicitly tell it to &mdash; to download a Vosk speech model, download a Google ML Kit translation model, check GitHub for a new release, or send audio/text to an optional server you have configured yourself. Your captions and transcripts never leave your phone.</p>
+      <p><strong>Short version.</strong> LiveCaptionN has no accounts. Speech recognition and translation both run on your device by default, and your captions/transcripts never leave your phone. The app includes Google AdMob ads (a banner and an app-open ad), and uses Firebase Crashlytics, Analytics, and Performance Monitoring in release builds to catch crashes and understand feature usage &mdash; both governed by <a href="https://policies.google.com/privacy">Google&rsquo;s privacy policy</a>. Two optional subscriptions, <strong>Ad-Free</strong> and <strong>Pro</strong>, are available: on the Play Store build, purchases go through Google Play Billing (Google handles all payment data); on the GitHub-distributed build, purchases go through Stripe, and the app only ever sends the email address you enter, never card details. Apart from ads, analytics, and (if you subscribe) billing, the app only reaches the internet when you explicitly tell it to &mdash; to download a Vosk speech model, download a Google ML Kit translation model, check GitHub for a new release, or send audio/text to an optional server you have configured yourself.</p>
     </div>
 
     <h2>1. Who this policy is from</h2>
@@ -150,16 +150,26 @@
     <p>The AdMob SDK may collect and process certain data as described in <a href="https://policies.google.com/privacy">Google&rsquo;s privacy policy</a> and <a href="https://policies.google.com/technologies/ads">Google&rsquo;s advertising policy</a>. This may include device identifiers, IP address, and interaction data for the purpose of serving and measuring ads. LiveCaptionN does <strong>not</strong> send any of your audio, transcripts, or settings to Google&rsquo;s ad network &mdash; only the standard data that the AdMob SDK collects on its own.</p>
     <p>You can opt out of personalized advertising in your Android device settings under <em>Google &rarr; Ads &rarr; Opt out of Ads Personalization</em>, or by using an ad blocker. Opting out does not remove ads entirely but prevents Google from using your data to personalize them.</p>
 
-    <h2>5. What LiveCaptionN does <em>not</em> do</h2>
+    <h2>5. Analytics and crash reporting</h2>
+    <p>Release builds of LiveCaptionN use <strong>Firebase Crashlytics</strong> (crash and error reporting), <strong>Firebase Analytics</strong> (basic feature-usage counts, e.g. which screens are opened), and <strong>Firebase Performance Monitoring</strong> (app startup/rendering performance). None of these ever see your audio, transcripts, or settings &mdash; they only see standard app-usage and diagnostic data (device model, OS version, crash stack traces, screen names). This collection is disabled entirely in debug builds. See <a href="https://policies.google.com/privacy">Google&rsquo;s privacy policy</a> for how Firebase/Google handles this data.</p>
+
+    <h2>6. Subscriptions and billing</h2>
+    <p>LiveCaptionN offers two optional monthly subscriptions, <strong>Ad-Free</strong> and <strong>Pro</strong>. Everything free in the app today remains free forever &mdash; these are additive upgrades, not a paywall.</p>
     <ul>
-      <li>No account creation or login of any kind.</li>
-      <li>No first-party analytics, crash reporting, or telemetry SDK.</li>
-      <li>No data sold or shared with third parties outside of what the AdMob SDK collects as described in section 4.</li>
-      <li>No background audio capture &mdash; audio is only read while a captioning session is actively running and a foreground service notification is visible.</li>
-      <li>No access to your contacts, calendar, photos, SMS, call logs, or files outside the app&rsquo;s private storage.</li>
+      <li><strong>Play Store build.</strong> Purchases are handled entirely by <strong>Google Play Billing</strong>. LiveCaptionN never sees your payment details &mdash; Google processes the transaction and reports back only your entitlement status (which subscriptions are active).</li>
+      <li><strong>GitHub-distributed build.</strong> Purchases are handled by <strong>Stripe</strong> via a small backend the app talks to. The app sends only the email address you enter and, after a successful purchase, a Stripe-issued session identifier used to verify that purchase &mdash; it never sends card details, which are entered directly into Stripe&rsquo;s own hosted checkout page. Managing or canceling a subscription happens on Stripe&rsquo;s hosted Customer Portal, which verifies your identity by email itself.</li>
     </ul>
 
-    <h2>6. Permissions the app requests and why</h2>
+    <h2>7. What LiveCaptionN does <em>not</em> do</h2>
+    <ul>
+      <li>No account creation or login of any kind.</li>
+      <li>No data sold to third parties, and no data shared beyond what AdMob (section 4), Firebase (section 5), and Play Billing/Stripe (section 6, only for subscribers) collect as described above.</li>
+      <li>No background audio capture &mdash; audio is only read while a captioning session is actively running and a foreground service notification is visible.</li>
+      <li>No access to your contacts, calendar, photos, SMS, call logs, or files outside the app&rsquo;s private storage.</li>
+      <li>Card/payment details are never seen by LiveCaptionN itself &mdash; they go directly to Google Play or Stripe.</li>
+    </ul>
+
+    <h2>8. Permissions the app requests and why</h2>
     <ul>
       <li><code>RECORD_AUDIO</code> &mdash; needed to capture microphone audio for speech recognition. Only used while a captioning session is active.</li>
       <li><code>SYSTEM_ALERT_WINDOW</code> &mdash; needed to draw the floating caption window on top of other apps. No data crosses this boundary; it is a rendering permission.</li>
