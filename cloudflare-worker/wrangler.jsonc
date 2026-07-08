@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "livecaptionn-premium",
+  "main": "src/worker.js",
+  "compatibility_date": "2024-11-01",
+  "kv_namespaces": [
+    {
+      "binding": "ENTITLEMENTS",
+      "id": "76c67809c6e447caa6e1f22536db6001"
+    }
+  ],
+  "vars": {
+    // Non-secret config. Secrets (STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET,
+    // LICENSE_SIGNING_SECRET, OWNER_ALLOWLIST, OWNER_ACCESS_KEY,
+    // STRIPE_PORTAL_LOGIN_URL) are set via `wrangler secret put` or the
+    // Cloudflare dashboard — never committed here.
+    "STRIPE_PRICE_AD_FREE": "price_1TqepgE8fEIoUiQzwhKC8OPD",
+    "STRIPE_PRICE_PRO": "price_1TqephE8fEIoUiQzzJVMWtUw"
+  }
+}

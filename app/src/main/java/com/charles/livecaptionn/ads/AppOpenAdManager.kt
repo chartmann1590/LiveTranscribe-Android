@@ -7,11 +7,14 @@ import android.util.Log
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
+import com.charles.livecaptionn.billing.PremiumRepository
 import com.google.android.gms.ads.AdError
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.FullScreenContentCallback
 import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.appopen.AppOpenAd
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import java.util.Date
 
 /**
@@ -29,7 +32,9 @@ import java.util.Date
  * both the ad and its load timestamp and refetch when stale.
  */
 class AppOpenAdManager(
-    private val application: Application
+    private val application: Application,
+    private val premiumRepository: PremiumRepository,
+    private val appScope: CoroutineScope
 ) : Application.ActivityLifecycleCallbacks, DefaultLifecycleObserver {
 
     private var appOpenAd: AppOpenAd? = null
@@ -43,9 +48,16 @@ class AppOpenAdManager(
      *  intrusive and contradict the app's utility-focused design. */
     private var hasShownAd = false
 
+    /** Kept in sync from [premiumRepository]'s Flow; checked right before showing an ad
+     *  since entitlement can change mid-session (e.g. right after a Custom Tab purchase). */
+    @Volatile private var hasAdFree = false
+
     fun attach() {
         application.registerActivityLifecycleCallbacks(this)
         ProcessLifecycleOwner.get().lifecycle.addObserver(this)
+        appScope.launch {
+            premiumRepository.state.collect { hasAdFree = it.hasAdFree }
+        }
         // Preload immediately so the first foreground opportunity can show fast.
         loadAd()
     }
@@ -56,6 +68,7 @@ class AppOpenAdManager(
         // Only show on first start (cold start), not warm resumes.
         if (hasShownAd) return
         hasShownAd = true
+        if (hasAdFree) return
         val activity = currentActivity ?: return
         showAdIfAvailable(activity)
     }

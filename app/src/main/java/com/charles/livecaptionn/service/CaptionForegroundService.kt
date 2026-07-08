@@ -18,6 +18,8 @@ import com.charles.livecaptionn.MainActivity
 import com.charles.livecaptionn.R
 import com.charles.livecaptionn.data.TranscriptEntry
 import com.charles.livecaptionn.overlay.OverlayController
+import com.charles.livecaptionn.overlay.OverlayFontCatalog
+import com.charles.livecaptionn.overlay.OverlayThemeCatalog
 import com.charles.livecaptionn.overlay.OverlayUiState
 import com.charles.livecaptionn.settings.AudioSource
 import com.charles.livecaptionn.settings.CaptionSettings
@@ -332,11 +334,12 @@ class CaptionForegroundService : Service() {
             combine(
                 app.container.runtimeStore.state,
                 app.container.settingsRepository.settingsFlow,
+                app.container.premiumRepository.state,
                 overlayReady
-            ) { runtime, settings, _ -> runtime to settings }
-                .collectLatest { (runtime, settings) ->
+            ) { runtime, settings, premium, _ -> Triple(runtime, settings, premium.hasPro) }
+                .collectLatest { (runtime, settings, hasPro) ->
                     val overlay = overlayController ?: return@collectLatest
-                    val ui = buildOverlayUi(runtime, settings)
+                    val ui = buildOverlayUi(runtime, settings, hasPro)
                     Log.d(
                         "CaptionService",
                         "overlay update lines=${runtime.transcriptLines.size} " +
@@ -351,7 +354,8 @@ class CaptionForegroundService : Service() {
 
     private fun buildOverlayUi(
         runtime: CaptionRuntimeState,
-        settings: CaptionSettings
+        settings: CaptionSettings,
+        hasPro: Boolean
     ) = OverlayUiState(
         originalText = runtime.originalText,
         translatedText = runtime.translatedText.ifBlank { runtime.originalText },
@@ -361,7 +365,12 @@ class CaptionForegroundService : Service() {
         textSizeSp = settings.textSizeSp,
         opacity = settings.overlayOpacity,
         showOriginal = settings.showOriginal,
-        minimized = settings.overlayMinimized
+        minimized = settings.overlayMinimized,
+        // Defensive fallback: a lapsed subscription must never leave a stale
+        // Pro theme/font rendering — always re-check entitlement here, not
+        // just at the point the setting was saved.
+        themeId = if (hasPro) settings.overlayThemeId else OverlayThemeCatalog.FREE_THEME_ID,
+        fontId = if (hasPro) settings.overlayFontId else OverlayFontCatalog.FREE_FONT_ID
     )
 
     private fun queueTranslation(text: String, lineId: Long, isFinal: Boolean = false) {
@@ -386,7 +395,8 @@ class CaptionForegroundService : Service() {
                 show(settings.overlayX, settings.overlayY, settings.overlayWidthDp, settings.overlayHeightDp)
             }
             val runtime = app.container.runtimeStore.state.value
-            overlayController?.update(buildOverlayUi(runtime, settings))
+            val hasPro = app.container.premiumRepository.state.first().hasPro
+            overlayController?.update(buildOverlayUi(runtime, settings, hasPro))
             overlayReady.value = overlayReady.value + 1
         }
     }

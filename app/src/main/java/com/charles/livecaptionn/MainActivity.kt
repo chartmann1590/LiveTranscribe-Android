@@ -39,6 +39,9 @@ class MainActivity : ComponentActivity() {
 
     private var showHistory by mutableStateOf(false)
 
+    /** Stripe Checkout session ID carried back by the /checkout/success deep link (github flavor). */
+    private var pendingCheckoutSessionId by mutableStateOf<String?>(null)
+
     private val audioPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
@@ -57,6 +60,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val app = application as LiveCaptionApp
+        pendingCheckoutSessionId = extractCheckoutSessionId(intent)
         setContent {
             val vm: MainViewModel = viewModel(factory = MainViewModelFactory(app.container, application))
             MaterialTheme {
@@ -78,6 +82,8 @@ class MainActivity : ComponentActivity() {
                                 onStop = { stopCaptionService() },
                                 onOpenOverlaySettings = { vm.openOverlayPermissionSettings(this@MainActivity) },
                                 onHistory = { showHistory = true },
+                                pendingCheckoutSessionId = pendingCheckoutSessionId,
+                                onCheckoutSessionConsumed = { pendingCheckoutSessionId = null },
                                 modifier = Modifier.weight(1f)
                             )
                         }
@@ -88,6 +94,18 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        extractCheckoutSessionId(intent)?.let { pendingCheckoutSessionId = it }
+    }
+
+    private fun extractCheckoutSessionId(intent: Intent?): String? {
+        val data = intent?.data ?: return null
+        if (data.scheme != "livecaptionn" || data.host != "premium-return") return null
+        return data.getQueryParameter("session_id")
     }
 
     private fun requestAudioPermission() {

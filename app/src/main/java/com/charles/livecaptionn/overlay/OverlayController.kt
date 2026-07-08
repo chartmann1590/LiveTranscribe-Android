@@ -186,11 +186,15 @@ class OverlayController(
     fun update(ui: OverlayUiState) {
         val frame = root ?: return
         val container = frame.getChildAt(0) as? LinearLayout ?: return
-        // Enforce minimum 0.5 opacity for WCAG AA contrast (white text on dark bg)
+        val theme = OverlayThemeCatalog.find(ui.themeId)
+        val font = OverlayFontCatalog.find(ui.fontId)
+        // Enforce minimum 0.5 opacity for WCAG AA contrast (text on dark bg)
         val effectiveOpacity = ui.opacity.coerceIn(0.5f, 1.0f)
         (container.background as? GradientDrawable)?.setColor(
-            Color.argb((effectiveOpacity * 255).roundToInt(), 17, 17, 17)
+            Color.argb((effectiveOpacity * 255).roundToInt(), Color.red(theme.backgroundRgb), Color.green(theme.backgroundRgb), Color.blue(theme.backgroundRgb))
         )
+        statusText?.setTextColor(theme.textRgb)
+        statusText?.typeface = font.typeface
         statusText?.text = buildString {
             append("Status: ${ui.status.displayName}")
             val detail = ui.statusDetail?.trim().orEmpty()
@@ -199,8 +203,12 @@ class OverlayController(
                 append(detail)
             }
         }
+        originalText?.setTextColor(theme.textRgb)
+        originalText?.typeface = font.typeface
         originalText?.text = ui.originalText.ifBlank { "…" }
         originalText?.visibility = if (ui.showOriginal && ui.originalText.isNotBlank()) View.VISIBLE else View.GONE
+        translatedText?.setTextColor(theme.textRgb)
+        translatedText?.typeface = font.typeface
         translatedText?.text = ui.transcriptText.ifBlank { "…" }
         translatedText?.textSize = ui.textSizeSp
         translatedText?.visibility = View.VISIBLE

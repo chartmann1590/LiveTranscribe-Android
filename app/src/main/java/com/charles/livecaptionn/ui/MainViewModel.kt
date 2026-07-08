@@ -138,6 +138,14 @@ class MainViewModel(
         viewModelScope.launch { container.settingsRepository.update { it.copy(showOriginal = show) } }
     }
 
+    fun updateOverlayTheme(themeId: String) {
+        viewModelScope.launch { container.settingsRepository.update { it.copy(overlayThemeId = themeId) } }
+    }
+
+    fun updateOverlayFont(fontId: String) {
+        viewModelScope.launch { container.settingsRepository.update { it.copy(overlayFontId = fontId) } }
+    }
+
     fun updateBaseUrl(url: String) {
         viewModelScope.launch {
             container.settingsRepository.update { it.copy(serverBaseUrl = url) }

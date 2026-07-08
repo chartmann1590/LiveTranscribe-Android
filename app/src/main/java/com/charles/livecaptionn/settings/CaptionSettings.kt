@@ -18,7 +18,10 @@ data class CaptionSettings(
     val translationBackend: TranslationBackend = TranslationBackend.ML_KIT,
     val sttBaseUrl: String = DEFAULT_STT_URL,
     val overlayWidthDp: Int = DEFAULT_OVERLAY_WIDTH_DP,
-    val overlayHeightDp: Int = DEFAULT_OVERLAY_HEIGHT_DP
+    val overlayHeightDp: Int = DEFAULT_OVERLAY_HEIGHT_DP,
+    /** Pro perk. Defaults render identically to the app's original look. */
+    val overlayThemeId: String = "default",
+    val overlayFontId: String = "default"
 ) {
     companion object {
         val DEFAULT_BASE_URL: String = BuildConfig.DEFAULT_TRANSLATE_URL

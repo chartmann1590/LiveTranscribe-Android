@@ -3,6 +3,7 @@ package com.charles.livecaptionn.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,6 +28,9 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Mic
@@ -96,6 +100,10 @@ import com.charles.livecaptionn.ui.feedback.IssueDetailsDialog
 import com.charles.livecaptionn.ui.feedback.ReportProblemDialog
 import com.charles.livecaptionn.ui.feedback.SubmitSuccessSnackbar
 import com.charles.livecaptionn.ui.feedback.SupportAndFeedbackCard
+import com.charles.livecaptionn.overlay.OverlayFontCatalog
+import com.charles.livecaptionn.overlay.OverlayThemeCatalog
+import com.charles.livecaptionn.ui.premium.PremiumCard
+import com.charles.livecaptionn.ui.premium.PremiumViewModel
 import com.charles.livecaptionn.update.UpdateInfo
 import androidx.lifecycle.viewmodel.compose.viewModel
 
@@ -108,6 +116,8 @@ fun MainScreen(
     onStart: () -> Unit,
     onStop: () -> Unit,
     onHistory: () -> Unit = {},
+    pendingCheckoutSessionId: String? = null,
+    onCheckoutSessionConsumed: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val ui by viewModel.state.collectAsStateWithLifecycle()
@@ -122,6 +132,19 @@ fun MainScreen(
         factory = FeedbackViewModel.Factory(feedbackCtx, feedbackApp.container.bugReportRepo)
     )
     val feedbackState by feedbackVm.state.collectAsStateWithLifecycle()
+
+    val premiumVm: PremiumViewModel = viewModel(
+        factory = PremiumViewModel.Factory(feedbackApp.container.premiumRepository)
+    )
+    val premiumState by premiumVm.state.collectAsStateWithLifecycle()
+    val activity = feedbackCtx as? android.app.Activity
+
+    LaunchedEffect(pendingCheckoutSessionId) {
+        if (pendingCheckoutSessionId != null) {
+            premiumVm.refresh(pendingCheckoutSessionId)
+            onCheckoutSessionConsumed()
+        }
+    }
 
     // Re-check permission state on every resume so granting overlay/mic
     // access in system Settings is reflected immediately when the user
@@ -181,10 +204,25 @@ fun MainScreen(
             LanguageCard(
                 ui = ui,
                 viewModel = viewModel,
-                onManageModels = { showVoskSheet = true }
+                onManageModels = { showVoskSheet = true },
+                hasPro = premiumState.premium.hasPro,
+                onRequiresPro = {}
             )
-            OverlaySettingsCard(ui, viewModel)
-            if (AdUnits.ENABLED && AdUnits.NATIVE.isNotBlank()) {
+            OverlaySettingsCard(
+                ui = ui,
+                viewModel = viewModel,
+                hasPro = premiumState.premium.hasPro,
+                onRequiresPro = {}
+            )
+            PremiumCard(
+                state = premiumState,
+                onPurchase = { product -> activity?.let { premiumVm.purchase(it, product) } },
+                onManageSubscription = { activity?.let { premiumVm.manageSubscription(it) } },
+                onRestoreEmailChange = { premiumVm.updateRestoreEmail(it) },
+                onRestore = { premiumVm.restore() },
+                onRefresh = { premiumVm.refresh() }
+            )
+            if (AdUnits.ENABLED && AdUnits.NATIVE.isNotBlank() && !premiumState.premium.hasAdFree) {
                 NativeAdCard()
             }
             ServerCard(
@@ -218,9 +256,11 @@ fun MainScreen(
             VoskModelSheet(
                 models = ui.voskModels,
                 progress = ui.voskDownloadProgress,
+                hasPro = premiumState.premium.hasPro,
                 onDismiss = { showVoskSheet = false },
                 onDownload = viewModel::downloadVoskModel,
-                onDelete = viewModel::deleteVoskModel
+                onDelete = viewModel::deleteVoskModel,
+                onRequiresPro = { showVoskSheet = false }
             )
         }
 
@@ -539,10 +579,16 @@ private fun ChoiceChip(
 private fun LanguageCard(
     ui: MainUiState,
     viewModel: MainViewModel,
-    onManageModels: () -> Unit
+    onManageModels: () -> Unit,
+    hasPro: Boolean,
+    onRequiresPro: () -> Unit
 ) {
     val sourceOptions = ui.availableSourceLanguages
     val targetOptions = ui.availableTargetLanguages
+    val usingMlKitGate = ui.settings.translationBackend == TranslationBackend.ML_KIT
+    val languageRequiresPro: (Language) -> Boolean = { lang ->
+        usingMlKitGate && !hasPro && MlKitLanguages.requiresPro(lang.code)
+    }
 
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -554,7 +600,9 @@ private fun LanguageCard(
                 selectedCode = ui.settings.sourceLanguageCode,
                 options = sourceOptions,
                 placeholder = if (sourceOptions.isEmpty()) "No languages available" else "Pick a language",
-                onPick = { viewModel.updateSource(it.code) }
+                onPick = { viewModel.updateSource(it.code) },
+                requiresPro = languageRequiresPro,
+                onRequiresPro = onRequiresPro
             )
 
             // Swap + target
@@ -574,7 +622,9 @@ private fun LanguageCard(
                 selectedCode = ui.settings.targetLanguageCode,
                 options = targetOptions,
                 placeholder = if (targetOptions.isEmpty()) "No languages available" else "Pick a language",
-                onPick = { viewModel.updateTarget(it.code) }
+                onPick = { viewModel.updateTarget(it.code) },
+                requiresPro = languageRequiresPro,
+                onRequiresPro = onRequiresPro
             )
 
             // Context-specific helper text
@@ -648,7 +698,9 @@ private fun LanguagePickerField(
     selectedCode: String,
     options: List<Language>,
     placeholder: String,
-    onPick: (Language) -> Unit
+    onPick: (Language) -> Unit,
+    requiresPro: (Language) -> Boolean = { false },
+    onRequiresPro: () -> Unit = {}
 ) {
     var open by remember { mutableStateOf(false) }
     val selected = options.firstOrNull { it.code.equals(selectedCode, ignoreCase = true) }
@@ -684,6 +736,11 @@ private fun LanguagePickerField(
             onPick = {
                 onPick(it)
                 open = false
+            },
+            requiresPro = requiresPro,
+            onRequiresPro = {
+                open = false
+                onRequiresPro()
             }
         )
     }
@@ -694,7 +751,9 @@ private fun LanguagePickerDialog(
     options: List<Language>,
     selectedCode: String,
     onDismiss: () -> Unit,
-    onPick: (Language) -> Unit
+    onPick: (Language) -> Unit,
+    requiresPro: (Language) -> Boolean = { false },
+    onRequiresPro: () -> Unit = {}
 ) {
     var query by remember { mutableStateOf("") }
     val filtered = remember(query, options) {
@@ -724,23 +783,33 @@ private fun LanguagePickerDialog(
                 ) {
                     items(filtered, key = { it.code }) { lang ->
                         val isSelected = lang.code.equals(selectedCode, ignoreCase = true)
+                        val locked = requiresPro(lang)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { onPick(lang) }
+                                .clickable { if (locked) onRequiresPro() else onPick(lang) }
                                 .padding(vertical = 12.dp, horizontal = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            if (isSelected) {
-                                Icon(Icons.Filled.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
-                            } else {
-                                Spacer(Modifier.size(18.dp))
+                            when {
+                                locked -> Icon(
+                                    Icons.Filled.Lock,
+                                    contentDescription = "Requires Pro",
+                                    modifier = Modifier.size(18.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                isSelected -> Icon(Icons.Filled.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
+                                else -> Spacer(Modifier.size(18.dp))
                             }
                             Spacer(Modifier.width(10.dp))
                             Column(Modifier.weight(1f)) {
-                                Text(lang.name, style = MaterialTheme.typography.bodyMedium)
                                 Text(
-                                    text = lang.code,
+                                    lang.name,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = if (locked) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = if (locked) "${lang.code} · Pro" else lang.code,
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -770,9 +839,11 @@ private fun LanguagePickerDialog(
 private fun VoskModelSheet(
     models: List<VoskModelInfo>,
     progress: Map<String, Float>,
+    hasPro: Boolean,
     onDismiss: () -> Unit,
     onDownload: (VoskModelInfo) -> Unit,
-    onDelete: (VoskModelInfo) -> Unit
+    onDelete: (VoskModelInfo) -> Unit,
+    onRequiresPro: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
@@ -803,14 +874,16 @@ private fun VoskModelSheet(
                     VoskRow(
                         model = model,
                         progress = progress[model.modelName],
+                        locked = false,
                         onDownload = { onDownload(model) },
-                        onDelete = { onDelete(model) }
+                        onDelete = { onDelete(model) },
+                        onRequiresPro = onRequiresPro
                     )
                 }
             }
 
             if (availableLarge.isNotEmpty()) {
-                Text("Large · server-grade accuracy (recommended)", style = MaterialTheme.typography.labelLarge)
+                Text("Large · server-grade accuracy (Pro)", style = MaterialTheme.typography.labelLarge)
                 Text(
                     text = "Full Vosk server models with the lowest error rates. Each one is 80 MB to 2 GB but runs entirely on-device after the one-time download. This is the strongest transcription option for every language.",
                     style = MaterialTheme.typography.labelSmall,
@@ -820,8 +893,10 @@ private fun VoskModelSheet(
                     VoskRow(
                         model = model,
                         progress = progress[model.modelName],
+                        locked = !hasPro,
                         onDownload = { onDownload(model) },
-                        onDelete = { onDelete(model) }
+                        onDelete = { onDelete(model) },
+                        onRequiresPro = onRequiresPro
                     )
                 }
             }
@@ -837,8 +912,10 @@ private fun VoskModelSheet(
                     VoskRow(
                         model = model,
                         progress = progress[model.modelName],
+                        locked = false,
                         onDownload = { onDownload(model) },
-                        onDelete = { onDelete(model) }
+                        onDelete = { onDelete(model) },
+                        onRequiresPro = onRequiresPro
                     )
                 }
             }
@@ -857,8 +934,10 @@ private fun VoskModelSheet(
 private fun VoskRow(
     model: VoskModelInfo,
     progress: Float?,
+    locked: Boolean,
     onDownload: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onRequiresPro: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -911,6 +990,13 @@ private fun VoskRow(
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
+                    locked -> {
+                        FilledTonalButton(onClick = onRequiresPro, shape = RoundedCornerShape(8.dp)) {
+                            Icon(Icons.Filled.Lock, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Pro")
+                        }
+                    }
                     else -> {
                         FilledTonalButton(onClick = onDownload, shape = RoundedCornerShape(8.dp)) {
                             Icon(Icons.Filled.Download, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -941,7 +1027,12 @@ private fun formatModelSize(sizeMb: Int): String {
 // ── Overlay Settings ──
 
 @Composable
-private fun OverlaySettingsCard(ui: MainUiState, viewModel: MainViewModel) {
+private fun OverlaySettingsCard(
+    ui: MainUiState,
+    viewModel: MainViewModel,
+    hasPro: Boolean,
+    onRequiresPro: () -> Unit
+) {
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             SectionLabel("Overlay")
@@ -970,6 +1061,42 @@ private fun OverlaySettingsCard(ui: MainUiState, viewModel: MainViewModel) {
                     checked = ui.settings.showOriginal,
                     onCheckedChange = viewModel::updateShowOriginal
                 )
+            }
+
+            Text("Overlay theme (Pro)", style = MaterialTheme.typography.bodyMedium)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OverlayThemeCatalog.THEMES.forEach { theme ->
+                    val locked = !hasPro && theme.id != OverlayThemeCatalog.FREE_THEME_ID
+                    ChoiceChip(
+                        label = theme.label,
+                        icon = if (locked) Icons.Filled.Lock else Icons.Filled.Palette,
+                        selected = ui.settings.overlayThemeId == theme.id,
+                        onClick = { if (locked) onRequiresPro() else viewModel.updateOverlayTheme(theme.id) }
+                    )
+                }
+            }
+
+            Text("Overlay font (Pro)", style = MaterialTheme.typography.bodyMedium)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OverlayFontCatalog.FONTS.forEach { font ->
+                    val locked = !hasPro && font.id != OverlayFontCatalog.FREE_FONT_ID
+                    ChoiceChip(
+                        label = font.label,
+                        icon = if (locked) Icons.Filled.Lock else Icons.Filled.TextFields,
+                        selected = ui.settings.overlayFontId == font.id,
+                        onClick = { if (locked) onRequiresPro() else viewModel.updateOverlayFont(font.id) }
+                    )
+                }
             }
         }
     }

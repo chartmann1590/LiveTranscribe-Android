@@ -35,10 +35,20 @@
 
         <activity
             android:name=".MainActivity"
-            android:exported="true">
+            android:exported="true"
+            android:launchMode="singleTask">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- github/Stripe flavor: Chrome Custom Tabs bounces back here after
+                 Checkout completes, carrying the Stripe session_id so the app can
+                 prove purchase ownership to the Worker (see cloudflare-worker/src/worker.js). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="livecaptionn" android:host="premium-return" />
             </intent-filter>
         </activity>
 
