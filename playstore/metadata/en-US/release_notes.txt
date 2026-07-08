@@ -1,8 +1,6 @@
-First Play Store release.
+New: optional Ad-Free ($1.99/mo) and Pro ($4.99/mo) subscriptions.
 
-• Streaming on-device Vosk speech recognition with live word-by-word partials
-• On-device translation via Google ML Kit (~59 languages)
-• Built-in downloader for large server-grade Vosk models in 15 languages
-• Floating, draggable caption overlay
-• Transcript history
-• Brand-new adaptive app icon
+• Ad-Free removes the banner and app-open ads
+• Pro unlocks larger server-grade Vosk models, more ML Kit translation languages, and extra overlay themes/fonts
+
+Everything free before this update stays free — these are optional add-ons, not a paywall. Also includes a crash fix in the new billing code.

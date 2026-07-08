@@ -102,17 +102,23 @@ upload to Play Console → Production → Create new release → Upload.
    and every PNG in `graphics/phone-screenshots/`.
 4. Paste the privacy policy URL from `metadata/en-US/privacy_policy_url.txt`
    into **App content → Privacy policy**.
-5. Complete the **Data safety** form. LiveCaptionN collects and shares no
-   user data (no analytics, no advertising, speech never leaves the device
-   under the default pipeline). See `../docs/privacy.html` for the exact
-   language to mirror.
+5. Complete the **Data safety** form. LiveCaptionN collects no personal
+   audio/transcript/settings data (that never leaves the device), but does
+   use AdMob (ads) and Firebase Crashlytics/Analytics/Performance
+   (crash reports + basic usage stats, release builds only) — declare both.
+   See `../docs/privacy.html` for the exact language to mirror.
 6. Complete the **Content rating** questionnaire — the app has no user
-   generated content, no ads, and no in-app purchases, so it lands in the
-   lowest rating tier for every region.
-7. Upload the signed `.aab` under **Production → Create new release**.
-8. Record the promo video per `video/promo-storyboard.md`, upload to
+   generated content, but does show ads and offer in-app purchases
+   (the two subscriptions), so declare both when asked.
+7. Under **Monetize → Products → Subscriptions**, create `ad_free_monthly`
+   ($1.99/mo) and `pro_monthly` ($4.99/mo) with an active auto-renewing
+   base plan each — these exact product IDs are hardcoded in
+   `app/build.gradle.kts`. Add your own account under **Setup → License
+   testing** before trying a test purchase.
+8. Upload the signed `.aab` under **Production → Create new release**.
+9. Record the promo video per `video/promo-storyboard.md`, upload to
    YouTube, paste the URL into **Store listing → Video**.
-9. Submit for review.
+10. Submit for review.
 
 ## Permissions justification (Play Console: App access)
 
