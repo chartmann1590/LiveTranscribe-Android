@@ -35,7 +35,9 @@ class RealBillingClientAdapter(
 
     private val client: BillingClient = BillingClient.newBuilder(context)
         .setListener(onPurchasesUpdated)
-        .enablePendingPurchases(PendingPurchasesParams.newBuilder().build())
+        // Billing Library 7.x requires this even though this app only sells
+        // subscriptions, not one-time products — omitting it throws at construction.
+        .enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
         .build()
 
     override suspend fun connect(): Boolean = suspendCancellableCoroutine { cont ->

@@ -53,6 +53,7 @@ Both stages of the pipeline can run **fully on-device**: streaming Vosk handles 
 - **Transcript history** — every session is saved locally, searchable with per-entry delete from the history screen.
 - **Tunable overlay** — text size, opacity, width/height, "show original" toggle (dual-line original + translated display), minimized state, and remembered screen position.
 - **Private by default** — speech processing and translation both run against endpoints you configure. No accounts, no mandatory telemetry (Firebase Analytics/Crashlytics only in release builds, disabled in debug).
+- **Optional Ad-Free & Pro subscriptions** — everything above is free, forever. Two optional monthly upgrades add more: **Ad-Free** removes the banner/app-open ads, and **Pro** unlocks larger server-grade Vosk models, more ML Kit translation languages, and extra overlay themes/fonts. Billing is Google Play Billing on the Play Store build and Stripe (via a Cloudflare Worker) on the self-updating GitHub build — nothing free is ever gated.
 
 ## Translating different languages
 
