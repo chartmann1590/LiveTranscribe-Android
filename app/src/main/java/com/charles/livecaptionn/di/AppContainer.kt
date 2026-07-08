@@ -1,6 +1,8 @@
 package com.charles.livecaptionn.di
 
 import android.content.Context
+import com.charles.livecaptionn.billing.PremiumRepository
+import com.charles.livecaptionn.data.PremiumLocalStore
 import com.charles.livecaptionn.data.SettingsDataStore
 import com.charles.livecaptionn.data.SettingsRepository
 import com.charles.livecaptionn.data.TranscriptHistoryStore
@@ -41,4 +43,7 @@ class AppContainer(context: Context) {
     val updateChecker: UpdateChecker = UpdateChecker()
     val updateNotifier: UpdateNotifier = UpdateNotifier(context.applicationContext)
     val bugReportRepo: BugReportRepo = BugReportRepo(context.applicationContext)
+    val premiumStore: PremiumLocalStore = PremiumLocalStore(context.applicationContext)
+    val premiumRepository: PremiumRepository =
+        createPremiumRepository(context.applicationContext, premiumStore, appScope)
 }

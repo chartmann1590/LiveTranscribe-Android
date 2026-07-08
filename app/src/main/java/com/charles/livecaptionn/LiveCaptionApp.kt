@@ -41,6 +41,6 @@ class LiveCaptionApp : Application() {
             )
         }
         MobileAds.initialize(this) {}
-        appOpenAdManager = AppOpenAdManager(this).also { it.attach() }
+        appOpenAdManager = AppOpenAdManager(this, container.premiumRepository, container.appScope).also { it.attach() }
     }
 }

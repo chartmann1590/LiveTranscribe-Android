@@ -73,4 +73,16 @@ object MlKitLanguages {
         Language("vi", "Vietnamese"),
         Language("zh", "Chinese"),
     )
+
+    /**
+     * Free-tier language codes — a curated set of the most commonly requested
+     * pairs. Everything else in [LIST] requires Pro. Purely a UI-level gate
+     * (matches this app's existing trust model elsewhere); [LIST] itself and
+     * the underlying ML Kit repository stay fully ungated.
+     */
+    val FREE_TIER: Set<String> = setOf(
+        "en", "es", "fr", "de", "it", "pt", "nl", "ru", "zh", "ja", "ko", "ar", "hi", "vi", "tr"
+    )
+
+    fun requiresPro(code: String): Boolean = code !in FREE_TIER
 }

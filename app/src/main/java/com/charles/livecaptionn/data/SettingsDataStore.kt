@@ -40,6 +40,8 @@ class SettingsDataStore(private val context: Context) : SettingsRepository {
             p[STT_URL] = next.sttBaseUrl.trim()
             p[OVERLAY_W] = next.overlayWidthDp
             p[OVERLAY_H] = next.overlayHeightDp
+            p[OVERLAY_THEME] = next.overlayThemeId
+            p[OVERLAY_FONT] = next.overlayFontId
         }
     }
 
@@ -61,7 +63,9 @@ class SettingsDataStore(private val context: Context) : SettingsRepository {
             translationBackend = TranslationBackend.fromName(this[TRANSLATION_BACKEND]),
             sttBaseUrl = this[STT_URL] ?: CaptionSettings.DEFAULT_STT_URL,
             overlayWidthDp = this[OVERLAY_W] ?: CaptionSettings.DEFAULT_OVERLAY_WIDTH_DP,
-            overlayHeightDp = this[OVERLAY_H] ?: CaptionSettings.DEFAULT_OVERLAY_HEIGHT_DP
+            overlayHeightDp = this[OVERLAY_H] ?: CaptionSettings.DEFAULT_OVERLAY_HEIGHT_DP,
+            overlayThemeId = this[OVERLAY_THEME] ?: defaults.overlayThemeId,
+            overlayFontId = this[OVERLAY_FONT] ?: defaults.overlayFontId
         )
     }
 
@@ -82,5 +86,7 @@ class SettingsDataStore(private val context: Context) : SettingsRepository {
         val STT_URL = stringPreferencesKey("stt_url")
         val OVERLAY_W = intPreferencesKey("overlay_w")
         val OVERLAY_H = intPreferencesKey("overlay_h")
+        val OVERLAY_THEME = stringPreferencesKey("overlay_theme")
+        val OVERLAY_FONT = stringPreferencesKey("overlay_font")
     }
 }
