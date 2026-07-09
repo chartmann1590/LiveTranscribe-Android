@@ -224,6 +224,12 @@ class OverlayController(
     fun hide() {
         root?.let { wm.removeView(it) }
         root = null
+        // Must be cleared together with root: DragTouchListener/ResizeTouchListener
+        // guard on `params` being non-null before calling wm.updateViewLayout(root, ...),
+        // and a touch event queued just before hide() runs would otherwise pass that
+        // guard with a stale non-null params while root is already null, crashing
+        // with "view must not be null" inside WindowManager.
+        params = null
     }
 
     // ── Helpers ──
@@ -257,9 +263,10 @@ class OverlayController(
                     return true
                 }
                 MotionEvent.ACTION_MOVE -> {
+                    val view = root ?: return false
                     lp.x = startX + (event.rawX - touchX).roundToInt()
                     lp.y = startY + (event.rawY - touchY).roundToInt()
-                    wm.updateViewLayout(root, lp)
+                    wm.updateViewLayout(view, lp)
                     return true
                 }
                 MotionEvent.ACTION_UP -> {
@@ -288,11 +295,12 @@ class OverlayController(
                     return true
                 }
                 MotionEvent.ACTION_MOVE -> {
+                    val view = root ?: return false
                     val minW = (CaptionSettings.MIN_OVERLAY_WIDTH_DP * density).roundToInt()
                     val minH = (CaptionSettings.MIN_OVERLAY_HEIGHT_DP * density).roundToInt()
                     lp.width = (startW + (event.rawX - touchX).roundToInt()).coerceAtLeast(minW)
                     lp.height = (startH + (event.rawY - touchY).roundToInt()).coerceAtLeast(minH)
-                    wm.updateViewLayout(root, lp)
+                    wm.updateViewLayout(view, lp)
                     return true
                 }
                 MotionEvent.ACTION_UP -> {
