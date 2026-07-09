@@ -1,11 +1,13 @@
 package com.charles.livecaptionn.service
 
+import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.media.projection.MediaProjectionManager
 import android.os.Build
@@ -13,6 +15,7 @@ import android.os.IBinder
 import android.provider.Settings
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.charles.livecaptionn.LiveCaptionApp
 import com.charles.livecaptionn.MainActivity
 import com.charles.livecaptionn.R
@@ -78,6 +81,17 @@ class CaptionForegroundService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    override fun onCreate() {
+        super.onCreate()
+        // Must happen here, not in startFlow(): if the process was killed while
+        // the notification was still showing, Android can deliver ACTION_STOP
+        // (from the notification's "Stop" action) as the very first intent to a
+        // freshly-created service instance, going straight to stopFlow() without
+        // ACTION_START ever running. Initializing here guarantees `app` is set
+        // no matter which action arrives first.
+        app = application as LiveCaptionApp
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent == null) {
             // System restarted our sticky service with a null intent
@@ -111,15 +125,29 @@ class CaptionForegroundService : Service() {
     }
 
     private fun enterForeground(audioSource: AudioSource) {
-        val type = if (audioSource == AudioSource.SYSTEM)
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
-        else
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+        val wantsMicrophone = audioSource != AudioSource.SYSTEM
+        val hasMicPermission = ContextCompat.checkSelfPermission(
+            this, Manifest.permission.RECORD_AUDIO
+        ) == PackageManager.PERMISSION_GRANTED
+        // Android throws a SecurityException from startForeground() itself if
+        // FOREGROUND_SERVICE_TYPE_MICROPHONE is requested without RECORD_AUDIO
+        // actually granted. MainActivity checks this before the initial launch,
+        // but startFlow()'s audioSource-mismatch re-entry can call this again
+        // mid-session — fail closed instead of crashing with the OS exception.
+        val type = when {
+            audioSource == AudioSource.SYSTEM -> ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
+            wantsMicrophone && hasMicPermission -> ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+            else -> 0
+        }
         startForeground(NOTIF_ID, buildNotification(), type)
+        if (wantsMicrophone && !hasMicPermission) {
+            Log.e("CaptionService", "Mic audio requested without RECORD_AUDIO permission; stopping.")
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+        }
     }
 
     private fun startFlow() {
-        app = application as LiveCaptionApp
         if (!captionSessionActive.compareAndSet(false, true)) return
         if (!Settings.canDrawOverlays(this)) {
             captionSessionActive.set(false)
