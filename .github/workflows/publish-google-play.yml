@@ -1,0 +1,159 @@
+name: Publish to Google Play
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_play_publish:
+        description: 'Type "publish" to confirm submission to Google Play production'
+        required: true
+        default: ''
+      release_notes:
+        description: 'Release notes for this version (optional)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      PLAY_PACKAGE_NAME: com.charles.livecaptionn
+      PLAY_TRACK: production
+
+    steps:
+      - name: Validate confirmation input
+        run: |
+          if [ "${{ github.event.inputs.confirm_play_publish }}" != "publish" ]; then
+            echo "::error::You must type 'publish' in the confirm_play_publish input to proceed."
+            echo "Provided: '${{ github.event.inputs.confirm_play_publish }}'"
+            exit 1
+          fi
+          echo "Play publish confirmed."
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set version code and name
+        id: version
+        run: |
+          VER_CODE=$(date -u +'%y%j%H%M')
+          VER_NAME="1.0.$(date -u +'%Y%m%d.%H%M')"
+          echo "version_code=$VER_CODE" >> "$GITHUB_OUTPUT"
+          echo "version_name=$VER_NAME" >> "$GITHUB_OUTPUT"
+          echo "ANDROID_VERSION_CODE=$VER_CODE" >> "$GITHUB_ENV"
+          echo "ANDROID_VERSION_NAME=$VER_NAME" >> "$GITHUB_ENV"
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Generate app/google-services.json
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -z "$GOOGLE_SERVICES_JSON" ]; then
+            echo "::error::GOOGLE_SERVICES_JSON secret is missing"
+            exit 1
+          fi
+          echo "$GOOGLE_SERVICES_JSON" > app/google-services.json
+
+      - name: Generate signing files from secrets
+        env:
+          ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          ANDROID_KEYSTORE_FILE: ${{ secrets.ANDROID_KEYSTORE_FILE }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          echo "$ANDROID_KEYSTORE_B64" | base64 --decode > "$ANDROID_KEYSTORE_FILE"
+          cat > keystore.properties <<EOF
+          storeFile=$ANDROID_KEYSTORE_FILE
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          keyPassword=$ANDROID_KEY_PASSWORD
+          EOF
+
+      - name: Generate local.properties (ads enabled)
+        env:
+          ADS_ENABLED: ${{ secrets.ADS_ENABLED }}
+          ADMOB_APP_ID: ${{ secrets.ADMOB_APP_ID }}
+          ADMOB_APP_OPEN_ID_DEBUG: ${{ secrets.ADMOB_APP_OPEN_ID_DEBUG }}
+          ADMOB_APP_OPEN_ID_RELEASE: ${{ secrets.ADMOB_APP_OPEN_ID_RELEASE }}
+          ADMOB_BANNER_ID_DEBUG: ${{ secrets.ADMOB_BANNER_ID_DEBUG }}
+          ADMOB_BANNER_ID_RELEASE: ${{ secrets.ADMOB_BANNER_ID_RELEASE }}
+          ADMOB_NATIVE_ID_DEBUG: ${{ secrets.ADMOB_NATIVE_ID_DEBUG }}
+          ADMOB_NATIVE_ID_RELEASE: ${{ secrets.ADMOB_NATIVE_ID_RELEASE }}
+        run: |
+          cat > local.properties <<EOF
+          translate.url=http://localhost:3006
+          stt.url=http://localhost:9000/asr?output=json
+          ads.enabled=${ADS_ENABLED:-true}
+          ads.admob.app.id=$ADMOB_APP_ID
+          ads.admob.app.open.id.debug=$ADMOB_APP_OPEN_ID_DEBUG
+          ads.admob.app.open.id.release=$ADMOB_APP_OPEN_ID_RELEASE
+          ads.admob.banner.id.debug=$ADMOB_BANNER_ID_DEBUG
+          ads.admob.banner.id.release=$ADMOB_BANNER_ID_RELEASE
+          ads.admob.native.id.debug=$ADMOB_NATIVE_ID_DEBUG
+          ads.admob.native.id.release=$ADMOB_NATIVE_ID_RELEASE
+          EOF
+
+      - name: Run Play flavor unit tests
+        run: ./gradlew testPlaystoreDebugUnitTest
+
+      - name: Build Play release AAB
+        run: ./gradlew bundlePlaystoreRelease
+
+      - name: Prepare release notes
+        id: notes
+        run: |
+          mkdir -p distribution/whatsnew
+          WHATSNEW_FILE="distribution/whatsnew/whatsnew-en-US"
+          RELEASE_NOTES="${{ github.event.inputs.release_notes }}"
+          if [ -n "$RELEASE_NOTES" ]; then
+            echo "$RELEASE_NOTES" > "$WHATSNEW_FILE"
+          elif [ -f listing/whats_new.txt ]; then
+            cp listing/whats_new.txt "$WHATSNEW_FILE"
+          else
+            git log --oneline --no-merges "$(git describe --tags --abbrev=0 2>/dev/null || git rev-list --max-parents=0 HEAD)..HEAD" > "$WHATSNEW_FILE" 2>/dev/null || \
+            echo "Bug fixes and performance improvements." > "$WHATSNEW_FILE"
+          fi
+          echo "Release notes:"
+          cat "$WHATSNEW_FILE"
+
+      - name: Upload Play AAB as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-caption-playstore-aab-${{ steps.version.outputs.version_name }}
+          path: app/build/outputs/bundle/playstoreRelease/app-playstore-release.aab
+
+      - name: Verify Play service account key
+        env:
+          SA_KEY: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -z "$SA_KEY" ]; then
+            echo "::error::GOOGLE_PLAY_SERVICE_ACCOUNT_JSON secret is missing"
+            exit 1
+          fi
+          echo "GOOGLE_PLAY_SERVICE_ACCOUNT_JSON is present."
+          echo "$SA_KEY" > /tmp/play-sa.json
+
+      - name: Publish to Google Play
+        uses: r0adkll/upload-google-play@v1.1.5
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: ${{ env.PLAY_PACKAGE_NAME }}
+          releaseFiles: app/build/outputs/bundle/playstoreRelease/app-playstore-release.aab
+          track: ${{ env.PLAY_TRACK }}
+          status: completed
+          whatsNewDirectory: distribution/whatsnew
