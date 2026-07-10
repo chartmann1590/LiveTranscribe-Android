@@ -29,8 +29,12 @@ val hasReleaseSigning: Boolean = keystoreProps.getProperty("storeFile")?.isNotBl
 
 // CI builds encode GitHub's run number into versionCode so the app's build
 // number matches the release tag (v1.0.<run_number>). Local dev builds get 1.
+// Explicit env overrides (ANDROID_VERSION_CODE / ANDROID_VERSION_NAME) allow
+// the manual Play Publish workflow to set a high monotonic version code.
 val ciRunNumber: Int = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
-val appVersionName: String = "1.0.$ciRunNumber"
+val appVersionCode: Int = System.getenv("ANDROID_VERSION_CODE")?.toIntOrNull() ?: ciRunNumber
+val appVersionName: String = System.getenv("ANDROID_VERSION_NAME")
+    ?: "1.0.$appVersionCode"
 
 android {
     namespace = "com.charles.livecaptionn"
@@ -40,7 +44,7 @@ android {
         applicationId = "com.charles.livecaptionn"
         minSdk = 29
         targetSdk = 35
-        versionCode = ciRunNumber
+        versionCode = appVersionCode
         versionName = appVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
