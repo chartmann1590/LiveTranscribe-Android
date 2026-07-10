@@ -154,6 +154,6 @@ jobs:
           serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: ${{ env.PLAY_PACKAGE_NAME }}
           releaseFiles: app/build/outputs/bundle/playstoreRelease/app-playstore-release.aab
-          track: ${{ env.PLAY_TRACK }}
+          tracks: ${{ env.PLAY_TRACK }}
           status: completed
           whatsNewDirectory: distribution/whatsnew
