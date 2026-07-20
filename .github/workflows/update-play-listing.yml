@@ -1,0 +1,51 @@
+name: Update Play Store Listing
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_listing_update:
+        description: 'Type "update" to confirm pushing store listing text to Google Play production'
+        required: true
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  update-listing:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validate confirmation input
+        run: |
+          if [ "${{ github.event.inputs.confirm_listing_update }}" != "update" ]; then
+            echo "::error::You must type 'update' in the confirm_listing_update input to proceed."
+            echo "Provided: '${{ github.event.inputs.confirm_listing_update }}'"
+            exit 1
+          fi
+          echo "Listing update confirmed."
+
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install Google API client
+        run: pip install --quiet google-auth google-api-python-client
+
+      - name: Verify Play service account key
+        env:
+          SA_KEY: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -z "$SA_KEY" ]; then
+            echo "::error::GOOGLE_PLAY_SERVICE_ACCOUNT_JSON secret is missing"
+            exit 1
+          fi
+          echo "GOOGLE_PLAY_SERVICE_ACCOUNT_JSON is present."
+
+      - name: Push store listing text to Google Play
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+        run: python3 .github/scripts/update_play_listing.py
