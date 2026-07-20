@@ -25,6 +25,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.charles.livecaptionn.ads.AdUnits
 import com.charles.livecaptionn.ads.BannerAd
+import com.charles.livecaptionn.review.ReviewPrompter
 import com.charles.livecaptionn.service.CaptionForegroundService
 import com.charles.livecaptionn.service.MediaProjectionHolder
 import com.charles.livecaptionn.settings.AudioSource
@@ -163,5 +164,6 @@ class MainActivity : ComponentActivity() {
             action = CaptionForegroundService.ACTION_STOP
         }
         startService(intent)
+        ReviewPrompter.onCaptioningSessionCompleted(this)
     }
 }

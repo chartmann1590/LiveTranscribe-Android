@@ -79,6 +79,72 @@
 }
 </script>
 
+<!-- JSON-LD: FAQPage (mirrors the #faq section below, for FAQ rich results) -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Is LiveCaptionN free?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes — every core feature is free, forever, with no paywall. The free tier shows ads to keep it that way. Two optional monthly subscriptions, Ad-Free and Pro, are available for anyone who wants to support the app or get more out of it, but nothing free is ever removed or gated. It's fully open source and every release APK is built by GitHub Actions from a public commit you can inspect."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What do Ad-Free and Pro unlock?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Ad-Free ($1.99/mo) removes the banner and app-open ads. Pro ($4.99/mo) unlocks larger server-grade Vosk speech models, additional Google ML Kit translation languages, and extra overlay color themes/fonts — all still fully on-device."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Which Android versions are supported?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Android 10 (API 29) and above."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Do I need my own server?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. The default pipeline is fully on-device: streaming Vosk handles speech-to-text and Google ML Kit handles translation. You only need a server if you want Whisper-based STT or LibreTranslate's wider language coverage — both are optional backends you can enable in settings."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How do I add more languages?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "For on-device speech recognition, tap Manage on-device models inside the app to download additional Vosk models in Small or Large server-grade quality. For translation, ML Kit already covers about 59 languages out of the box; if you need something it doesn't, switch to LibreTranslate and install extra packages on your server."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does the app need internet?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Not for captioning. Once you've downloaded a Vosk model and the ML Kit translation pair you want, speech recognition and translation both run entirely on-device. Internet is only needed for the one-time model downloads and for optional remote backends."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can it caption YouTube or TikTok directly?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes, via the system-audio mode that uses Android's MediaProjection and AudioPlaybackCapture APIs. Android only allows capturing audio from apps that permit playback capture, so some DRM-protected streams will not be captured."
+      }
+    }
+  ]
+}
+</script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">

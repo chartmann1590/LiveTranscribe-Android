@@ -239,6 +239,11 @@ dependencies {
     implementation("androidx.core:core-splashscreen:1.0.1")
     implementation("com.google.android.material:material:1.11.0")
 
+    // Play In-App Review — lets happy users leave a Play Store rating
+    // without leaving the app. No-ops gracefully when Play Store isn't
+    // installed (e.g. sideloaded github-flavor builds).
+    implementation("com.google.android.play:review-ktx:2.0.2")
+
     // Play Billing — playstore flavor only. Gradle auto-creates the
     // "playstoreImplementation" configuration from the flavor name; this is
     // what guarantees zero Play Billing code ships in the github flavor APK.
