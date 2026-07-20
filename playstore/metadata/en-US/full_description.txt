@@ -1,4 +1,6 @@
-LiveCaptionN turns your Android phone into a real-time speech captioning and translation tool that floats on top of any other app. It listens through the microphone or the currently playing app's audio, transcribes what it hears word-by-word as you speak, translates it into the language you pick, and paints the result as a draggable caption window on top of whatever you're watching, scrolling, or studying.
+LiveCaptionN turns your Android phone into a real-time speech-to-text captioning and translation tool that floats on top of any other app — live captions, subtitles, and closed captions for videos, calls, meetings, and everyday conversations. It listens through the microphone or the currently playing app's audio, transcribes what it hears word-by-word as you speak, translates it into the language you pick, and paints the result as a draggable caption window on top of whatever you're watching, scrolling, or studying.
+
+Perfect for watching foreign-language videos and shows, following along in meetings and calls, language learning practice, or as a hearing-accessibility aid — an on-screen subtitle overlay that works with any app, not just the ones that ship their own captions.
 
 Both halves of the pipeline run fully on-device by default:
 

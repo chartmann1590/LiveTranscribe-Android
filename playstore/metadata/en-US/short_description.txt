@@ -1,1 +1,1 @@
-Live on-device captions and translation in a floating overlay on any app.
+Live offline captions & translation overlay for any app, video, or call.
