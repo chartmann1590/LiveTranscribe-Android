@@ -38,12 +38,12 @@ val appVersionName: String = System.getenv("ANDROID_VERSION_NAME")
 
 android {
     namespace = "com.charles.livecaptionn"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.charles.livecaptionn"
         minSdk = 29
-        targetSdk = 35
+        targetSdk = 36
         versionCode = appVersionCode
         versionName = appVersionName
 
