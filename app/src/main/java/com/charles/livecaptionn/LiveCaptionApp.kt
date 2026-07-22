@@ -12,6 +12,9 @@ import com.google.firebase.analytics.ktx.analytics
 import com.google.firebase.crashlytics.ktx.crashlytics
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.perf.ktx.performance
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class LiveCaptionApp : Application() {
     lateinit var container: AppContainer
@@ -33,14 +36,28 @@ class LiveCaptionApp : Application() {
 
         if (!AdUnits.ENABLED) return
 
-        if (BuildConfig.DEBUG) {
-            MobileAds.setRequestConfiguration(
-                RequestConfiguration.Builder()
-                    .setTestDeviceIds(listOf("ECE881749D58EF0DA0CED390014532FF"))
-                    .build()
-            )
+        // Google Mobile Ads' own SDK init (classloading + adapter setup) can be slow
+        // enough on a cold start to trip the main-thread ANR watchdog if it runs
+        // synchronously here. Google's docs support initializing off the main thread,
+        // so push it (and the dependent AppOpenAdManager attach, which does need the
+        // main thread for its lifecycle-callback registration) onto the app's scope
+        // instead of blocking Application.onCreate().
+        container.appScope.launch {
+            if (BuildConfig.DEBUG) {
+                MobileAds.setRequestConfiguration(
+                    RequestConfiguration.Builder()
+                        .setTestDeviceIds(listOf("ECE881749D58EF0DA0CED390014532FF"))
+                        .build()
+                )
+            }
+            MobileAds.initialize(this@LiveCaptionApp) {}
+            withContext(Dispatchers.Main) {
+                appOpenAdManager = AppOpenAdManager(
+                    this@LiveCaptionApp,
+                    container.premiumRepository,
+                    container.appScope
+                ).also { it.attach() }
+            }
         }
-        MobileAds.initialize(this) {}
-        appOpenAdManager = AppOpenAdManager(this, container.premiumRepository, container.appScope).also { it.attach() }
     }
 }
