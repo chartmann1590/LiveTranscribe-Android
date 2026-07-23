@@ -217,19 +217,20 @@ jobs:
                 continue;
               }
 
-              // ── Check for skip markers before commit-matching ──
-              const hasFixMarker = body.includes(FIX_MARKER);
-              if (!hasFixMarker) {
+              // ── Check for existing fix detection (body marker OR comment) ──
+              // FIX_MARKER is written into the fix-detected COMMENT, not the body,
+              // so we must inspect comments too — otherwise we re-post daily.
+              let alreadyFixed = body.includes(FIX_MARKER);
+              if (!alreadyFixed) {
                 const comments = await github.paginate(github.rest.issues.listComments, {
                   owner, repo, issue_number: issueNumber, per_page: 100
                 });
-                const commentSkip = comments.some(c =>
-                  c.body && (SKIP_COMMENT_REGEX.test(c.body) || c.body.includes(FIX_MARKER))
+                alreadyFixed = comments.some(c =>
+                  c.body && (c.body.includes(FIX_MARKER) || SKIP_COMMENT_REGEX.test(c.body))
                 );
-                if (commentSkip) {
-                  console.log(`  Skipping commit-match: already has fix-detected comment`);
+                if (alreadyFixed) {
+                  console.log(`  Fix already detected via comment — will skip commit matching`);
                 }
-                // Still continue to staleness check below
               }
 
               // ── Staleness tracking ──
@@ -306,7 +307,7 @@ jobs:
               }
 
               // ── Commit matching for fix detection ──
-              if (hasFixMarker) {
+              if (alreadyFixed) {
                 console.log(`  Skipping commit-match: issue already has fix-detected marker`);
                 continue;
               }
