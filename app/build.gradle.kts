@@ -245,7 +245,9 @@ dependencies {
     // Play Billing — playstore flavor only. Gradle auto-creates the
     // "playstoreImplementation" configuration from the flavor name; this is
     // what guarantees zero Play Billing code ships in the github flavor APK.
-    "playstoreImplementation"("com.android.billingclient:billing-ktx:7.1.1")
+    // Pinned to 9.1.0 to satisfy Google Play's Aug 31, 2026 requirement that
+    // all apps use Billing Library 8.0.0+ (9 recommended for latest features).
+    "playstoreImplementation"("com.android.billingclient:billing-ktx:9.1.0")
 
     // Chrome Custom Tabs — github flavor only, used to open Stripe Checkout /
     // Customer Portal URLs in-browser. No Stripe SDK, keys, or card UI is ever

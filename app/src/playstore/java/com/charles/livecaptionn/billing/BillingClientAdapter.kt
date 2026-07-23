@@ -66,8 +66,10 @@ class RealBillingClientAdapter(
         }
         val params = QueryProductDetailsParams.newBuilder().setProductList(products).build()
         return suspendCancellableCoroutine { cont ->
-            client.queryProductDetailsAsync(params) { _, productDetailsList ->
-                if (cont.isActive) cont.resume(productDetailsList)
+            // Billing 9.x passes a QueryProductDetailsResult as the 2nd arg
+            // (was List<ProductDetails> in 7.x/8.x).
+            client.queryProductDetailsAsync(params) { _, productDetailsResult ->
+                if (cont.isActive) cont.resume(productDetailsResult.productDetailsList)
             }
         }
     }
