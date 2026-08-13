@@ -101,16 +101,6 @@ android {
         buildConfigField("String", "UPDATE_REPO_OWNER", "\"chartmann1590\"")
         buildConfigField("String", "UPDATE_REPO_NAME", "\"LiveTranscribe-Android\"")
 
-        // GitHub API config for in-app feedback reporter. Read from
-        // local.properties; fall back to empty strings so the app compiles
-        // but shows a UI error when config is missing.
-        buildConfigField("String", "GITHUB_API_TOKEN",
-            "\"${localProps.getProperty("github.api.token", "")}\"")
-        buildConfigField("String", "GITHUB_REPO_OWNER",
-            "\"${localProps.getProperty("github.repo.owner", "")}\"")
-        buildConfigField("String", "GITHUB_REPO_NAME",
-            "\"${localProps.getProperty("github.repo.name", "")}\"")
-        buildConfigField("String", "FEEDBACK_ASSETS_DIR", "\"feedback-assets\"")
     }
 
     flavorDimensions += "distribution"

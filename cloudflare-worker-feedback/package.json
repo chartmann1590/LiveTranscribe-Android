@@ -1,0 +1,15 @@
+{
+  "name": "livetranscribe-github-feedback",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260813.1",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.122.0"
+  }
+}

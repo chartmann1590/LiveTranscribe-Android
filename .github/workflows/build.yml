@@ -91,21 +91,7 @@ jobs:
           keyPassword=$ANDROID_KEY_PASSWORD
           EOF
 
-      - name: Validate GitHub feedback secrets
-        if: github.event_name == 'push'
-        env:
-          GH_API_TOKEN: ${{ secrets.GH_API_TOKEN }}
-          GH_REPO_OWNER: ${{ secrets.GH_REPO_OWNER }}
-          GH_REPO_NAME: ${{ secrets.GH_REPO_NAME }}
-        run: |
-          missing=0
-          for key in GH_API_TOKEN GH_REPO_OWNER GH_REPO_NAME; do
-            if [[ -z "${!key}" ]]; then
-              echo "::warning::$key is not set in GitHub repository secrets. In-app feedback reporter will show a configuration error."
-            fi
-          done
-
-      - name: Generate CI local.properties (ads enabled + GitHub feedback)
+      - name: Generate CI local.properties (ads enabled)
         if: github.event_name == 'push'
         env:
           ADS_ENABLED: ${{ secrets.ADS_ENABLED }}
@@ -116,9 +102,6 @@ jobs:
           ADMOB_BANNER_ID_RELEASE: ${{ secrets.ADMOB_BANNER_ID_RELEASE }}
           ADMOB_NATIVE_ID_DEBUG: ${{ secrets.ADMOB_NATIVE_ID_DEBUG }}
           ADMOB_NATIVE_ID_RELEASE: ${{ secrets.ADMOB_NATIVE_ID_RELEASE }}
-          GH_API_TOKEN: ${{ secrets.GH_API_TOKEN }}
-          GH_REPO_OWNER: ${{ secrets.GH_REPO_OWNER }}
-          GH_REPO_NAME: ${{ secrets.GH_REPO_NAME }}
           PREMIUM_WORKER_URL: ${{ secrets.PREMIUM_WORKER_URL }}
           STRIPE_PRICE_AD_FREE: ${{ secrets.STRIPE_PRICE_AD_FREE }}
           STRIPE_PRICE_PRO: ${{ secrets.STRIPE_PRICE_PRO }}
@@ -134,9 +117,6 @@ jobs:
           ads.admob.banner.id.release=$ADMOB_BANNER_ID_RELEASE
           ads.admob.native.id.debug=$ADMOB_NATIVE_ID_DEBUG
           ads.admob.native.id.release=$ADMOB_NATIVE_ID_RELEASE
-          github.api.token=${GH_API_TOKEN:-}
-          github.repo.owner=${GH_REPO_OWNER:-}
-          github.repo.name=${GH_REPO_NAME:-}
           premium.worker.url=${PREMIUM_WORKER_URL:-}
           premium.stripe.price.ad_free=${STRIPE_PRICE_AD_FREE:-}
           premium.stripe.price.pro=${STRIPE_PRICE_PRO:-}

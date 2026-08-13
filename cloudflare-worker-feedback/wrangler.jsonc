@@ -1,0 +1,11 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "livetranscribe-github-feedback",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-13",
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  }
+  // Secret (never in this file): GITHUB_TOKEN — set with `npx wrangler secret put GITHUB_TOKEN`
+}

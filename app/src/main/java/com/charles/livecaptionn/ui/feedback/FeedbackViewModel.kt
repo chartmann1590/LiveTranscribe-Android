@@ -26,7 +26,7 @@ import java.util.Date
 import java.util.Locale
 
 data class FeedbackUiState(
-    val isConfigured: Boolean = GithubClient.isConfigured,
+    val isConfigured: Boolean = true,
     val configError: String? = null,
     val bugReports: List<BugReport> = emptyList(),
 
@@ -71,18 +71,6 @@ class FeedbackViewModel(
                 _state.update { it.copy(bugReports = reports) }
             }
         }
-        refreshConfig()
-    }
-
-    private fun refreshConfig() {
-        val configured = GithubClient.isConfigured
-        val error = when {
-            BuildConfig.GITHUB_API_TOKEN.isBlank() -> "GitHub API token is not configured. Add github.api.token to local.properties."
-            BuildConfig.GITHUB_REPO_OWNER.isBlank() -> "GitHub repo owner is not configured. Add github.repo.owner to local.properties."
-            BuildConfig.GITHUB_REPO_NAME.isBlank() -> "GitHub repo name is not configured. Add github.repo.name to local.properties."
-            else -> null
-        }
-        _state.update { it.copy(isConfigured = configured, configError = error) }
     }
 
     fun showReportDialog() {
@@ -149,8 +137,6 @@ class FeedbackViewModel(
 
         viewModelScope.launch {
             try {
-                val owner = GithubClient.repoOwner
-                val repoName = GithubClient.repoName
                 val api = GithubClient.api
 
                 val title = "[Feedback] ${s.reportTitle}"
@@ -170,15 +156,9 @@ class FeedbackViewModel(
                 if (attachmentUri != null) {
                     try {
                         val base64 = ImageHelper.uriToBase64(context, attachmentUri)
-                        val filename = "feedback-assets/issue-${timestamp()}-${randomHex()}.png"
+                        val filename = "issue-${timestamp()}-${randomHex()}.png"
                         val uploadResponse = api.uploadAsset(
-                            owner, repoName,
-                            BuildConfig.FEEDBACK_ASSETS_DIR,
-                            filename.removePrefix("feedback-assets/"),
-                            UploadAssetRequest(
-                                message = "Add screenshot for feedback issue",
-                                content = base64
-                            )
+                            UploadAssetRequest(filename = filename, contentBase64 = base64)
                         )
                         if (uploadResponse.isSuccessful) {
                             uploadedUrl = uploadResponse.body()?.content?.downloadUrl
@@ -201,7 +181,6 @@ class FeedbackViewModel(
                 }
 
                 val response = api.createIssue(
-                    owner, repoName,
                     CreateIssueRequest(title = title, body = bodyBuilder.toString())
                 )
 
@@ -252,11 +231,9 @@ class FeedbackViewModel(
         }
         viewModelScope.launch {
             try {
-                val owner = GithubClient.repoOwner
-                val repoName = GithubClient.repoName
                 val api = GithubClient.api
 
-                val issueResponse = api.getIssue(owner, repoName, report.number)
+                val issueResponse = api.getIssue(report.number)
                 if (!issueResponse.isSuccessful) {
                     _state.update {
                         it.copy(isLoadingIssue = false, issueError = "Failed to fetch issue: ${issueResponse.message()}")
@@ -268,7 +245,7 @@ class FeedbackViewModel(
                     return@launch
                 }
 
-                val commentsResponse = api.getComments(owner, repoName, report.number)
+                val commentsResponse = api.getComments(report.number)
                 val comments = if (commentsResponse.isSuccessful) {
                     commentsResponse.body() ?: emptyList()
                 } else {
@@ -334,8 +311,6 @@ class FeedbackViewModel(
 
         viewModelScope.launch {
             try {
-                val owner = GithubClient.repoOwner
-                val repoName = GithubClient.repoName
                 val api = GithubClient.api
 
                 var uploadedUrl: String? = null
@@ -343,15 +318,9 @@ class FeedbackViewModel(
                 if (replyAttachmentUri != null) {
                     try {
                         val base64 = ImageHelper.uriToBase64(context, replyAttachmentUri)
-                        val filename = "feedback-assets/reply-${timestamp()}-${randomHex()}.png"
+                        val filename = "reply-${timestamp()}-${randomHex()}.png"
                         val uploadResponse = api.uploadAsset(
-                            owner, repoName,
-                            BuildConfig.FEEDBACK_ASSETS_DIR,
-                            filename.removePrefix("feedback-assets/"),
-                            UploadAssetRequest(
-                                message = "Add screenshot for comment",
-                                content = base64
-                            )
+                            UploadAssetRequest(filename = filename, contentBase64 = base64)
                         )
                         if (uploadResponse.isSuccessful) {
                             uploadedUrl = uploadResponse.body()?.content?.downloadUrl
@@ -371,13 +340,13 @@ class FeedbackViewModel(
                 }
 
                 val response = api.postComment(
-                    owner, repoName, report.number,
+                    report.number,
                     PostCommentRequest(body = bodyBuilder.toString())
                 )
 
                 if (response.isSuccessful) {
                     // Refresh comments
-                    val commentsResponse = api.getComments(owner, repoName, report.number)
+                    val commentsResponse = api.getComments(report.number)
                     val comments = if (commentsResponse.isSuccessful) {
                         commentsResponse.body() ?: emptyList()
                     } else {
