@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.charles.livecaptionn.data.TranscriptEntry
 import com.charles.livecaptionn.data.TranscriptHistoryStore
+import com.charles.livecaptionn.ui.l10n.LocalUiStrings
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -65,6 +66,7 @@ fun HistoryScreen(
     modifier: Modifier = Modifier
 ) {
     val scope = rememberCoroutineScope()
+    val t = LocalUiStrings.current
     var entries by remember { mutableStateOf<List<TranscriptEntry>>(emptyList()) }
     var searchQuery by remember { mutableStateOf("") }
     var deleteTarget by remember { mutableStateOf<TranscriptEntry?>(null) }
@@ -84,10 +86,9 @@ fun HistoryScreen(
     if (deleteTarget != null) {
         AlertDialog(
             onDismissRequest = { deleteTarget = null },
-            title = { Text("Delete entry") },
+            title = { Text(t["Delete entry"]) },
             text = {
-                Text("Delete this transcript entry?\n\n" +
-                    "\"${deleteTarget?.originalText?.take(60)}\"")
+                Text(t.format("Delete this transcript entry?\n\n\"%s\"", deleteTarget?.originalText?.take(60)))
             },
             confirmButton = {
                 TextButton(onClick = {
@@ -98,12 +99,12 @@ fun HistoryScreen(
                     }
                     deleteTarget = null
                 }) {
-                    Text("Delete")
+                    Text(t["Delete"])
                 }
             },
             dismissButton = {
                 TextButton(onClick = { deleteTarget = null }) {
-                    Text("Cancel")
+                    Text(t["Cancel"])
                 }
             }
         )
@@ -113,10 +114,10 @@ fun HistoryScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text("Transcript History") },
+                title = { Text(t["Transcript History"]) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = t["Back"])
                     }
                 },
                 actions = {
@@ -129,7 +130,7 @@ fun HistoryScreen(
                         }) {
                             Icon(Icons.Filled.DeleteSweep, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(4.dp))
-                            Text("Clear")
+                            Text(t["Clear"])
                         }
                     }
                 },
@@ -152,12 +153,12 @@ fun HistoryScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp),
-                    placeholder = { Text("Search transcripts…") },
+                    placeholder = { Text(t["Search transcripts…"]) },
                     leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, modifier = Modifier.size(20.dp)) },
                     trailingIcon = {
                         if (searchQuery.isNotEmpty()) {
                             IconButton(onClick = { searchQuery = "" }) {
-                                Icon(Icons.Filled.Close, contentDescription = "Clear search", modifier = Modifier.size(20.dp))
+                                Icon(Icons.Filled.Close, contentDescription = t["Clear search"], modifier = Modifier.size(20.dp))
                             }
                         }
                     },
@@ -175,15 +176,15 @@ fun HistoryScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        if (searchQuery.isNotBlank()) "No matching transcripts"
-                        else "No transcripts yet",
+                        if (searchQuery.isNotBlank()) t["No matching transcripts"]
+                        else t["No transcripts yet"],
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        if (searchQuery.isNotBlank()) "Try a different search term."
-                        else "Transcripts will appear here as you use captioning.",
+                        if (searchQuery.isNotBlank()) t["Try a different search term."]
+                        else t["Transcripts will appear here as you use captioning."],
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.outline
                     )
@@ -214,6 +215,7 @@ private fun TranscriptCard(
     onDelete: () -> Unit
 ) {
     val context = LocalContext.current
+    val t = LocalUiStrings.current
     val timeStr = remember(entry.timestamp) {
         val fmt = SimpleDateFormat("MMM d, h:mm a", Locale.getDefault())
         fmt.format(Date(entry.timestamp))
@@ -254,7 +256,7 @@ private fun TranscriptCard(
                     ) {
                         Icon(
                             Icons.Filled.ContentCopy,
-                            contentDescription = "Copy",
+                            contentDescription = t["Copy"],
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -264,7 +266,7 @@ private fun TranscriptCard(
                     ) {
                         Icon(
                             Icons.Filled.Delete,
-                            contentDescription = "Delete",
+                            contentDescription = t["Delete"],
                             modifier = Modifier.size(16.dp),
                             tint = MaterialTheme.colorScheme.error
                         )

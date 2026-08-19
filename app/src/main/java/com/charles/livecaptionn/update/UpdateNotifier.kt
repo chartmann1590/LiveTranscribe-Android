@@ -15,6 +15,7 @@ import androidx.core.content.ContextCompat
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.charles.livecaptionn.ui.l10n.UiStrings
 import kotlinx.coroutines.flow.first
 
 /**
@@ -23,7 +24,10 @@ import kotlinx.coroutines.flow.first
  * page) in the user's browser. Remembers the last tag it notified about so
  * the same release doesn't ping the user on every periodic check.
  */
-class UpdateNotifier(private val context: Context) {
+class UpdateNotifier(
+    private val context: Context,
+    private val uiStringsProvider: () -> UiStrings = { UiStrings.EMPTY }
+) {
 
     private val prefs get() = context.updateDataStore
 
@@ -34,6 +38,7 @@ class UpdateNotifier(private val context: Context) {
         ensureChannel()
         if (!canPostNotifications()) return
 
+        val s = uiStringsProvider()
         val openUrl = info.apkDownloadUrl ?: info.releasePageUrl
         val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(openUrl)).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -45,14 +50,16 @@ class UpdateNotifier(private val context: Context) {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
+        val readyLine = s.format("%s is ready to install", info.releaseName)
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_sys_download_done)
-            .setContentTitle("LiveCaptionN update available")
-            .setContentText("${info.releaseName} is ready to install")
+            .setContentTitle(s["LiveCaptionN update available"])
+            .setContentText(readyLine)
             .setStyle(
                 NotificationCompat.BigTextStyle().bigText(
                     buildString {
-                        append("${info.releaseName} is ready to install.\n\n")
+                        append(readyLine)
+                        append("\n\n")
                         if (info.notes.isNotBlank()) {
                             append(info.notes.take(400))
                         }
@@ -64,7 +71,7 @@ class UpdateNotifier(private val context: Context) {
             .setContentIntent(openPending)
             .addAction(
                 android.R.drawable.stat_sys_download,
-                "Download",
+                s["Download"],
                 openPending
             )
             .build()

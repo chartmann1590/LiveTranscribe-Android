@@ -6,6 +6,7 @@ import com.charles.livecaptionn.settings.Language
 import com.charles.livecaptionn.settings.TranslationBackend
 import com.charles.livecaptionn.speech.VoskModelInfo
 import com.charles.livecaptionn.translation.MlKitLanguages
+import com.charles.livecaptionn.ui.l10n.UiLocalizationRepository.UiLocalizationStage
 import com.charles.livecaptionn.update.UpdateInfo
 
 data class MainUiState(
@@ -22,7 +23,19 @@ data class MainUiState(
     /** True when the running APK was installed from the Google Play Store. Used
      *  to warn Play Store users before they grab a (potentially unstable)
      *  GitHub release that would break Play auto-update. */
-    val installedFromPlayStore: Boolean = false
+    val installedFromPlayStore: Boolean = false,
+    /** Interface language (e.g. "es", "zh") for the app's own menus/text. */
+    val uiLanguageCode: String = "en",
+    /** True while an ML Kit UI-translation model downloads / strings translate. */
+    val uiLocalizationBusy: Boolean = false,
+    val uiLocalizationError: String? = null,
+    /** Which phase of UI localization is running (download vs. translate). */
+    val uiLocalizationStage: UiLocalizationStage = UiLocalizationStage.DOWNLOADING,
+    /** Translation progress while the catalog is being localized. */
+    val uiLocalizationTranslated: Int = 0,
+    val uiLocalizationTotal: Int = 0,
+    /** True once the first-launch onboarding has been completed. */
+    val onboardingComplete: Boolean = false
 ) {
     /** Languages the user is allowed to pick as the speech source, given the
      *  current audio source + STT backend combination. */

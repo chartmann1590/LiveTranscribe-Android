@@ -39,11 +39,26 @@ class MainViewModel(
             container.settingsRepository.settingsFlow.collectLatest { settings ->
                 mutableState.value = mutableState.value.copy(
                     settings = settings,
+                    uiLanguageCode = settings.uiLanguageCode,
+                    onboardingComplete = settings.onboardingComplete,
                     micPermissionGranted = hasMicPermission(),
                     overlayPermissionGranted = hasOverlayPermission()
                 )
             }
         }
+        viewModelScope.launch {
+            container.uiLocalization.state.collectLatest { l10n ->
+                mutableState.value = mutableState.value.copy(
+                    uiLanguageCode = l10n.languageCode,
+                    uiLocalizationBusy = l10n.modelBusy,
+                    uiLocalizationError = l10n.error,
+                    uiLocalizationStage = l10n.stage,
+                    uiLocalizationTranslated = l10n.translatedCount,
+                    uiLocalizationTotal = l10n.translatedTotal
+                )
+            }
+        }
+        viewModelScope.launch { container.uiLocalization.restore() }
         viewModelScope.launch {
             container.runtimeStore.state.collectLatest { runtime ->
                 mutableState.value = mutableState.value.copy(
@@ -171,6 +186,19 @@ class MainViewModel(
 
     fun updateSttUrl(url: String) {
         viewModelScope.launch { container.settingsRepository.update { it.copy(sttBaseUrl = url) } }
+    }
+
+    /** Switches the on-device UI language (downloads ML Kit model + translates). */
+    fun updateUiLanguage(code: String) {
+        container.uiLocalization.select(code)
+    }
+
+    /** Completes first-launch onboarding, choosing the interface language. */
+    fun completeOnboarding(languageCode: String) {
+        viewModelScope.launch {
+            container.settingsRepository.update { it.copy(onboardingComplete = true) }
+            container.uiLocalization.select(languageCode)
+        }
     }
 
     fun downloadVoskModel(model: VoskModelInfo) {

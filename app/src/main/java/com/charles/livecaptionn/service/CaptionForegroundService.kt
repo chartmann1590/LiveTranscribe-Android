@@ -418,7 +418,8 @@ class CaptionForegroundService : Service() {
                 settingsRepository = app.container.settingsRepository,
                 onPauseResume = { togglePause() },
                 onClose = { stopFlow() },
-                onToggleMinimize = { toggleMinimized() }
+                onToggleMinimize = { toggleMinimized() },
+                uiStrings = { app.container.uiLocalization.latestStrings() }
             ).apply {
                 show(settings.overlayX, settings.overlayY, settings.overlayWidthDp, settings.overlayHeightDp)
             }
@@ -484,14 +485,15 @@ class CaptionForegroundService : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
+        val uiStrings = app.container.uiLocalization.latestStrings()
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle(getString(R.string.notification_title))
-            .setContentText(getString(R.string.notification_text))
+            .setContentTitle(uiStrings["Captioning in progress"])
+            .setContentText(uiStrings["Listening and translating speech."])
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setContentIntent(pending)
             .setOngoing(true)
-            .addAction(android.R.drawable.ic_media_pause, "Pause/Resume", pauseIntent)
-            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Stop", stopIntent)
+            .addAction(android.R.drawable.ic_media_pause, uiStrings["Pause/Resume"], pauseIntent)
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, uiStrings["Stop"], stopIntent)
             .build()
     }
 

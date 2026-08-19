@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.charles.livecaptionn.ads.AdUnits
 import com.charles.livecaptionn.ads.BannerAd
 import com.charles.livecaptionn.review.ReviewPrompter
@@ -33,6 +34,8 @@ import com.charles.livecaptionn.ui.HistoryScreen
 import com.charles.livecaptionn.ui.MainScreen
 import com.charles.livecaptionn.ui.MainViewModel
 import com.charles.livecaptionn.ui.MainViewModelFactory
+import com.charles.livecaptionn.ui.OnboardingScreen
+import com.charles.livecaptionn.ui.l10n.UiStringsProvider
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -64,32 +67,44 @@ class MainActivity : ComponentActivity() {
         pendingCheckoutSessionId = extractCheckoutSessionId(intent)
         setContent {
             val vm: MainViewModel = viewModel(factory = MainViewModelFactory(app.container, application))
-            MaterialTheme {
-                Surface(color = MaterialTheme.colorScheme.background) {
-                    Column(modifier = Modifier.fillMaxSize().navigationBarsPadding()) {
-                        // Main content fills remaining space above the
-                        // persistent banner ad at the bottom.
-                        if (showHistory) {
-                            HistoryScreen(
-                                historyStore = app.container.transcriptHistory,
-                                onBack = { showHistory = false },
-                                modifier = Modifier.weight(1f)
+            val settings by app.container.settingsRepository.settingsFlow
+                .collectAsStateWithLifecycle(initialValue = null)
+            val onboardingComplete = settings?.onboardingComplete ?: true
+            UiStringsProvider(app.container) {
+                MaterialTheme {
+                    Surface(color = MaterialTheme.colorScheme.background) {
+                        if (!onboardingComplete) {
+                            OnboardingScreen(
+                                viewModel = vm,
+                                modifier = Modifier.fillMaxSize()
                             )
                         } else {
-                            MainScreen(
-                                viewModel = vm,
-                                onRequestAudioPermission = { requestAudioPermission() },
-                                onStart = { startCaptioning() },
-                                onStop = { stopCaptionService() },
-                                onOpenOverlaySettings = { vm.openOverlayPermissionSettings(this@MainActivity) },
-                                onHistory = { showHistory = true },
-                                pendingCheckoutSessionId = pendingCheckoutSessionId,
-                                onCheckoutSessionConsumed = { pendingCheckoutSessionId = null },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                        if (AdUnits.ENABLED && AdUnits.BANNER.isNotBlank()) {
-                            BannerAd()
+                            Column(modifier = Modifier.fillMaxSize().navigationBarsPadding()) {
+                                // Main content fills remaining space above the
+                                // persistent banner ad at the bottom.
+                                if (showHistory) {
+                                    HistoryScreen(
+                                        historyStore = app.container.transcriptHistory,
+                                        onBack = { showHistory = false },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                } else {
+                                    MainScreen(
+                                        viewModel = vm,
+                                        onRequestAudioPermission = { requestAudioPermission() },
+                                        onStart = { startCaptioning() },
+                                        onStop = { stopCaptionService() },
+                                        onOpenOverlaySettings = { vm.openOverlayPermissionSettings(this@MainActivity) },
+                                        onHistory = { showHistory = true },
+                                        pendingCheckoutSessionId = pendingCheckoutSessionId,
+                                        onCheckoutSessionConsumed = { pendingCheckoutSessionId = null },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                                if (AdUnits.ENABLED && AdUnits.BANNER.isNotBlank()) {
+                                    BannerAd()
+                                }
+                            }
                         }
                     }
                 }

@@ -63,6 +63,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.charles.livecaptionn.BuildConfig
+import com.charles.livecaptionn.ui.l10n.LocalUiStrings
 
 @Composable
 fun SupportAndFeedbackCard(
@@ -71,6 +72,7 @@ fun SupportAndFeedbackCard(
     onOpenReport: (com.charles.livecaptionn.data.feedback.BugReport) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val t = LocalUiStrings.current
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp)
@@ -88,7 +90,7 @@ fun SupportAndFeedbackCard(
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    text = "Support & Feedback",
+                    text = t["Support & Feedback"],
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -111,7 +113,7 @@ fun SupportAndFeedbackCard(
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        text = state.configError ?: "GitHub feedback is not configured.",
+                        text = state.configError ?: t["GitHub feedback is not configured."],
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onErrorContainer
                     )
@@ -126,12 +128,12 @@ fun SupportAndFeedbackCard(
             ) {
                 Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
-                Text("Report a Problem")
+Text(t["Report a Problem"])
             }
 
             if (state.bugReports.isNotEmpty()) {
                 Text(
-                    text = "Submitted Reports",
+                    text = t["Submitted Reports"],
                     style = MaterialTheme.typography.labelLarge
                 )
                 state.bugReports.forEach { report ->
@@ -150,6 +152,7 @@ private fun ReportRow(
     val isOpen = report.status == "open"
     val statusColor = if (isOpen) MaterialTheme.colorScheme.primary
     else MaterialTheme.colorScheme.error
+    val t = LocalUiStrings.current
 
     Row(
         modifier = Modifier
@@ -182,7 +185,7 @@ private fun ReportRow(
                 .padding(horizontal = 8.dp, vertical = 2.dp)
         ) {
             Text(
-                text = if (isOpen) "Open" else "Closed",
+                text = if (isOpen) t["Open"] else t["Closed"],
                 style = MaterialTheme.typography.labelSmall,
                 color = statusColor,
                 fontWeight = FontWeight.SemiBold
@@ -211,6 +214,7 @@ fun ReportProblemDialog(
     onClearAttachment: () -> Unit,
     onSubmit: () -> Unit
 ) {
+    val t = LocalUiStrings.current
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri -> onAttachmentSelected(uri) }
@@ -228,7 +232,7 @@ fun ReportProblemDialog(
                     Spacer(Modifier.width(12.dp))
                 }
                 TextButton(onClick = onDismiss, enabled = !state.isSubmitting) {
-                    Text("Cancel")
+                    Text(t["Cancel"])
                 }
                 Spacer(Modifier.width(4.dp))
                 Button(
@@ -236,11 +240,11 @@ fun ReportProblemDialog(
                     enabled = state.isConfigured && !state.isSubmitting,
                     shape = RoundedCornerShape(8.dp)
                 ) {
-                    Text("Submit")
+                    Text(t["Submit"])
                 }
             }
         },
-        title = { Text("Report a Problem") },
+        title = { Text(t["Report a Problem"]) },
         text = {
             Column(
                 modifier = Modifier
@@ -266,7 +270,7 @@ fun ReportProblemDialog(
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        text = "Your report will be submitted to this app\u2019s GitHub issue tracker. Do not include passwords, private keys, medical information, financial information, or anything you do not want visible to the repository maintainers. If this repository is public, your report may be publicly visible.",
+                        text = t["Your report will be submitted to this app's public GitHub issue tracker. Do not include passwords, private keys, medical information, financial information, or anything you do not want visible to the repository maintainers."],
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onErrorContainer
                     )
@@ -275,7 +279,7 @@ fun ReportProblemDialog(
                 OutlinedTextField(
                     value = state.reportTitle,
                     onValueChange = onTitleChange,
-                    label = { Text("Title / Subject *") },
+                    label = { Text(t["Title / Subject *"]) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     enabled = !state.isSubmitting
@@ -284,7 +288,7 @@ fun ReportProblemDialog(
                 OutlinedTextField(
                     value = state.reportDescription,
                     onValueChange = onDescriptionChange,
-                    label = { Text("Description *") },
+                    label = { Text(t["Description *"]) },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 3,
                     maxLines = 6,
@@ -301,14 +305,14 @@ fun ReportProblemDialog(
                         enabled = !state.isSubmitting
                     )
                     Text(
-                        text = "Include phone/app diagnostics",
+                        text = t["Include phone/app diagnostics"],
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
 
                 if (state.includeDiagnostics) {
                     Text(
-                        text = "Diagnostics include app version, device model, Android version, storage/memory info. No personal data is collected.",
+                        text = t["Diagnostics include app version, device model, Android version, storage/memory info. No personal data is collected."],
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -317,7 +321,7 @@ fun ReportProblemDialog(
                 OutlinedTextField(
                     value = state.reporterName,
                     onValueChange = onNameChange,
-                    label = { Text("Name (optional)") },
+                    label = { Text(t["Name (optional)"]) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     enabled = !state.isSubmitting
@@ -326,7 +330,7 @@ fun ReportProblemDialog(
                 OutlinedTextField(
                     value = state.reporterEmail,
                     onValueChange = onEmailChange,
-                    label = { Text("Email (optional)") },
+                    label = { Text(t["Email (optional)"]) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     enabled = !state.isSubmitting
@@ -344,7 +348,7 @@ fun ReportProblemDialog(
                         )
                         Spacer(Modifier.width(6.dp))
                         Text(
-                            text = "Image attached",
+                            text = t["Image attached"],
                             style = MaterialTheme.typography.bodySmall,
                             modifier = Modifier.weight(1f)
                         )
@@ -352,7 +356,7 @@ fun ReportProblemDialog(
                             onClick = onClearAttachment,
                             enabled = !state.isSubmitting
                         ) {
-                            Icon(Icons.Filled.Close, contentDescription = "Remove")
+                            Icon(Icons.Filled.Close, contentDescription = t["Remove"])
                         }
                     }
                 }
@@ -364,12 +368,12 @@ fun ReportProblemDialog(
                 ) {
                     Icon(Icons.Filled.Image, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text(if (state.attachmentUri != null) "Change image" else "Attach screenshot / image")
+                    Text(if (state.attachmentUri != null) t["Change image"] else t["Attach screenshot / image"])
                 }
 
                 if (!state.isConfigured) {
                     Text(
-                        text = state.configError ?: "Configuration error.",
+                        text = state.configError ?: t["Configuration error."],
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error
                     )
@@ -397,6 +401,7 @@ fun IssueDetailsDialog(
     onPostReply: () -> Unit
 ) {
     val context = LocalContext.current
+    val t = LocalUiStrings.current
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri -> onReplyAttachmentSelected(uri) }
@@ -406,7 +411,7 @@ fun IssueDetailsDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Close") }
+            TextButton(onClick = onDismiss) { Text(t["Close"]) }
         },
         title = {
             Column {
@@ -463,7 +468,7 @@ fun IssueDetailsDialog(
                                 .padding(horizontal = 8.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                text = if (isOpen) "Open" else "Closed",
+                                text = if (isOpen) t["Open"] else t["Closed"],
                                 style = MaterialTheme.typography.labelSmall,
                                 color = statusColor,
                                 fontWeight = FontWeight.SemiBold
@@ -471,7 +476,7 @@ fun IssueDetailsDialog(
                         }
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            text = "Created: ${issue.createdAt.take(10)}",
+                            text = t.format("Created: %s", issue.createdAt.take(10)),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -490,7 +495,7 @@ fun IssueDetailsDialog(
                         ) {
                             Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(4.dp))
-                            Text("Open in browser")
+                            Text(t["Open in browser"])
                         }
                     }
                 }
@@ -498,7 +503,7 @@ fun IssueDetailsDialog(
                 if (state.comments.isNotEmpty()) {
                     HorizontalDivider()
                     Text(
-                        text = "Comments (${state.comments.size})",
+                        text = t.format("Comments (%d)", state.comments.size),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -510,14 +515,14 @@ fun IssueDetailsDialog(
                 HorizontalDivider()
 
                 Text(
-                    text = "Post a Reply",
+                    text = t["Post a Reply"],
                     style = MaterialTheme.typography.labelLarge
                 )
 
                 OutlinedTextField(
                     value = state.replyText,
                     onValueChange = onReplyTextChange,
-                    label = { Text("Your reply") },
+                    label = { Text(t["Your reply"]) },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 2,
                     maxLines = 4,
@@ -529,7 +534,7 @@ fun IssueDetailsDialog(
                         Icon(Icons.Filled.Image, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(4.dp))
                         Text(
-                            text = "Image attached",
+                            text = t["Image attached"],
                             style = MaterialTheme.typography.bodySmall,
                             modifier = Modifier.weight(1f)
                         )
@@ -537,7 +542,7 @@ fun IssueDetailsDialog(
                             onClick = onClearReplyAttachment,
                             enabled = !state.isPostingReply
                         ) {
-                            Icon(Icons.Filled.Close, contentDescription = "Remove", modifier = Modifier.size(18.dp))
+                            Icon(Icons.Filled.Close, contentDescription = t["Remove"], modifier = Modifier.size(18.dp))
                         }
                     }
                 }
@@ -554,7 +559,7 @@ fun IssueDetailsDialog(
                     ) {
                         Icon(Icons.Filled.Image, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text("Attach")
+                        Text(t["Attach"])
                     }
 
                     if (state.isPostingReply) {
@@ -568,7 +573,7 @@ fun IssueDetailsDialog(
                     ) {
                             Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text("Send")
+                        Text(t["Send"])
                     }
                 }
 
@@ -624,6 +629,7 @@ fun SubmitSuccessSnackbar(
     message: String = "Report submitted successfully!",
     onDismiss: () -> Unit
 ) {
+    val t = LocalUiStrings.current
     LaunchedEffect(Unit) {
         kotlinx.coroutines.delay(3000)
         onDismiss()
@@ -654,7 +660,7 @@ fun SubmitSuccessSnackbar(
                 modifier = Modifier.weight(1f)
             )
             IconButton(onClick = onDismiss) {
-                Icon(Icons.Filled.Close, contentDescription = "Dismiss")
+                Icon(Icons.Filled.Close, contentDescription = t["Dismiss"])
             }
         }
     }

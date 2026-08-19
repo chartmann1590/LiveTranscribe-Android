@@ -79,12 +79,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.charles.livecaptionn.R
 import com.charles.livecaptionn.ads.AdUnits
 import com.charles.livecaptionn.ads.NativeAdCard
 import com.charles.livecaptionn.settings.AudioSource
@@ -102,6 +100,9 @@ import com.charles.livecaptionn.ui.feedback.SubmitSuccessSnackbar
 import com.charles.livecaptionn.ui.feedback.SupportAndFeedbackCard
 import com.charles.livecaptionn.overlay.OverlayFontCatalog
 import com.charles.livecaptionn.overlay.OverlayThemeCatalog
+import com.charles.livecaptionn.ui.l10n.LocalUiStrings
+import com.charles.livecaptionn.ui.l10n.UiLanguagePickerDialog
+import com.charles.livecaptionn.ui.l10n.UiLocalizationRepository.UiLocalizationStage
 import com.charles.livecaptionn.ui.premium.PremiumCard
 import com.charles.livecaptionn.ui.premium.PremiumViewModel
 import com.charles.livecaptionn.update.UpdateInfo
@@ -121,6 +122,7 @@ fun MainScreen(
     modifier: Modifier = Modifier
 ) {
     val ui by viewModel.state.collectAsStateWithLifecycle()
+    val t = LocalUiStrings.current
     var translateUrlDraft by remember(ui.settings.serverBaseUrl) { mutableStateOf(ui.settings.serverBaseUrl) }
     var sttUrlDraft by remember(ui.settings.sttBaseUrl) { mutableStateOf(ui.settings.sttBaseUrl) }
     var showVoskSheet by remember { mutableStateOf(false) }
@@ -166,12 +168,12 @@ fun MainScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Filled.Translate, contentDescription = null, modifier = Modifier.size(28.dp))
                         Spacer(Modifier.width(10.dp))
-                        Text("Live CaptionN", fontWeight = FontWeight.Bold)
+                        Text(t["Live CaptionN"], fontWeight = FontWeight.Bold)
                     }
                 },
                 actions = {
                     IconButton(onClick = onHistory) {
-                        Icon(Icons.Filled.History, contentDescription = stringResource(R.string.history))
+                        Icon(Icons.Filled.History, contentDescription = t["History"])
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -214,6 +216,15 @@ fun MainScreen(
                 hasPro = premiumState.premium.hasPro,
                 onRequiresPro = {}
             )
+            UiLanguageCard(
+                languageCode = ui.uiLanguageCode,
+                busy = ui.uiLocalizationBusy,
+                error = ui.uiLocalizationError,
+                stage = ui.uiLocalizationStage,
+                translatedCount = ui.uiLocalizationTranslated,
+                translatedTotal = ui.uiLocalizationTotal,
+                onSelect = viewModel::updateUiLanguage
+            )
             PremiumCard(
                 state = premiumState,
                 onPurchase = { product -> activity?.let { premiumVm.purchase(it, product) } },
@@ -246,7 +257,10 @@ fun MainScreen(
             )
 
             if (feedbackState.submitSuccess) {
-                SubmitSuccessSnackbar(onDismiss = { feedbackVm.clearSubmitSuccess() })
+                SubmitSuccessSnackbar(
+                    message = t["Report submitted successfully!"],
+                    onDismiss = { feedbackVm.clearSubmitSuccess() }
+                )
             }
 
             Spacer(Modifier.height(8.dp))
@@ -307,6 +321,7 @@ private fun SectionLabel(text: String) {
 @Composable
 private fun CaptionControlCard(ui: MainUiState, onStart: () -> Unit, onStop: () -> Unit) {
     val isRunning = ui.runtime.running
+    val t = LocalUiStrings.current
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -336,8 +351,8 @@ private fun CaptionControlCard(ui: MainUiState, onStart: () -> Unit, onStop: () 
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    text = if (isRunning) stringResource(R.string.status_label, ui.runtime.status.displayName)
-                    else stringResource(R.string.ready),
+                    text = if (isRunning) t["Status"] + ": " + t[ui.runtime.status.displayName]
+                    else t["Ready"],
                     style = MaterialTheme.typography.labelLarge
                 )
             }
@@ -381,7 +396,7 @@ private fun CaptionControlCard(ui: MainUiState, onStart: () -> Unit, onStop: () 
                 ) {
                     Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text(stringResource(R.string.start))
+                    Text(t["Start"])
                 }
                 Button(
                     onClick = onStop,
@@ -394,7 +409,7 @@ private fun CaptionControlCard(ui: MainUiState, onStart: () -> Unit, onStop: () 
                 ) {
                     Icon(Icons.Filled.Stop, contentDescription = null, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Stop")
+                    Text(t["Stop"])
                 }
             }
         }
@@ -409,17 +424,19 @@ private fun PermissionsCard(
     onRequestAudioPermission: () -> Unit,
     onOpenOverlaySettings: () -> Unit
 ) {
+    val t = LocalUiStrings.current
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            SectionLabel("Permissions")
-            PermissionRow("Microphone", ui.micPermissionGranted) { onRequestAudioPermission() }
-            PermissionRow("Overlay", ui.overlayPermissionGranted) { onOpenOverlaySettings() }
+            SectionLabel(t["Permissions"])
+            PermissionRow(t["Microphone"], ui.micPermissionGranted) { onRequestAudioPermission() }
+            PermissionRow(t["Overlay"], ui.overlayPermissionGranted) { onOpenOverlaySettings() }
         }
     }
 }
 
 @Composable
 private fun PermissionRow(label: String, granted: Boolean, onGrant: () -> Unit) {
+    val t = LocalUiStrings.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -437,7 +454,7 @@ private fun PermissionRow(label: String, granted: Boolean, onGrant: () -> Unit) 
             Text(label, style = MaterialTheme.typography.bodyMedium)
         }
         if (!granted) {
-            FilledTonalButton(onClick = onGrant, shape = RoundedCornerShape(8.dp)) { Text("Grant") }
+            FilledTonalButton(onClick = onGrant, shape = RoundedCornerShape(8.dp)) { Text(t["Grant"]) }
         }
     }
 }
@@ -450,23 +467,24 @@ private fun AudioSourceCard(
     viewModel: MainViewModel,
     onManageModels: () -> Unit
 ) {
+    val t = LocalUiStrings.current
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            SectionLabel("Audio Source")
+            SectionLabel(t["Audio Source"])
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 ChoiceChip(
-                    label = "Microphone",
+                    label = t["Microphone"],
                     icon = Icons.Filled.Mic,
                     selected = ui.settings.audioSource == AudioSource.MIC,
                     onClick = { viewModel.updateAudioSource(AudioSource.MIC) },
                     modifier = Modifier.weight(1f)
                 )
                 ChoiceChip(
-                    label = "System Audio",
+                    label = t["System Audio"],
                     icon = Icons.Filled.SurroundSound,
                     selected = ui.settings.audioSource == AudioSource.SYSTEM,
                     onClick = { viewModel.updateAudioSource(AudioSource.SYSTEM) },
@@ -477,30 +495,26 @@ private fun AudioSourceCard(
             val isSystem = ui.settings.audioSource == AudioSource.SYSTEM
             Text(
                 text = if (isSystem)
-                    "Captures audio from videos and apps that allow playback capture. If Android asks, choose Share entire screen."
+                    t["Captures audio from videos and apps that allow playback capture. If Android asks, choose Share entire screen."]
                 else
-                    "Uses the device microphone.",
+                    t["Uses the device microphone."],
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            // Engine selector applies to BOTH audio sources — Vosk (on-device)
-            // handles mic and system audio identically, and the alternate
-            // backend differs by source (Whisper HTTP for system, Android's
-            // built-in recognizer for mic). The two-chip choice is the same.
-            Text("Transcription engine", style = MaterialTheme.typography.labelMedium)
+            Text(t["Transcription engine"], style = MaterialTheme.typography.labelMedium)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 ChoiceChip(
-                    label = if (isSystem) "Remote Whisper" else "Android built-in",
+                    label = if (isSystem) t["Remote Whisper"] else t["Android built-in"],
                     icon = Icons.Filled.Cloud,
                     selected = ui.settings.sttBackend == SttBackend.REMOTE_WHISPER,
                     onClick = { viewModel.updateSttBackend(SttBackend.REMOTE_WHISPER) },
                     modifier = Modifier.weight(1f)
                 )
                 ChoiceChip(
-                    label = "Local Vosk",
+                    label = t["Local Vosk"],
                     icon = Icons.Filled.Mic,
                     selected = ui.settings.sttBackend == SttBackend.LOCAL_VOSK,
                     onClick = { viewModel.updateSttBackend(SttBackend.LOCAL_VOSK) },
@@ -510,14 +524,16 @@ private fun AudioSourceCard(
             if (ui.settings.sttBackend == SttBackend.LOCAL_VOSK) {
                 val installed = ui.voskModels.count { it.installed }
                 val anyLargeInstalled = ui.voskModels.any { it.installed && it.quality == ModelQuality.LARGE }
+                val langWord = if (installed == 1) t["language"] else t["languages"]
                 Text(
-                    text = "Runs transcription fully on this device. $installed language${if (installed == 1) "" else "s"} installed.",
+                    text = t["Runs transcription fully on this device."] +
+                        " $installed $langWord ${t["installed."]}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 if (!anyLargeInstalled) {
                     Text(
-                        text = "Tip: for noticeably stronger transcription, tap Manage models and install a LARGE server-grade model for the languages you use — 80 MB to 2 GB each, fully offline after download.",
+                        text = t["Tip: for noticeably stronger transcription, tap Manage models and install a LARGE server-grade model for the languages you use — 80 MB to 2 GB each, fully offline after download."],
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.tertiary
                     )
@@ -528,14 +544,14 @@ private fun AudioSourceCard(
                 ) {
                     Icon(Icons.Filled.Download, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Manage on-device models")
+                    Text(t["Manage on-device models"])
                 }
             } else {
                 Text(
                     text = if (isSystem)
-                        "Sends captured audio to the configured Whisper ASR endpoint."
+                        t["Sends captured audio to the configured Whisper ASR endpoint."]
                     else
-                        "Uses Android's built-in recognizer. Available locales depend on what's installed on this device.",
+                        t["Uses Android's built-in recognizer. Available locales depend on what's installed on this device."],
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -586,20 +602,21 @@ private fun LanguageCard(
     val sourceOptions = ui.availableSourceLanguages
     val targetOptions = ui.availableTargetLanguages
     val usingMlKitGate = ui.settings.translationBackend == TranslationBackend.ML_KIT
+    val t = LocalUiStrings.current
     val languageRequiresPro: (Language) -> Boolean = { lang ->
         usingMlKitGate && !hasPro && MlKitLanguages.requiresPro(lang.code)
     }
 
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            SectionLabel("Languages")
+            SectionLabel(t["Languages"])
 
             // Source
-            Text("Source (spoken)", style = MaterialTheme.typography.labelMedium)
+            Text(t["Source (spoken)"], style = MaterialTheme.typography.labelMedium)
             LanguagePickerField(
                 selectedCode = ui.settings.sourceLanguageCode,
                 options = sourceOptions,
-                placeholder = if (sourceOptions.isEmpty()) "No languages available" else "Pick a language",
+                placeholder = if (sourceOptions.isEmpty()) t["No languages available"] else t["Pick a language"],
                 onPick = { viewModel.updateSource(it.code) },
                 requiresPro = languageRequiresPro,
                 onRequiresPro = onRequiresPro
@@ -611,17 +628,17 @@ private fun LanguageCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("Target (translation)", style = MaterialTheme.typography.labelMedium)
+                Text(t["Target (translation)"], style = MaterialTheme.typography.labelMedium)
                 TextButton(onClick = viewModel::swapLanguages) {
                     Icon(Icons.Filled.SwapHoriz, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("Swap")
+                    Text(t["Swap"])
                 }
             }
             LanguagePickerField(
                 selectedCode = ui.settings.targetLanguageCode,
                 options = targetOptions,
-                placeholder = if (targetOptions.isEmpty()) "No languages available" else "Pick a language",
+                placeholder = if (targetOptions.isEmpty()) t["No languages available"] else t["Pick a language"],
                 onPick = { viewModel.updateTarget(it.code) },
                 requiresPro = languageRequiresPro,
                 onRequiresPro = onRequiresPro
@@ -634,26 +651,32 @@ private fun LanguageCard(
             when {
                 vmAudio == AudioSource.SYSTEM && vmStt == SttBackend.LOCAL_VOSK -> {
                     Text(
-                        text = "On-device transcription: source language is limited to the Vosk models installed on this phone.",
+                        text = t["On-device transcription: source language is limited to the Vosk models installed on this phone."],
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     TextButton(onClick = onManageModels) {
                         Icon(Icons.Filled.Download, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Download more languages")
+                        Text(t["Download more languages"])
                     }
                 }
                 usingMlKit -> {
                     Text(
-                        text = "On-device translation via Google ML Kit — ${MlKitLanguages.LIST.size} languages, fully offline after first download.",
+                        text = t.format(
+                            "On-device translation via Google ML Kit — %d languages, fully offline after first download.",
+                            MlKitLanguages.LIST.size
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 ui.libreLanguages.isEmpty() && ui.libreError != null -> {
                     Text(
-                        text = "Could not reach LibreTranslate at ${ui.settings.serverBaseUrl} — showing a fallback list. Save a valid URL to load the full language set from your server.",
+                        text = t.format(
+                            "Could not reach LibreTranslate at %s — showing a fallback list. Save a valid URL to load the full language set from your server.",
+                            ui.settings.serverBaseUrl
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error
                     )
@@ -663,7 +686,7 @@ private fun LanguageCard(
                         CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            text = "Loading languages from LibreTranslate…",
+                            text = t["Loading languages from LibreTranslate…"],
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -671,7 +694,10 @@ private fun LanguageCard(
                 }
                 ui.libreLanguages.isNotEmpty() -> {
                     Text(
-                        text = "${ui.libreLanguages.size} languages reported by LibreTranslate. Add more to your server by installing extra Argos Translate packages.",
+                        text = t.format(
+                            "%d languages reported by LibreTranslate. Add more to your server by installing extra Argos Translate packages.",
+                            ui.libreLanguages.size
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -683,7 +709,7 @@ private fun LanguageCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("Auto-detect source", style = MaterialTheme.typography.bodyMedium)
+                Text(t["Auto-detect source"], style = MaterialTheme.typography.bodyMedium)
                 Switch(
                     checked = ui.settings.autoDetectSource,
                     onCheckedChange = viewModel::updateAutoDetect
@@ -756,6 +782,7 @@ private fun LanguagePickerDialog(
     onRequiresPro: () -> Unit = {}
 ) {
     var query by remember { mutableStateOf("") }
+    val t = LocalUiStrings.current
     val filtered = remember(query, options) {
         if (query.isBlank()) options
         else options.filter {
@@ -764,14 +791,14 @@ private fun LanguagePickerDialog(
     }
     AlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
-        title = { Text("Choose language") },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(t["Close"]) } },
+        title = { Text(t["Choose language"]) },
         text = {
             Column {
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
-                    label = { Text("Search") },
+                    label = { Text(t["Search"]) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -794,7 +821,7 @@ private fun LanguagePickerDialog(
                             when {
                                 locked -> Icon(
                                     Icons.Filled.Lock,
-                                    contentDescription = "Requires Pro",
+                                    contentDescription = t["Requires Pro"],
                                     modifier = Modifier.size(18.dp),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -809,7 +836,7 @@ private fun LanguagePickerDialog(
                                     color = if (locked) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = if (locked) "${lang.code} · Pro" else lang.code,
+                                    text = if (locked) "${lang.code} · ${t["Pro"]}" else lang.code,
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -819,7 +846,7 @@ private fun LanguagePickerDialog(
                     if (filtered.isEmpty()) {
                         items(listOf(Unit)) {
                             Text(
-                                text = "No languages match \"$query\".",
+                                text = t.format("No languages match \"%s\".", query),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(vertical = 16.dp)
@@ -846,6 +873,7 @@ private fun VoskModelSheet(
     onRequiresPro: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val t = LocalUiStrings.current
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState
@@ -857,9 +885,9 @@ private fun VoskModelSheet(
                 .padding(horizontal = 20.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("On-device speech models", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(t["On-device speech models"], style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Text(
-                text = "Vosk models run fully offline on this phone. Downloading a model is a one-time step; uninstall any time to free storage. For the strongest transcription, pick the LARGE server-grade model for the languages you use most.",
+                text = t["Vosk models run fully offline on this phone. Downloading a model is a one-time step; uninstall any time to free storage. For the strongest transcription, pick the LARGE server-grade model for the languages you use most."],
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -869,7 +897,7 @@ private fun VoskModelSheet(
             val availableLarge = models.filter { !it.installed && it.quality == ModelQuality.LARGE }
 
             if (installed.isNotEmpty()) {
-                Text("Installed", style = MaterialTheme.typography.labelLarge)
+                Text(t["Installed"], style = MaterialTheme.typography.labelLarge)
                 installed.forEach { model ->
                     VoskRow(
                         model = model,
@@ -883,9 +911,9 @@ private fun VoskModelSheet(
             }
 
             if (availableLarge.isNotEmpty()) {
-                Text("Large · server-grade accuracy (Pro)", style = MaterialTheme.typography.labelLarge)
+                Text(t["Large · server-grade accuracy (Pro)"], style = MaterialTheme.typography.labelLarge)
                 Text(
-                    text = "Full Vosk server models with the lowest error rates. Each one is 80 MB to 2 GB but runs entirely on-device after the one-time download. This is the strongest transcription option for every language.",
+                    text = t["Full Vosk server models with the lowest error rates. Each one is 80 MB to 2 GB but runs entirely on-device after the one-time download. This is the strongest transcription option for every language."],
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -902,9 +930,9 @@ private fun VoskModelSheet(
             }
 
             if (availableSmall.isNotEmpty()) {
-                Text("Small · fast & light", style = MaterialTheme.typography.labelLarge)
+                Text(t["Small · fast & light"], style = MaterialTheme.typography.labelLarge)
                 Text(
-                    text = "Compact ~40 MB models for quick installs or low-storage phones. Accuracy is noticeably lower than the large variants.",
+                    text = t["Compact ~40 MB models for quick installs or low-storage phones. Accuracy is noticeably lower than the large variants."],
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -921,7 +949,7 @@ private fun VoskModelSheet(
             }
 
             Text(
-                text = "Models are fetched from alphacephei.com/vosk/models over HTTPS.",
+                text = t["Models are fetched from alphacephei.com/vosk/models over HTTPS."],
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -939,6 +967,7 @@ private fun VoskRow(
     onDelete: () -> Unit,
     onRequiresPro: () -> Unit
 ) {
+    val t = LocalUiStrings.current
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
@@ -964,8 +993,8 @@ private fun VoskRow(
                         text = buildString {
                             append(model.modelName)
                             if (model.sizeMb > 0) append(" · ~${formatModelSize(model.sizeMb)}")
-                            if (model.quality == ModelQuality.LARGE) append(" · LARGE")
-                            if (model.isBundled) append(" · bundled")
+                            if (model.quality == ModelQuality.LARGE) append(" · ${t["LARGE"]}")
+                            if (model.isBundled) append(" · ${t["bundled"]}")
                         },
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -980,13 +1009,13 @@ private fun VoskRow(
                     }
                     model.installed && !model.isBundled -> {
                         IconButton(onClick = onDelete) {
-                            Icon(Icons.Filled.Delete, contentDescription = "Delete")
+                            Icon(Icons.Filled.Delete, contentDescription = t["Delete"])
                         }
                     }
                     model.installed && model.isBundled -> {
                         Icon(
                             Icons.Filled.CheckCircle,
-                            contentDescription = "Installed",
+                            contentDescription = t["Installed"],
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
@@ -994,14 +1023,14 @@ private fun VoskRow(
                         FilledTonalButton(onClick = onRequiresPro, shape = RoundedCornerShape(8.dp)) {
                             Icon(Icons.Filled.Lock, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(4.dp))
-                            Text("Pro")
+                            Text(t["Pro"])
                         }
                     }
                     else -> {
                         FilledTonalButton(onClick = onDownload, shape = RoundedCornerShape(8.dp)) {
                             Icon(Icons.Filled.Download, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(4.dp))
-                            Text("Get")
+                            Text(t["Get"])
                         }
                     }
                 }
@@ -1033,18 +1062,19 @@ private fun OverlaySettingsCard(
     hasPro: Boolean,
     onRequiresPro: () -> Unit
 ) {
+    val t = LocalUiStrings.current
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            SectionLabel("Overlay")
+            SectionLabel(t["Overlay"])
 
-            Text("Text size: ${ui.settings.textSizeSp.toInt()}sp", style = MaterialTheme.typography.bodyMedium)
+            Text(t.format("Text size: %dsp", ui.settings.textSizeSp.toInt()), style = MaterialTheme.typography.bodyMedium)
             Slider(
                 value = ui.settings.textSizeSp,
                 valueRange = 14f..40f,
                 onValueChange = viewModel::updateTextSize
             )
 
-            Text("Opacity: ${(ui.settings.overlayOpacity * 100).toInt()}%", style = MaterialTheme.typography.bodyMedium)
+            Text(t.format("Opacity: %d%%", (ui.settings.overlayOpacity * 100).toInt()), style = MaterialTheme.typography.bodyMedium)
             Slider(
                 value = ui.settings.overlayOpacity,
                 valueRange = 0.2f..1f,
@@ -1056,14 +1086,14 @@ private fun OverlaySettingsCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("Show original text", style = MaterialTheme.typography.bodyMedium)
+                Text(t["Show original text"], style = MaterialTheme.typography.bodyMedium)
                 Switch(
                     checked = ui.settings.showOriginal,
                     onCheckedChange = viewModel::updateShowOriginal
                 )
             }
 
-            Text("Overlay theme (Pro)", style = MaterialTheme.typography.bodyMedium)
+            Text(t["Overlay theme (Pro)"], style = MaterialTheme.typography.bodyMedium)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1081,7 +1111,7 @@ private fun OverlaySettingsCard(
                 }
             }
 
-            Text("Overlay font (Pro)", style = MaterialTheme.typography.bodyMedium)
+            Text(t["Overlay font (Pro)"], style = MaterialTheme.typography.bodyMedium)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1117,12 +1147,13 @@ private fun ServerCard(
     onSaveSttUrl: () -> Unit,
     showStt: Boolean
 ) {
+    val t = LocalUiStrings.current
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Filled.Settings, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
-                SectionLabel("Translation engine")
+                SectionLabel(t["Translation engine"])
             }
 
             Row(
@@ -1130,14 +1161,14 @@ private fun ServerCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 ChoiceChip(
-                    label = "On-device (ML Kit)",
+                    label = t["On-device (ML Kit)"],
                     icon = Icons.Filled.Mic,
                     selected = ui.settings.translationBackend == TranslationBackend.ML_KIT,
                     onClick = { onSelectTranslationBackend(TranslationBackend.ML_KIT) },
                     modifier = Modifier.weight(1f)
                 )
                 ChoiceChip(
-                    label = "LibreTranslate",
+                    label = t["LibreTranslate"],
                     icon = Icons.Filled.Cloud,
                     selected = ui.settings.translationBackend == TranslationBackend.LIBRE_TRANSLATE,
                     onClick = { onSelectTranslationBackend(TranslationBackend.LIBRE_TRANSLATE) },
@@ -1147,7 +1178,7 @@ private fun ServerCard(
 
             if (ui.settings.translationBackend == TranslationBackend.ML_KIT) {
                 Text(
-                    text = "Google ML Kit translates fully on this device — no server required. The first time you use a language pair, a ~30 MB model downloads and is then cached offline forever.",
+                    text = t["Google ML Kit translates fully on this device — no server required. The first time you use a language pair, a ~30 MB model downloads and is then cached offline forever."],
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1155,12 +1186,13 @@ private fun ServerCard(
                 OutlinedTextField(
                     value = translateUrl,
                     onValueChange = onTranslateUrlChange,
-                    label = { Text("LibreTranslate URL") },
+                    label = { Text(t["LibreTranslate URL"]) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
                 Text(
-                    text = "Example: http://192.168.1.50:5000. The app fetches /languages to populate the dropdowns.",
+                    text = t.format("Example: %s", "http://192.168.1.50:5000") +
+                        " The app fetches /languages to populate the dropdowns.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1169,19 +1201,19 @@ private fun ServerCard(
                         onClick = onSaveTranslateUrl,
                         shape = RoundedCornerShape(8.dp),
                         modifier = Modifier.weight(1f)
-                    ) { Text("Save") }
+                    ) { Text(t["Save"]) }
                     OutlinedButton(
                         onClick = onRefreshLibre,
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Refresh")
+                        Text(t["Refresh"])
                     }
                 }
                 if (ui.libreError != null && !ui.libreLoading) {
                     Text(
-                        text = "Language fetch error: ${ui.libreError}",
+                        text = t.format("Language fetch error: %s", ui.libreError),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.error
                     )
@@ -1193,12 +1225,12 @@ private fun ServerCard(
                 OutlinedTextField(
                     value = sttUrl,
                     onValueChange = onSttUrlChange,
-                    label = { Text("Speech-to-Text URL (Whisper)") },
+                    label = { Text(t["Speech-to-Text URL (Whisper)"]) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
                 Text(
-                    text = "Example: http://192.168.1.50:9000/asr?output=json",
+                    text = t.format("Example: %s", "http://192.168.1.50:9000/asr?output=json"),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1206,7 +1238,7 @@ private fun ServerCard(
                     onClick = onSaveSttUrl,
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.fillMaxWidth()
-                ) { Text("Save STT URL") }
+                ) { Text(t["Save STT URL"]) }
             }
         }
     }
@@ -1221,6 +1253,7 @@ private fun UpdateAvailableBanner(
     onDownload: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val t = LocalUiStrings.current
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -1239,7 +1272,7 @@ private fun UpdateAvailableBanner(
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
-                        text = "Update available",
+                        text = t["Update available"],
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onTertiaryContainer
@@ -1278,9 +1311,7 @@ private fun UpdateAvailableBanner(
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        text = "You installed this app from the Play Store. The GitHub " +
-                            "build is a pre-release and may be unstable. Installing it " +
-                            "will also disable Play Store auto-updates for this app.",
+                        text = t["You installed this app from the Play Store. The GitHub build is a pre-release and may be unstable. Installing it will also disable Play Store auto-updates for this app."],
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onErrorContainer
                     )
@@ -1295,14 +1326,109 @@ private fun UpdateAvailableBanner(
                 ) {
                     Icon(Icons.Filled.Download, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text(if (info.apkDownloadUrl != null) "Download APK" else "View release")
+                    Text(if (info.apkDownloadUrl != null) t["Download APK"] else t["View release"])
                 }
                 OutlinedButton(
                     onClick = onDismiss,
                     shape = RoundedCornerShape(10.dp)
-                ) { Text("Later") }
+                ) { Text(t["Later"]) }
             }
         }
+    }
+}
+
+// ── Interface Language ──
+
+@Composable
+private fun UiLanguageCard(
+    languageCode: String,
+    busy: Boolean,
+    error: String?,
+    stage: UiLocalizationStage = UiLocalizationStage.DOWNLOADING,
+    translatedCount: Int = 0,
+    translatedTotal: Int = 0,
+    onSelect: (String) -> Unit
+) {
+    val t = LocalUiStrings.current
+    var showPicker by remember { mutableStateOf(false) }
+    val selected = MlKitLanguages.LIST.firstOrNull { it.code.equals(languageCode, ignoreCase = true) }
+    val label = if (languageCode.equals("en", true)) {
+        "${t["English"]} (en)"
+    } else {
+        "${selected?.name.orEmpty()} ($languageCode)"
+    }
+
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            SectionLabel(t["Interface language"])
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .border(1.5.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(10.dp))
+                    .clickable(enabled = !busy) { showPicker = true }
+                    .padding(horizontal = 14.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1
+                )
+                Icon(Icons.Filled.ArrowDropDown, contentDescription = null)
+            }
+
+            if (busy) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                Text(
+                    text = when (stage) {
+                        UiLocalizationStage.TRANSLATING ->
+                            if (translatedTotal > 0) {
+                                t.format("Translating the interface… (%d/%d)", translatedCount, translatedTotal)
+                            } else {
+                                t["Translating the interface…"]
+                            }
+                        UiLocalizationStage.DOWNLOADING -> t["Downloading translation model…"]
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            error?.let {
+                Text(
+                    text = t["Translation failed. Tap to retry."],
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+                TextButton(onClick = { onSelect(languageCode) }) { Text(t["Retry"]) }
+            }
+            if (!busy && error == null && !languageCode.equals("en", true)) {
+                Text(
+                    text = t["On-device ML Kit translation may be inaccurate."],
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+
+    if (showPicker) {
+        UiLanguagePickerDialog(
+            currentCode = languageCode,
+            busy = busy,
+            error = error,
+            stage = stage,
+            translatedCount = translatedCount,
+            translatedTotal = translatedTotal,
+            onSelect = {
+                showPicker = false
+                onSelect(it)
+            },
+            onDismiss = { showPicker = false }
+        )
     }
 }
 

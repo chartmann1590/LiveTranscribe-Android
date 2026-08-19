@@ -21,7 +21,12 @@ data class CaptionSettings(
     val overlayHeightDp: Int = DEFAULT_OVERLAY_HEIGHT_DP,
     /** Pro perk. Defaults render identically to the app's original look. */
     val overlayThemeId: String = "default",
-    val overlayFontId: String = "default"
+    val overlayFontId: String = "default",
+    /** Interface (UI) language, defaulting to English until the user opts in
+     *  to an on-device ML Kit translation. Not the caption source language. */
+    val uiLanguageCode: String = "en",
+    /** True once the first-launch onboarding has been completed. */
+    val onboardingComplete: Boolean = false
 ) {
     companion object {
         val DEFAULT_BASE_URL: String = BuildConfig.DEFAULT_TRANSLATE_URL

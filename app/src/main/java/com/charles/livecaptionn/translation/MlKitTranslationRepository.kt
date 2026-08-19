@@ -81,6 +81,21 @@ class MlKitTranslationRepository : TranslationRepository {
         }
     }
 
+    /**
+     * Ensures the source→target model is downloaded, propagating failures
+     * (unlike [prewarm], which swallows them for the caption service). Used by
+     * UI localization so a stalled model download can bail to the server
+     * fallback instead of spinning forever.
+     */
+    suspend fun requireModel(sourceCode: String, targetCode: String) {
+        val src = TranslateLanguage.fromLanguageTag(sourceCode.lowercase()) ?: return
+        val dst = TranslateLanguage.fromLanguageTag(targetCode.lowercase()) ?: return
+        if (src == dst) return
+        val translator = translatorFor(src, dst)
+        ensureModelDownloaded(translator)
+        Log.i(TAG, "ML Kit model ready for $sourceCode → $targetCode")
+    }
+
     @Synchronized
     private fun translatorFor(src: String, dst: String): Translator {
         val key = "$src|$dst"
@@ -101,16 +116,16 @@ class MlKitTranslationRepository : TranslationRepository {
             // user isn't on Wi-Fi.
             val conditions = DownloadConditions.Builder().build()
             translator.downloadModelIfNeeded(conditions)
-                .addOnSuccessListener { cont.resume(Unit) }
-                .addOnFailureListener { e -> cont.resumeWithException(e) }
+                .addOnSuccessListener { if (cont.isActive) cont.resume(Unit) }
+                .addOnFailureListener { e -> if (cont.isActive) cont.resumeWithException(e) }
         }
     }
 
     private suspend fun translateBlocking(translator: Translator, text: String): String =
         suspendCancellableCoroutine { cont ->
             translator.translate(text)
-                .addOnSuccessListener { cont.resume(it) }
-                .addOnFailureListener { e -> cont.resumeWithException(e) }
+                .addOnSuccessListener { if (cont.isActive) cont.resume(it) }
+                .addOnFailureListener { e -> if (cont.isActive) cont.resumeWithException(e) }
         }
 
     override fun close() {

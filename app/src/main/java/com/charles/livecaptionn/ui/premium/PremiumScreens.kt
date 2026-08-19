@@ -28,6 +28,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.charles.livecaptionn.billing.PremiumProduct
+import com.charles.livecaptionn.ui.l10n.LocalUiStrings
 
 @Composable
 fun PremiumCard(
@@ -39,6 +40,7 @@ fun PremiumCard(
     onRefresh: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val t = LocalUiStrings.current
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp)
@@ -56,15 +58,14 @@ fun PremiumCard(
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    text = "Upgrade",
+                    text = t["Upgrade"],
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold
                 )
             }
 
             Text(
-                text = "Ad-Free removes all ads. Pro unlocks larger on-device speech models, " +
-                    "more translation languages, and extra overlay themes.",
+                text = t["Ad-Free removes all ads. Pro unlocks larger on-device speech models, more translation languages, and extra overlay themes."],
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -99,7 +100,7 @@ fun PremiumCard(
                 shape = RoundedCornerShape(8.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(if (state.premium.hasAdFree) "Ad-Free active" else "Go Ad-Free")
+                Text(if (state.premium.hasAdFree) t["Ad-Free active"] else t["Go Ad-Free"])
             }
 
             FilledTonalButton(
@@ -108,7 +109,7 @@ fun PremiumCard(
                 shape = RoundedCornerShape(8.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(if (state.premium.hasPro) "Pro active" else "Go Pro")
+                Text(if (state.premium.hasPro) t["Pro active"] else t["Go Pro"])
             }
 
             if (state.premium.hasAdFree || state.premium.hasPro) {
@@ -117,7 +118,7 @@ fun PremiumCard(
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Manage subscription")
+                    Text(t["Manage subscription"])
                 }
             }
 
@@ -125,7 +126,7 @@ fun PremiumCard(
                 OutlinedTextField(
                     value = state.restoreEmail,
                     onValueChange = onRestoreEmailChange,
-                    label = { Text("Email used at checkout") },
+                    label = { Text(t["Email used at checkout"]) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -135,12 +136,12 @@ fun PremiumCard(
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Restore purchase")
+                    Text(t["Restore purchase"])
                 }
             }
 
             TextButton(onClick = onRefresh, enabled = !state.isBusy) {
-                Text("Refresh status")
+                Text(t["Refresh status"])
             }
         }
     }

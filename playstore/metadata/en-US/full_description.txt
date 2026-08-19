@@ -16,6 +16,7 @@ FEATURES
 • Streaming on-device Vosk recognizer — feels like Google Live Caption
 • Built-in downloader for additional on-device Vosk models, with two quality tiers: Small (~30 to 80 MB) and Large server-grade (80 MB to 2 GB, lowest error rate) for Spanish, French, German, Italian, Portuguese, Dutch, Russian, Ukrainian, Persian, Hindi, Chinese, Japanese, Arabic, Vietnamese and more
 • On-device translation via Google ML Kit, with LibreTranslate as an optional server backend for wider language coverage
+• Interface language — translate the entire app UI (menus, settings, overlay controls, notifications) into any of 59 languages; models download once, then the whole app works offline in that language
 • Transcript history, searchable from inside the app
 • Tunable overlay: text size, opacity, width, height, remembered screen position
 • Automatic update notifications via the GitHub Releases API

@@ -17,6 +17,7 @@ import android.widget.TextView
 import com.charles.livecaptionn.data.SettingsRepository
 import com.charles.livecaptionn.settings.CaptionSettings
 import com.charles.livecaptionn.speech.RecognitionStatus
+import com.charles.livecaptionn.ui.l10n.UiStrings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -27,7 +28,8 @@ class OverlayController(
     private val settingsRepository: SettingsRepository,
     private val onPauseResume: () -> Unit,
     private val onClose: () -> Unit,
-    private val onToggleMinimize: () -> Unit
+    private val onToggleMinimize: () -> Unit,
+    private val uiStrings: () -> UiStrings = { UiStrings.EMPTY }
 ) {
     private val wm = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private val density = context.resources.displayMetrics.density
@@ -39,6 +41,8 @@ class OverlayController(
     private var transcriptText: TextView? = null
     private var body: ScrollView? = null
     private var pauseButton: ImageButton? = null
+    private var minButton: ImageButton? = null
+    private var closeButton: ImageButton? = null
     private var params: WindowManager.LayoutParams? = null
 
     fun show(initialX: Int, initialY: Int, widthDp: Int, heightDp: Int) {
@@ -104,9 +108,9 @@ class OverlayController(
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         }
 
-        pauseButton = makeButton(android.R.drawable.ic_media_pause, "Pause captioning") { onPauseResume() }
-        val minButton = makeButton(android.R.drawable.arrow_down_float, "Minimize overlay") { onToggleMinimize() }
-        val closeButton = makeButton(android.R.drawable.ic_menu_close_clear_cancel, "Close overlay") { onClose() }
+        pauseButton = makeButton(android.R.drawable.ic_media_pause, uiStrings()["Pause captioning"]) { onPauseResume() }
+        minButton = makeButton(android.R.drawable.arrow_down_float, uiStrings()["Minimize overlay"]) { onToggleMinimize() }
+        closeButton = makeButton(android.R.drawable.ic_menu_close_clear_cancel, uiStrings()["Close overlay"]) { onClose() }
 
         header.addView(statusText)
         header.addView(pauseButton)
@@ -188,6 +192,7 @@ class OverlayController(
         val container = frame.getChildAt(0) as? LinearLayout ?: return
         val theme = OverlayThemeCatalog.find(ui.themeId)
         val font = OverlayFontCatalog.find(ui.fontId)
+        val s = uiStrings()
         // Enforce minimum 0.5 opacity for WCAG AA contrast (text on dark bg)
         val effectiveOpacity = ui.opacity.coerceIn(0.5f, 1.0f)
         (container.background as? GradientDrawable)?.setColor(
@@ -196,13 +201,18 @@ class OverlayController(
         statusText?.setTextColor(theme.textRgb)
         statusText?.typeface = font.typeface
         statusText?.text = buildString {
-            append("Status: ${ui.status.displayName}")
+            append(s["Status"])
+            append(": ")
+            append(s[ui.status.displayName])
             val detail = ui.statusDetail?.trim().orEmpty()
             if (detail.isNotEmpty()) {
                 append("\n")
                 append(detail)
             }
         }
+        pauseButton?.contentDescription = if (ui.status == RecognitionStatus.PAUSED) s["Resume captioning"] else s["Pause captioning"]
+        minButton?.contentDescription = s["Minimize overlay"]
+        closeButton?.contentDescription = s["Close overlay"]
         originalText?.setTextColor(theme.textRgb)
         originalText?.typeface = font.typeface
         originalText?.text = ui.originalText.ifBlank { "…" }

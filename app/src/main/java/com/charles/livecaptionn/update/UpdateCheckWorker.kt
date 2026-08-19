@@ -9,6 +9,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.charles.livecaptionn.BuildConfig
+import com.charles.livecaptionn.LiveCaptionApp
 import java.util.concurrent.TimeUnit
 
 /**
@@ -27,7 +28,11 @@ class UpdateCheckWorker(
         if (!BuildConfig.GITHUB_SELF_UPDATE_ENABLED) return Result.success()
         val checker = UpdateChecker()
         val info = checker.check() ?: return Result.success()
-        UpdateNotifier(applicationContext).notifyIfNew(info)
+        val ui = (applicationContext as? LiveCaptionApp)?.container?.uiLocalization
+        UpdateNotifier(
+            applicationContext,
+            uiStringsProvider = { ui?.latestStrings() ?: com.charles.livecaptionn.ui.l10n.UiStrings.EMPTY }
+        ).notifyIfNew(info)
         return Result.success()
     }
 

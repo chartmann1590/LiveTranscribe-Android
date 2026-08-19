@@ -16,6 +16,7 @@ import com.charles.livecaptionn.translation.MlKitTranslationRepository
 import com.charles.livecaptionn.translation.MockTranslationRepository
 import com.charles.livecaptionn.translation.RoutingTranslationRepository
 import com.charles.livecaptionn.translation.TranslationRepository
+import com.charles.livecaptionn.ui.l10n.UiLocalizationRepository
 import com.charles.livecaptionn.update.UpdateChecker
 import com.charles.livecaptionn.update.UpdateNotifier
 import kotlinx.coroutines.CoroutineScope
@@ -41,9 +42,20 @@ class AppContainer(context: Context) {
     val localVoskClient: LocalVoskSttClient = LocalVoskSttClient(voskRegistry)
     val languageCatalogStore: LanguageCatalogStore = LanguageCatalogStore(settingsRepository, appScope)
     val updateChecker: UpdateChecker = UpdateChecker()
-    val updateNotifier: UpdateNotifier = UpdateNotifier(context.applicationContext)
     val bugReportRepo: BugReportRepo = BugReportRepo(context.applicationContext)
     val premiumStore: PremiumLocalStore = PremiumLocalStore(context.applicationContext)
     val premiumRepository: PremiumRepository =
         createPremiumRepository(context.applicationContext, premiumStore, appScope)
+    // Interface language. Prefers on-device ML Kit; falls back to the
+    // configured LibreTranslate server when the model download is gated.
+    val uiLocalization: UiLocalizationRepository = UiLocalizationRepository(
+        context = context.applicationContext,
+        settingsRepository = settingsRepository,
+        scope = appScope,
+        fallbackTranslator = libreTranslationRepository
+    )
+    val updateNotifier: UpdateNotifier = UpdateNotifier(
+        context.applicationContext,
+        uiStringsProvider = { uiLocalization.latestStrings() }
+    )
 }

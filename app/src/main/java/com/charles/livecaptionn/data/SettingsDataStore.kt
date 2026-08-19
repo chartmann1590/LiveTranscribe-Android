@@ -42,6 +42,8 @@ class SettingsDataStore(private val context: Context) : SettingsRepository {
             p[OVERLAY_H] = next.overlayHeightDp
             p[OVERLAY_THEME] = next.overlayThemeId
             p[OVERLAY_FONT] = next.overlayFontId
+            p[UI_LANG] = next.uiLanguageCode.orEmpty().ifBlank { "en" }
+            p[ONBOARDING_COMPLETE] = next.onboardingComplete
         }
     }
 
@@ -65,7 +67,9 @@ class SettingsDataStore(private val context: Context) : SettingsRepository {
             overlayWidthDp = this[OVERLAY_W] ?: CaptionSettings.DEFAULT_OVERLAY_WIDTH_DP,
             overlayHeightDp = this[OVERLAY_H] ?: CaptionSettings.DEFAULT_OVERLAY_HEIGHT_DP,
             overlayThemeId = this[OVERLAY_THEME] ?: defaults.overlayThemeId,
-            overlayFontId = this[OVERLAY_FONT] ?: defaults.overlayFontId
+            overlayFontId = this[OVERLAY_FONT] ?: defaults.overlayFontId,
+            uiLanguageCode = this[UI_LANG] ?: defaults.uiLanguageCode,
+            onboardingComplete = this[ONBOARDING_COMPLETE] ?: defaults.onboardingComplete
         )
     }
 
@@ -88,5 +92,7 @@ class SettingsDataStore(private val context: Context) : SettingsRepository {
         val OVERLAY_H = intPreferencesKey("overlay_h")
         val OVERLAY_THEME = stringPreferencesKey("overlay_theme")
         val OVERLAY_FONT = stringPreferencesKey("overlay_font")
+        val UI_LANG = stringPreferencesKey("ui_language")
+        val ONBOARDING_COMPLETE = booleanPreferencesKey("onboarding_complete")
     }
 }
