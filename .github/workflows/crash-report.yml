@@ -60,8 +60,10 @@ jobs:
           firebase_url = (
               'https://firebasecrashlytics.googleapis.com/v1alpha/projects/'
               + os.environ['FIREBASE_PROJECT_NUMBER'] + '/apps/'
-              + urllib.parse.quote(os.environ['FIREBASE_APP_ID'], safe='')
-              + '/issues?pageSize=100'
+              + urllib.parse.quote(os.environ['FIREBASE_APP_ID'], safe=':')
+              + '/reports/topIssues?pageSize=100&filter.interval.startTime='
+              + urllib.parse.quote(iso_start, safe='')
+              + '&filter.interval.endTime=' + urllib.parse.quote(iso_end, safe='')
           )
           firebase = get(firebase_url, {'Authorization': 'Bearer ' + token})
 
@@ -85,7 +87,7 @@ jobs:
           with urllib.request.urlopen(req) as response:
               play_token = json.load(response)['access_token']
 
-          play_base = 'https://developerreporting.googleapis.com/v1beta1/apps/' + os.environ['PACKAGE_NAME']
+          play_base = 'https://playdeveloperreporting.googleapis.com/v1beta1/apps/' + os.environ['PACKAGE_NAME']
           play_body = json.dumps({'metrics': ['crashRate', 'errorReportCount', 'distinctUsers'], 'timelineSpec': {'startTime': iso_start, 'endTime': iso_end, 'aggregationPeriod': 'DAILY'}}).encode()
           play_req = urllib.request.Request(play_base + '/crashRateMetricSet:query', data=play_body, headers={'Authorization': 'Bearer ' + play_token, 'Content-Type': 'application/json'}, method='POST')
           try:
