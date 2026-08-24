@@ -144,7 +144,11 @@ async function recomputeAndStoreEntitlement(env, email, stripeCustomerId) {
   const subscriptions = {};
   const entitlements = new Set();
   for (const sub of subs.data || []) {
-    const product = sub.items?.data?.[0]?.price?.id === env.STRIPE_PRICE_PRO ? "PRO" : "AD_FREE";
+    const priceId = sub.items?.data?.[0]?.price?.id;
+    const product = priceId === env.STRIPE_PRICE_PRO
+      ? "PRO"
+      : priceId === env.STRIPE_PRICE_AD_FREE ? "AD_FREE" : null;
+    if (!product) continue;
     const key = product === "PRO" ? "pro" : "ad_free";
     subscriptions[key] = {
       status: sub.status,
@@ -152,9 +156,10 @@ async function recomputeAndStoreEntitlement(env, email, stripeCustomerId) {
       stripeSubscriptionId: sub.id
     };
     if (sub.status === "active" || sub.status === "trialing") {
-      entitlements.add(product === "PRO" ? "PRO" : "AD_FREE");
+      entitlements.add(product);
     }
   }
+  if (entitlements.has("PRO")) entitlements.add("AD_FREE");
 
   const record = {
     email,
@@ -178,7 +183,7 @@ async function handleEntitlement(request, env) {
   if (sessionId) {
     // Strong path: prove ownership via Stripe's own record of a completed Checkout Session.
     const session = await stripeFetch(env, "GET", `/checkout/sessions/${encodeURIComponent(sessionId)}`);
-    if (session.payment_status !== "paid" && session.status !== "complete") {
+    if (session.payment_status !== "paid") {
       return jsonResponse({ error: "Checkout session is not completed" }, 403);
     }
     email = normalizeEmail(session.customer_details?.email || session.customer_email);
@@ -207,6 +212,10 @@ async function handleEntitlement(request, env) {
   } else {
     const record = await getEntitlementRecord(env, email);
     entitlements = record?.entitlements ?? [];
+  }
+  // Pro always carries the Ad-Free benefit, including older KV records.
+  if (entitlements.includes("PRO") && !entitlements.includes("AD_FREE")) {
+    entitlements.push("AD_FREE");
   }
 
   const issuedAt = Math.floor(Date.now() / 1000);

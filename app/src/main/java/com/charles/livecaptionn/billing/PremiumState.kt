@@ -12,7 +12,8 @@ data class PremiumState(
     val lastVerifiedAtMillis: Long = 0L,
     val gracePeriodExpiresAtMillis: Long? = null
 ) {
-    val hasAdFree: Boolean get() = Entitlement.AD_FREE in entitlements
+    /** Pro includes the Ad-Free benefit even when the store reports one product. */
+    val hasAdFree: Boolean get() = hasPro || Entitlement.AD_FREE in entitlements
     val hasPro: Boolean get() = Entitlement.PRO in entitlements
 
     /** True while cached entitlements can still be trusted without a successful revalidation. */

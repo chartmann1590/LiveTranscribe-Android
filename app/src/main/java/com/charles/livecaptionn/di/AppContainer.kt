@@ -6,6 +6,10 @@ import com.charles.livecaptionn.data.PremiumLocalStore
 import com.charles.livecaptionn.data.SettingsDataStore
 import com.charles.livecaptionn.data.SettingsRepository
 import com.charles.livecaptionn.data.TranscriptHistoryStore
+import com.charles.livecaptionn.data.CaptionProfileRepository
+import com.charles.livecaptionn.data.FileCaptionProfileRepository
+import com.charles.livecaptionn.data.FileGlossaryRepository
+import com.charles.livecaptionn.data.GlossaryRepository
 import com.charles.livecaptionn.data.feedback.BugReportRepo
 import com.charles.livecaptionn.service.CaptionRuntimeStore
 import com.charles.livecaptionn.speech.LocalVoskSttClient
@@ -38,6 +42,8 @@ class AppContainer(context: Context) {
     )
     val mockTranslationRepository: TranslationRepository = MockTranslationRepository()
     val transcriptHistory: TranscriptHistoryStore = TranscriptHistoryStore(context.applicationContext)
+    val captionProfiles: CaptionProfileRepository = FileCaptionProfileRepository(context.applicationContext)
+    val glossary: GlossaryRepository = FileGlossaryRepository(context.applicationContext)
     val voskRegistry: VoskModelRegistry = VoskModelRegistry(context.applicationContext)
     val localVoskClient: LocalVoskSttClient = LocalVoskSttClient(voskRegistry)
     val languageCatalogStore: LanguageCatalogStore = LanguageCatalogStore(settingsRepository, appScope)

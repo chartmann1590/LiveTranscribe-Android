@@ -126,6 +126,7 @@ fun MainScreen(
     var translateUrlDraft by remember(ui.settings.serverBaseUrl) { mutableStateOf(ui.settings.serverBaseUrl) }
     var sttUrlDraft by remember(ui.settings.sttBaseUrl) { mutableStateOf(ui.settings.sttBaseUrl) }
     var showVoskSheet by remember { mutableStateOf(false) }
+    var showUpgradePrompt by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { viewModel.refreshPermissionState() }
 
     val feedbackCtx = LocalContext.current
@@ -200,7 +201,13 @@ fun MainScreen(
                     onDismiss = { viewModel.dismissUpdate() }
                 )
             }
-            CaptionControlCard(ui, onStart, onStop)
+            val modelReady = ui.settings.sttBackend != SttBackend.LOCAL_VOSK ||
+                ui.voskModels.any {
+                    it.installed && it.languageCode.equals(ui.settings.sourceLanguageCode, ignoreCase = true)
+                }
+            val permissionReady = ui.overlayPermissionGranted &&
+                (ui.settings.audioSource == AudioSource.SYSTEM || ui.micPermissionGranted)
+            CaptionControlCard(ui, onStart, onStop, canStart = modelReady && permissionReady)
             PermissionsCard(ui, onRequestAudioPermission, onOpenOverlaySettings)
             AudioSourceCard(ui, viewModel, onManageModels = { showVoskSheet = true })
             LanguageCard(
@@ -208,13 +215,25 @@ fun MainScreen(
                 viewModel = viewModel,
                 onManageModels = { showVoskSheet = true },
                 hasPro = premiumState.premium.hasPro,
-                onRequiresPro = {}
+                onRequiresPro = { showUpgradePrompt = true }
             )
             OverlaySettingsCard(
                 ui = ui,
                 viewModel = viewModel,
                 hasPro = premiumState.premium.hasPro,
-                onRequiresPro = {}
+                onRequiresPro = { showUpgradePrompt = true }
+            )
+            FeatureToolsCard(
+                settings = ui.settings,
+                hasPro = premiumState.premium.hasPro,
+                profiles = feedbackApp.container.captionProfiles,
+                glossary = feedbackApp.container.glossary,
+                micPermissionGranted = ui.micPermissionGranted,
+                overlayPermissionGranted = ui.overlayPermissionGranted,
+                voskModels = ui.voskModels,
+                onApplyProfile = viewModel::applyProfile,
+                onSaveHistoryChange = viewModel::updateSaveHistory,
+                onRequiresPro = { showUpgradePrompt = true }
             )
             UiLanguageCard(
                 languageCode = ui.uiLanguageCode,
@@ -278,6 +297,18 @@ fun MainScreen(
             )
         }
 
+        if (showUpgradePrompt) {
+            AlertDialog(
+                onDismissRequest = { showUpgradePrompt = false },
+                title = { Text(t["Pro feature"]) },
+                text = { Text(t["Upgrade to Pro to unlock this feature. The upgrade removes ads and adds high-accuracy models, more languages, profiles, and advanced caption tools."]) },
+                confirmButton = {
+                    TextButton(onClick = { showUpgradePrompt = false }) { Text(t["View upgrade options"]) }
+                },
+                dismissButton = { TextButton(onClick = { showUpgradePrompt = false }) { Text(t["Close"]) } }
+            )
+        }
+
         if (feedbackState.showReportDialog) {
             ReportProblemDialog(
                 state = feedbackState,
@@ -319,7 +350,12 @@ private fun SectionLabel(text: String) {
 // ── Control Card ──
 
 @Composable
-private fun CaptionControlCard(ui: MainUiState, onStart: () -> Unit, onStop: () -> Unit) {
+private fun CaptionControlCard(
+    ui: MainUiState,
+    onStart: () -> Unit,
+    onStop: () -> Unit,
+    canStart: Boolean
+) {
     val isRunning = ui.runtime.running
     val t = LocalUiStrings.current
 
@@ -390,7 +426,7 @@ private fun CaptionControlCard(ui: MainUiState, onStart: () -> Unit, onStop: () 
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Button(
                     onClick = onStart,
-                    enabled = !isRunning,
+                    enabled = !isRunning && canStart,
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -411,6 +447,14 @@ private fun CaptionControlCard(ui: MainUiState, onStart: () -> Unit, onStop: () 
                     Spacer(Modifier.width(6.dp))
                     Text(t["Stop"])
                 }
+            }
+            if (!isRunning && !canStart) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = t["Grant overlay/audio permissions and install the selected speech model before starting."],
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
             }
         }
     }

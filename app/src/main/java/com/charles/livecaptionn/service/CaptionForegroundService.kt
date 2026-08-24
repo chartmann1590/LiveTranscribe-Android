@@ -20,6 +20,7 @@ import com.charles.livecaptionn.LiveCaptionApp
 import com.charles.livecaptionn.MainActivity
 import com.charles.livecaptionn.R
 import com.charles.livecaptionn.data.TranscriptEntry
+import com.charles.livecaptionn.data.applyGlossary
 import com.charles.livecaptionn.overlay.OverlayController
 import com.charles.livecaptionn.overlay.OverlayFontCatalog
 import com.charles.livecaptionn.overlay.OverlayThemeCatalog
@@ -49,6 +50,7 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.ConcurrentLinkedQueue
 
 @OptIn(FlowPreview::class)
 class CaptionForegroundService : Service() {
@@ -63,12 +65,14 @@ class CaptionForegroundService : Service() {
     private var speechEngine: SpeechEngine? = null
     private var overlayController: OverlayController? = null
     private var paused = false
+    private var failureMessage: String? = null
     private var bufferedText = ""
     private val lineIdCounter = java.util.concurrent.atomic.AtomicLong(0)
     @Volatile
     private var bufferedLineId: Long = NO_LINE_ID
     @Volatile
     private var historyOnNextTranslate = false
+    private val pendingFinalTranslations = ConcurrentLinkedQueue<TranslationRequest>()
 
     /** Mic partials arrive faster than 400ms; cancel+restart jobs never finish. Debounce coalesces to one translate. */
     private val translateRequests = MutableSharedFlow<Unit>(
@@ -114,8 +118,7 @@ class CaptionForegroundService : Service() {
                     ?.let { runCatching { AudioSource.valueOf(it) }.getOrNull() }
                     ?: AudioSource.MIC
                 currentAudioSource = audioSource
-                enterForeground(audioSource)
-                startFlow()
+                if (enterForeground(audioSource)) startFlow()
             }
             ACTION_STOP -> stopFlow()
             ACTION_PAUSE_RESUME -> togglePause()
@@ -124,7 +127,7 @@ class CaptionForegroundService : Service() {
         return START_STICKY
     }
 
-    private fun enterForeground(audioSource: AudioSource) {
+    private fun enterForeground(audioSource: AudioSource): Boolean {
         val wantsMicrophone = audioSource != AudioSource.SYSTEM
         val hasMicPermission = ContextCompat.checkSelfPermission(
             this, Manifest.permission.RECORD_AUDIO
@@ -139,21 +142,25 @@ class CaptionForegroundService : Service() {
             wantsMicrophone && hasMicPermission -> ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
             else -> 0
         }
-        startForeground(NOTIF_ID, buildNotification(), type)
-        if (wantsMicrophone && !hasMicPermission) {
-            Log.e("CaptionService", "Mic audio requested without RECORD_AUDIO permission; stopping.")
-            stopForeground(STOP_FOREGROUND_REMOVE)
-            stopSelf()
+        return try {
+            startForeground(NOTIF_ID, buildNotification(), type)
+            if (wantsMicrophone && !hasMicPermission) {
+                failAndStop("Microphone permission not granted. Allow microphone access and try again.")
+                false
+            } else true
+        } catch (t: Throwable) {
+            Log.e("CaptionService", "Unable to enter foreground", t)
+            failAndStop("Captioning could not start: ${t.message ?: "foreground service permission denied"}")
+            false
         }
     }
 
     private fun startFlow() {
         if (!captionSessionActive.compareAndSet(false, true)) return
+        failureMessage = null
         if (!Settings.canDrawOverlays(this)) {
-            captionSessionActive.set(false)
             Log.e("CaptionService", "Overlay permission missing.")
-            stopForeground(STOP_FOREGROUND_REMOVE)
-            stopSelf()
+            failAndStop("Overlay permission is required. Enable it in system settings and try again.")
             return
         }
 
@@ -168,10 +175,31 @@ class CaptionForegroundService : Service() {
             // re-enter foreground with the correct service type.
             if (settings.audioSource != currentAudioSource) {
                 currentAudioSource = settings.audioSource
-                enterForeground(currentAudioSource)
+                if (!enterForeground(currentAudioSource)) return@launch
             }
             val sttLanguageCode = settings.sourceLanguageCode.ifBlank { "en" }
             val localeForSpeechRec = LocaleMap.bcp47(sttLanguageCode)
+
+            val premium = app.container.premiumRepository.state.first()
+            if (settings.translationBackend == com.charles.livecaptionn.settings.TranslationBackend.ML_KIT &&
+                (com.charles.livecaptionn.translation.MlKitLanguages.requiresPro(settings.sourceLanguageCode) ||
+                    com.charles.livecaptionn.translation.MlKitLanguages.requiresPro(settings.targetLanguageCode)) &&
+                !premium.hasPro
+            ) {
+                failAndStop("This ML Kit language requires Pro. Choose a free language or upgrade.")
+                return@launch
+            }
+            if (settings.sttBackend == SttBackend.LOCAL_VOSK) {
+                val model = app.container.voskRegistry.installedModelFor(sttLanguageCode)
+                if (model == null) {
+                    failAndStop("No on-device model installed for '$sttLanguageCode'. Download one first.")
+                    return@launch
+                }
+                if (model.quality == com.charles.livecaptionn.speech.ModelQuality.LARGE && !premium.hasPro) {
+                    failAndStop("The large Vosk model requires Pro. Install or select a small model.")
+                    return@launch
+                }
+            }
 
             app.container.runtimeStore.update {
                 it.copy(running = true, paused = false, status = RecognitionStatus.LISTENING)
@@ -193,56 +221,15 @@ class CaptionForegroundService : Service() {
                 translateRequests
                     .debounce(TRANSLATE_DEBOUNCE_MS)
                     .collect {
-                        val textSnapshot = bufferedText
-                        val lineIdSnapshot = bufferedLineId
-                        if (textSnapshot.isBlank()) return@collect
-                        val saveHistory = historyOnNextTranslate
-                        historyOnNextTranslate = false
-                        val captionSettings = app.container.settingsRepository.settingsFlow.first()
-                        val translated = app.container.translationRepository.translate(
-                            text = textSnapshot,
-                            sourceCode = captionSettings.sourceLanguageCode,
-                            targetCode = captionSettings.targetLanguageCode,
-                            autoDetect = currentAudioSource == AudioSource.SYSTEM || captionSettings.autoDetectSource
-                        )
-                        // Empty result means the backend genuinely failed
-                        // (network drop, model not yet downloaded, unsupported
-                        // pair etc.). Preserve the last good translation
-                        // instead of overwriting it with the raw source.
-                        if (translated.isBlank()) {
-                            app.container.runtimeStore.update {
-                                it.copy(
-                                    status = if (paused) RecognitionStatus.PAUSED else RecognitionStatus.LISTENING
-                                )
-                            }
-                            return@collect
+                        while (true) {
+                            val final = pendingFinalTranslations.poll() ?: break
+                            translateSnapshot(final)
                         }
-                        app.container.runtimeStore.update {
-                            val stillCurrent = it.transcriptLines.any { line -> line.id == lineIdSnapshot }
-                            it.copy(
-                                translatedText = if (stillCurrent) translated else it.translatedText,
-                                transcriptLines = updateTranscriptTranslation(
-                                    lines = it.transcriptLines,
-                                    lineId = lineIdSnapshot,
-                                    translatedText = translated
-                                ),
-                                status = if (paused) RecognitionStatus.PAUSED else RecognitionStatus.LISTENING
-                            )
+                        val partial = synchronized(this@CaptionForegroundService) {
+                            TranslationRequest(bufferedText, bufferedLineId, historyOnNextTranslate)
+                                .also { historyOnNextTranslate = false }
                         }
-                        if (saveHistory && textSnapshot.isNotBlank()) {
-                            app.container.transcriptHistory.add(
-                                TranscriptEntry(
-                                    originalText = textSnapshot,
-                                    translatedText = translated,
-                                    sourceLanguage = if (currentAudioSource == AudioSource.SYSTEM) {
-                                        "auto"
-                                    } else {
-                                        captionSettings.sourceLanguageCode
-                                    },
-                                    targetLanguage = captionSettings.targetLanguageCode
-                                )
-                            )
-                        }
+                        if (partial.text.isNotBlank()) translateSnapshot(partial)
                     }
             }
 
@@ -274,11 +261,14 @@ class CaptionForegroundService : Service() {
                 val data = MediaProjectionHolder.data
                 if (data == null) {
                     Log.e("CaptionService", "MediaProjection data missing.")
-                    captionSessionActive.set(false)
-                    stopSelf()
+                    failAndStop("System-audio capture permission is missing. Start again and allow capture.")
                     return@launch
                 }
                 mpManager.getMediaProjection(MediaProjectionHolder.resultCode, data)
+                    ?: run {
+                        failAndStop("System-audio capture could not be initialized. Try again.")
+                        return@launch
+                    }
             } else {
                 null
             }
@@ -402,11 +392,51 @@ class CaptionForegroundService : Service() {
     )
 
     private fun queueTranslation(text: String, lineId: Long, isFinal: Boolean = false) {
-        bufferedText = text
-        bufferedLineId = lineId
-        if (isFinal) historyOnNextTranslate = true
+        synchronized(this) {
+            bufferedText = text
+            bufferedLineId = lineId
+            if (isFinal) {
+                pendingFinalTranslations.add(TranslationRequest(text, lineId, true))
+                // Finals are retained in the queue; do not translate the same
+                // immutable snapshot again through the mutable partial slot.
+                bufferedText = ""
+                historyOnNextTranslate = false
+            }
+        }
         translateRequests.tryEmit(Unit)
     }
+
+    private suspend fun translateSnapshot(request: TranslationRequest) {
+        val captionSettings = app.container.settingsRepository.settingsFlow.first()
+        val translated = app.container.translationRepository.translate(
+            text = request.text,
+            sourceCode = captionSettings.sourceLanguageCode,
+            targetCode = captionSettings.targetLanguageCode,
+            autoDetect = currentAudioSource == AudioSource.SYSTEM || captionSettings.autoDetectSource
+        )
+        if (translated.isBlank()) return
+        val translatedWithGlossary = applyGlossary(translated, app.container.glossary.list())
+        app.container.runtimeStore.update {
+            val current = it.transcriptLines.any { line -> line.id == request.lineId }
+            it.copy(
+                translatedText = if (current) translatedWithGlossary else it.translatedText,
+                transcriptLines = updateTranscriptTranslation(it.transcriptLines, request.lineId, translatedWithGlossary),
+                status = if (paused) RecognitionStatus.PAUSED else RecognitionStatus.LISTENING
+            )
+        }
+        if (request.saveHistory && captionSettings.saveHistory) {
+            app.container.transcriptHistory.add(
+                TranscriptEntry(
+                    originalText = request.text,
+                    translatedText = translatedWithGlossary,
+                    sourceLanguage = if (currentAudioSource == AudioSource.SYSTEM) "auto" else captionSettings.sourceLanguageCode,
+                    targetLanguage = captionSettings.targetLanguageCode
+                )
+            )
+        }
+    }
+
+    private data class TranslationRequest(val text: String, val lineId: Long, val saveHistory: Boolean)
 
     private fun showOverlay() {
         if (overlayController != null) return
@@ -455,9 +485,30 @@ class CaptionForegroundService : Service() {
         overlayController = null
         overlayReady.value = 0
         MediaProjectionHolder.clear()
-        app.container.runtimeStore.update { CaptionRuntimeState() }
+        val error = failureMessage
+        failureMessage = null
+        app.container.runtimeStore.update {
+            if (error == null) CaptionRuntimeState()
+            else CaptionRuntimeState(status = RecognitionStatus.ERROR, lastError = error)
+        }
         serviceScope.cancel()
         serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
+    }
+
+    private fun failAndStop(message: String) {
+        captionSessionActive.set(false)
+        failureMessage = message
+        try { speechEngine?.stop() } catch (_: Throwable) {}
+        speechEngine = null
+        overlayController?.hide()
+        overlayController = null
+        MediaProjectionHolder.clear()
+        app.container.runtimeStore.update {
+            it.copy(running = false, paused = false, status = RecognitionStatus.ERROR, lastError = message)
+        }
+        serviceScope.cancel()
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }

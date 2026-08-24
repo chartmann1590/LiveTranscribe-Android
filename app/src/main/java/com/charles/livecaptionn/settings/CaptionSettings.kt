@@ -26,7 +26,9 @@ data class CaptionSettings(
      *  to an on-device ML Kit translation. Not the caption source language. */
     val uiLanguageCode: String = "en",
     /** True once the first-launch onboarding has been completed. */
-    val onboardingComplete: Boolean = false
+    val onboardingComplete: Boolean = false,
+    /** Whether completed captions should be persisted to local history. */
+    val saveHistory: Boolean = true
 ) {
     companion object {
         val DEFAULT_BASE_URL: String = BuildConfig.DEFAULT_TRANSLATE_URL

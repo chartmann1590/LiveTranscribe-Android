@@ -47,6 +47,8 @@ import com.charles.livecaptionn.ui.l10n.UiLocalizationRepository.UiLocalizationS
 @Composable
 fun OnboardingScreen(
     viewModel: MainViewModel,
+    onRequestAudioPermission: () -> Unit = {},
+    onOpenOverlaySettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val t = LocalUiStrings.current
@@ -174,6 +176,20 @@ fun OnboardingScreen(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.outline
         )
+
+        Spacer(Modifier.height(18.dp))
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(t["Before your first session"], fontWeight = FontWeight.SemiBold)
+                Text(t["1. Allow microphone access for microphone captions."], style = MaterialTheme.typography.bodySmall)
+                Text(t["2. Allow display over other apps so captions can float above video."], style = MaterialTheme.typography.bodySmall)
+                Text(t["3. The app includes English and Vietnamese offline speech models. More models can be downloaded later."], style = MaterialTheme.typography.bodySmall)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = onRequestAudioPermission, modifier = Modifier.weight(1f)) { Text(t["Microphone"]) }
+                    OutlinedButton(onClick = onOpenOverlaySettings, modifier = Modifier.weight(1f)) { Text(t["Overlay"]) }
+                }
+            }
+        }
 
         Spacer(Modifier.height(24.dp))
 

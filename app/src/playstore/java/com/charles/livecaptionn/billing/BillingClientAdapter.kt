@@ -57,7 +57,7 @@ class RealBillingClientAdapter(
     }
 
     override suspend fun queryProductDetails(productIds: List<String>): List<ProductDetails> {
-        if (!connect()) return emptyList()
+        if (!connect()) throw IllegalStateException("Google Play Billing is unavailable")
         val products = productIds.map {
             QueryProductDetailsParams.Product.newBuilder()
                 .setProductId(it)
@@ -85,7 +85,8 @@ class RealBillingClientAdapter(
     }
 
     override suspend fun queryActivePurchases(): List<Purchase> {
-        if (!connect()) return emptyList()
+        // Do not turn a transient Play connection failure into a false revoke.
+        if (!connect()) throw IllegalStateException("Google Play Billing is unavailable")
         val params = QueryPurchasesParams.newBuilder().setProductType(BillingClient.ProductType.SUBS).build()
         return suspendCancellableCoroutine { cont ->
             client.queryPurchasesAsync(params) { _, purchases ->

@@ -8,6 +8,7 @@ import android.media.projection.MediaProjectionConfig
 import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -58,6 +59,13 @@ class MainActivity : ComponentActivity() {
         if (result.resultCode == Activity.RESULT_OK && result.data != null) {
             MediaProjectionHolder.set(result.resultCode, result.data!!.clone() as Intent)
             startCaptionService(AudioSource.SYSTEM)
+        } else {
+            (application as LiveCaptionApp).container.runtimeStore.update {
+                it.copy(
+                    status = com.charles.livecaptionn.speech.RecognitionStatus.ERROR,
+                    lastError = "System-audio capture permission was not granted."
+                )
+            }
         }
     }
 
@@ -76,6 +84,8 @@ class MainActivity : ComponentActivity() {
                         if (!onboardingComplete) {
                             OnboardingScreen(
                                 viewModel = vm,
+                                onRequestAudioPermission = { requestAudioPermission() },
+                                onOpenOverlaySettings = { vm.openOverlayPermissionSettings(this@MainActivity) },
                                 modifier = Modifier.fillMaxSize()
                             )
                         } else {
@@ -131,6 +141,15 @@ class MainActivity : ComponentActivity() {
     private fun startCaptioning() {
         val app = application as LiveCaptionApp
         lifecycleScope.launch {
+            if (!Settings.canDrawOverlays(this@MainActivity)) {
+                app.container.runtimeStore.update {
+                    it.copy(
+                        status = com.charles.livecaptionn.speech.RecognitionStatus.ERROR,
+                        lastError = "Overlay permission is required. Enable it in system settings and try again."
+                    )
+                }
+                return@launch
+            }
             val settings = app.container.settingsRepository.settingsFlow.first()
             when (settings.audioSource) {
                 AudioSource.SYSTEM -> {

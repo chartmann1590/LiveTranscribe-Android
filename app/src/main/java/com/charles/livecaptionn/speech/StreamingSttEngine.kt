@@ -243,13 +243,6 @@ class StreamingSttEngine(
             AudioFormat.ENCODING_PCM_16BIT
         ).coerceAtLeast(CHUNK_BYTES * 8)
 
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
-            != PackageManager.PERMISSION_GRANTED
-        ) {
-            onError("Microphone permission not granted")
-            return null
-        }
-
         return when (audioSource) {
             AudioSource.SYSTEM -> {
                 val projection = mediaProjection
@@ -269,6 +262,12 @@ class StreamingSttEngine(
                     .build()
             }
             AudioSource.MIC -> {
+                if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
+                    != PackageManager.PERMISSION_GRANTED
+                ) {
+                    onError("Microphone permission not granted. Allow microphone access and try again.")
+                    return null
+                }
                 AudioRecord.Builder()
                     .setAudioSource(MediaRecorder.AudioSource.VOICE_RECOGNITION)
                     .setAudioFormat(format)

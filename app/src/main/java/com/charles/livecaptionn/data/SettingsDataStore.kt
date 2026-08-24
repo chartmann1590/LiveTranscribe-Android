@@ -44,6 +44,7 @@ class SettingsDataStore(private val context: Context) : SettingsRepository {
             p[OVERLAY_FONT] = next.overlayFontId
             p[UI_LANG] = next.uiLanguageCode.orEmpty().ifBlank { "en" }
             p[ONBOARDING_COMPLETE] = next.onboardingComplete
+            p[SAVE_HISTORY] = next.saveHistory
         }
     }
 
@@ -69,7 +70,8 @@ class SettingsDataStore(private val context: Context) : SettingsRepository {
             overlayThemeId = this[OVERLAY_THEME] ?: defaults.overlayThemeId,
             overlayFontId = this[OVERLAY_FONT] ?: defaults.overlayFontId,
             uiLanguageCode = this[UI_LANG] ?: defaults.uiLanguageCode,
-            onboardingComplete = this[ONBOARDING_COMPLETE] ?: defaults.onboardingComplete
+            onboardingComplete = this[ONBOARDING_COMPLETE] ?: defaults.onboardingComplete,
+            saveHistory = this[SAVE_HISTORY] ?: defaults.saveHistory
         )
     }
 
@@ -94,5 +96,6 @@ class SettingsDataStore(private val context: Context) : SettingsRepository {
         val OVERLAY_FONT = stringPreferencesKey("overlay_font")
         val UI_LANG = stringPreferencesKey("ui_language")
         val ONBOARDING_COMPLETE = booleanPreferencesKey("onboarding_complete")
+        val SAVE_HISTORY = booleanPreferencesKey("save_history")
     }
 }

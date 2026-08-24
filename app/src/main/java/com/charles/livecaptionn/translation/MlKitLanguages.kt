@@ -84,5 +84,5 @@ object MlKitLanguages {
         "en", "es", "fr", "de", "it", "pt", "nl", "ru", "zh", "ja", "ko", "ar", "hi", "vi", "tr"
     )
 
-    fun requiresPro(code: String): Boolean = code !in FREE_TIER
+    fun requiresPro(code: String): Boolean = code.trim().lowercase() !in FREE_TIER
 }

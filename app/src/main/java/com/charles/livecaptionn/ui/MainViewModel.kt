@@ -17,6 +17,7 @@ import com.charles.livecaptionn.settings.AudioSource
 import com.charles.livecaptionn.settings.SttBackend
 import com.charles.livecaptionn.settings.TranslationBackend
 import com.charles.livecaptionn.speech.VoskModelInfo
+import com.charles.livecaptionn.data.CaptionProfile
 import com.charles.livecaptionn.update.UpdateInfo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -151,6 +152,23 @@ class MainViewModel(
 
     fun updateShowOriginal(show: Boolean) {
         viewModelScope.launch { container.settingsRepository.update { it.copy(showOriginal = show) } }
+    }
+
+    fun updateSaveHistory(save: Boolean) {
+        viewModelScope.launch { container.settingsRepository.update { it.copy(saveHistory = save) } }
+    }
+
+    fun applyProfile(profile: CaptionProfile) {
+        viewModelScope.launch {
+            container.settingsRepository.update {
+                it.copy(
+                    sourceLanguageCode = profile.sourceLanguage,
+                    targetLanguageCode = profile.targetLanguage,
+                    textSizeSp = profile.textSizeSp,
+                    showOriginal = profile.showOriginal
+                )
+            }
+        }
     }
 
     fun updateOverlayTheme(themeId: String) {

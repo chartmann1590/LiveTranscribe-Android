@@ -25,7 +25,7 @@ class PremiumStateTest {
     fun hasPro_trueWhenEntitlementPresent() {
         val state = PremiumState(entitlements = setOf(Entitlement.PRO))
         assertTrue(state.hasPro)
-        assertFalse(state.hasAdFree)
+        assertTrue(state.hasAdFree)
     }
 
     @Test

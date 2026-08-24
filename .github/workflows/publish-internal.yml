@@ -1,0 +1,83 @@
+name: Publish Internal Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type internal to publish to the internal testing track'
+        required: true
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      ANDROID_VERSION_CODE: ${{ github.run_number }}
+      ANDROID_VERSION_NAME: 1.0.internal.${{ github.run_number }}
+    steps:
+      - name: Confirm internal publish
+        run: test "${{ inputs.confirm }}" = "internal"
+
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: temurin
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Configure Google services and signing
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          ANDROID_KEYSTORE_FILE: ${{ secrets.ANDROID_KEYSTORE_FILE }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          test -n "$GOOGLE_SERVICES_JSON"
+          test -n "$ANDROID_KEYSTORE_B64"
+          printf '%s' "$GOOGLE_SERVICES_JSON" > app/google-services.json
+          printf '%s' "$ANDROID_KEYSTORE_B64" | base64 --decode > "$ANDROID_KEYSTORE_FILE"
+          cat > keystore.properties <<EOF
+          storeFile=$ANDROID_KEYSTORE_FILE
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          keyPassword=$ANDROID_KEY_PASSWORD
+          EOF
+
+      - name: Configure build properties
+        env:
+          ADS_ENABLED: ${{ secrets.ADS_ENABLED }}
+          ADMOB_APP_ID: ${{ secrets.ADMOB_APP_ID }}
+          ADMOB_APP_OPEN_ID_DEBUG: ${{ secrets.ADMOB_APP_OPEN_ID_DEBUG }}
+          ADMOB_APP_OPEN_ID_RELEASE: ${{ secrets.ADMOB_APP_OPEN_ID_RELEASE }}
+          ADMOB_BANNER_ID_DEBUG: ${{ secrets.ADMOB_BANNER_ID_DEBUG }}
+          ADMOB_BANNER_ID_RELEASE: ${{ secrets.ADMOB_BANNER_ID_RELEASE }}
+          ADMOB_NATIVE_ID_DEBUG: ${{ secrets.ADMOB_NATIVE_ID_DEBUG }}
+          ADMOB_NATIVE_ID_RELEASE: ${{ secrets.ADMOB_NATIVE_ID_RELEASE }}
+        run: |
+          cat > local.properties <<EOF
+          ads.enabled=${ADS_ENABLED:-true}
+          ads.admob.app.id=$ADMOB_APP_ID
+          ads.admob.app.open.id.debug=$ADMOB_APP_OPEN_ID_DEBUG
+          ads.admob.app.open.id.release=$ADMOB_APP_OPEN_ID_RELEASE
+          ads.admob.banner.id.debug=$ADMOB_BANNER_ID_DEBUG
+          ads.admob.banner.id.release=$ADMOB_BANNER_ID_RELEASE
+          ads.admob.native.id.debug=$ADMOB_NATIVE_ID_DEBUG
+          ads.admob.native.id.release=$ADMOB_NATIVE_ID_RELEASE
+          EOF
+
+      - name: Test and build Play bundle
+        run: ./gradlew testPlaystoreDebugUnitTest bundlePlaystoreRelease
+
+      - name: Upload to internal testing track
+        uses: r0adkll/upload-google-play@v1.1.5
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.charles.livecaptionn
+          releaseFiles: app/build/outputs/bundle/playstoreRelease/app-playstore-release.aab
+          tracks: internal
+          status: completed

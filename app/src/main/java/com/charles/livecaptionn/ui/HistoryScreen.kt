@@ -3,6 +3,7 @@ package com.charles.livecaptionn.ui
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -51,6 +52,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.charles.livecaptionn.data.TranscriptEntry
+import com.charles.livecaptionn.data.TranscriptExport
 import com.charles.livecaptionn.data.TranscriptHistoryStore
 import com.charles.livecaptionn.ui.l10n.LocalUiStrings
 import kotlinx.coroutines.launch
@@ -66,6 +68,7 @@ fun HistoryScreen(
     modifier: Modifier = Modifier
 ) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val t = LocalUiStrings.current
     var entries by remember { mutableStateOf<List<TranscriptEntry>>(emptyList()) }
     var searchQuery by remember { mutableStateOf("") }
@@ -94,7 +97,7 @@ fun HistoryScreen(
                 TextButton(onClick = {
                     val target = deleteTarget ?: return@TextButton
                     scope.launch {
-                        historyStore.delete(target.timestamp)
+                        historyStore.deleteById(target.id)
                         entries = historyStore.getAll()
                     }
                     deleteTarget = null
@@ -122,6 +125,15 @@ fun HistoryScreen(
                 },
                 actions = {
                     if (entries.isNotEmpty()) {
+                        IconButton(onClick = {
+                            val share = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, TranscriptExport(entries).asText())
+                            }
+                            context.startActivity(Intent.createChooser(share, t["Share transcripts"]))
+                        }) {
+                            Icon(Icons.Filled.ContentCopy, contentDescription = t["Share transcripts"])
+                        }
                         TextButton(onClick = {
                             scope.launch {
                                 historyStore.clear()
@@ -196,7 +208,7 @@ fun HistoryScreen(
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    items(filteredEntries, key = { it.timestamp }) { entry ->
+                    items(filteredEntries, key = { it.id }) { entry ->
                         TranscriptCard(
                             entry = entry,
                             onDelete = { deleteTarget = entry }

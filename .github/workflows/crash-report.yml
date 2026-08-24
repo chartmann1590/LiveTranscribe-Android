@@ -1,0 +1,110 @@
+name: Export Crash Reports
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 6 * * 1'
+
+permissions:
+  contents: read
+
+env:
+  PACKAGE_NAME: com.charles.livecaptionn
+  FIREBASE_PROJECT_NUMBER: '571461813603'
+  FIREBASE_APP_ID: '1:571461813603:android:86c99048fd13316bff3f56'
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Exchange Firebase refresh token
+        id: auth
+        env:
+          CLIENT_ID: ${{ secrets.FIREBASE_OAUTH_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.FIREBASE_OAUTH_CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          response=$(curl -fsS -X POST https://oauth2.googleapis.com/token \
+            --data-urlencode "client_id=$CLIENT_ID" \
+            --data-urlencode "client_secret=$CLIENT_SECRET" \
+            --data-urlencode "refresh_token=$REFRESH_TOKEN" \
+            --data-urlencode grant_type=refresh_token)
+          token=$(jq -r .access_token <<< "$response")
+          test "$token" != null
+          echo "token=$token" >> "$GITHUB_OUTPUT"
+
+      - name: Export 30-day Firebase and Play data
+        env:
+          ACCESS_TOKEN: ${{ steps.auth.outputs.token }}
+          PLAY_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          python3 - <<'PY'
+          import json, os, subprocess, datetime, urllib.parse, urllib.request, urllib.error
+
+          end = datetime.datetime.now(datetime.timezone.utc)
+          start = end - datetime.timedelta(days=30)
+          iso_start = start.isoformat().replace('+00:00', 'Z')
+          iso_end = end.isoformat().replace('+00:00', 'Z')
+          token = os.environ['ACCESS_TOKEN']
+
+          def get(url, headers):
+              req = urllib.request.Request(url, headers=headers)
+              try:
+                  with urllib.request.urlopen(req) as response:
+                      return {'status': response.status, 'body': json.load(response)}
+              except urllib.error.HTTPError as error:
+                  return {'status': error.code, 'body': error.read().decode('utf-8', 'replace')}
+
+          firebase_url = (
+              'https://firebasecrashlytics.googleapis.com/v1alpha/projects/'
+              + os.environ['FIREBASE_PROJECT_NUMBER'] + '/apps/'
+              + urllib.parse.quote(os.environ['FIREBASE_APP_ID'], safe='')
+              + '/issues?pageSize=100'
+          )
+          firebase = get(firebase_url, {'Authorization': 'Bearer ' + token})
+
+          # Exchange the Play service-account JWT through Google's metadata-free JWT bearer flow.
+          # The service account key is used only inside this ephemeral runner.
+          key = json.loads(os.environ['PLAY_SERVICE_ACCOUNT'])
+          import time, base64, hashlib
+          def b64(value):
+              return base64.urlsafe_b64encode(value).rstrip(b'=').decode()
+          header = b64(json.dumps({'alg': 'RS256', 'typ': 'JWT'}).encode())
+          claim = b64(json.dumps({'iss': key['client_email'], 'scope': 'https://www.googleapis.com/auth/playdeveloperreporting', 'aud': 'https://oauth2.googleapis.com/token', 'iat': int(time.time()), 'exp': int(time.time()) + 3600}).encode())
+          # PyJWT is not guaranteed on the runner; use openssl for the RSA signature.
+          unsigned = (header + '.' + claim).encode()
+          open('/tmp/jwt-input', 'wb').write(unsigned)
+          sig = subprocess.check_output(['openssl', 'dgst', '-sha256', '-sign', '/tmp/play-key.pem'], input=b'') if False else None
+          open('/tmp/play-key.pem', 'w').write(key['private_key'])
+          sig = subprocess.check_output(['openssl', 'dgst', '-sha256', '-sign', '/tmp/play-key.pem'], input=unsigned)
+          jwt = header + '.' + claim + '.' + b64(sig)
+          token_req = urllib.parse.urlencode({'grant_type': 'urn:ietf:params:oauth:grant-type:jwt-bearer', 'assertion': jwt}).encode()
+          req = urllib.request.Request('https://oauth2.googleapis.com/token', data=token_req, method='POST')
+          with urllib.request.urlopen(req) as response:
+              play_token = json.load(response)['access_token']
+
+          play_base = 'https://developerreporting.googleapis.com/v1beta1/apps/' + os.environ['PACKAGE_NAME']
+          play_body = json.dumps({'metrics': ['crashRate', 'errorReportCount', 'distinctUsers'], 'timelineSpec': {'startTime': iso_start, 'endTime': iso_end, 'aggregationPeriod': 'DAILY'}}).encode()
+          play_req = urllib.request.Request(play_base + '/crashRateMetricSet:query', data=play_body, headers={'Authorization': 'Bearer ' + play_token, 'Content-Type': 'application/json'}, method='POST')
+          try:
+              with urllib.request.urlopen(play_req) as response:
+                  play = {'status': response.status, 'body': json.load(response)}
+          except urllib.error.HTTPError as error:
+              play = {'status': error.code, 'body': error.read().decode('utf-8', 'replace')}
+
+          report = {'window': {'start': iso_start, 'end': iso_end}, 'firebaseCrashlytics': firebase, 'googlePlayDeveloperReporting': play}
+          open('crash-report.json', 'w').write(json.dumps(report, indent=2))
+          with open('crash-report.md', 'w') as output:
+              output.write('# LiveCaptionN crash report\n\n')
+              output.write(f'Window: `{iso_start}` to `{iso_end}`\n\n')
+              output.write(f'- Firebase Crashlytics API status: `{firebase["status"]}`\n')
+              output.write(f'- Google Play Developer Reporting API status: `{play["status"]}`\n\n')
+              output.write('Raw API responses are included in `crash-report.json`.\n')
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: livecaptionn-crash-report-${{ github.run_id }}
+          path: crash-report.*

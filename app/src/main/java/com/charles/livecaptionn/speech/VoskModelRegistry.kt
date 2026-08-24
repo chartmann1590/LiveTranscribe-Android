@@ -81,6 +81,14 @@ class VoskModelRegistry(private val context: Context) {
     fun installedModels(): List<VoskModelInfo> =
         mutableModels.value.filter { it.installed }
 
+    fun installedModelFor(languageCode: String): VoskModelInfo? =
+        mutableModels.value
+            .filter { it.installed && it.languageCode.equals(languageCode, ignoreCase = true) }
+            .firstOrNull { it.quality == ModelQuality.LARGE }
+            ?: mutableModels.value.firstOrNull {
+                it.installed && it.languageCode.equals(languageCode, ignoreCase = true)
+            }
+
     /** Resolves the on-disk directory for a language code, or null if not installed.
      *  When both small and large variants are installed for the same language,
      *  the large one wins since the user explicitly opted into it. */
