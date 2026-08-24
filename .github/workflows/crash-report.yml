@@ -89,6 +89,15 @@ jobs:
 
           play_base = 'https://playdeveloperreporting.googleapis.com/v1beta1/apps/' + os.environ['PACKAGE_NAME']
           play_body = json.dumps({'metrics': ['crashRate', 'errorReportCount', 'distinctUsers'], 'timelineSpec': {'startTime': iso_start, 'endTime': iso_end, 'aggregationPeriod': 'DAILY'}}).encode()
+          enable_url = 'https://serviceusage.googleapis.com/v1/projects/' + os.environ['FIREBASE_PROJECT_NUMBER'] + '/services/playdeveloperreporting.googleapis.com:enable'
+          try:
+              enable_req = urllib.request.Request(enable_url, data=b'{}', headers={'Authorization': 'Bearer ' + play_token, 'Content-Type': 'application/json'}, method='POST')
+              with urllib.request.urlopen(enable_req) as response:
+                  enable = {'status': response.status, 'body': json.load(response)}
+          except urllib.error.HTTPError as error:
+              enable = {'status': error.code, 'body': error.read().decode('utf-8', 'replace')}
+          except Exception as error:
+              enable = {'status': 0, 'body': str(error)}
           play_req = urllib.request.Request(play_base + '/crashRateMetricSet:query', data=play_body, headers={'Authorization': 'Bearer ' + play_token, 'Content-Type': 'application/json'}, method='POST')
           try:
               with urllib.request.urlopen(play_req) as response:
@@ -96,12 +105,13 @@ jobs:
           except urllib.error.HTTPError as error:
               play = {'status': error.code, 'body': error.read().decode('utf-8', 'replace')}
 
-          report = {'window': {'start': iso_start, 'end': iso_end}, 'firebaseCrashlytics': firebase, 'googlePlayDeveloperReporting': play}
+          report = {'window': {'start': iso_start, 'end': iso_end}, 'firebaseCrashlytics': firebase, 'googlePlayDeveloperReportingEnable': enable, 'googlePlayDeveloperReporting': play}
           open('crash-report.json', 'w').write(json.dumps(report, indent=2))
           with open('crash-report.md', 'w') as output:
               output.write('# LiveCaptionN crash report\n\n')
               output.write(f'Window: `{iso_start}` to `{iso_end}`\n\n')
               output.write(f'- Firebase Crashlytics API status: `{firebase["status"]}`\n')
+              output.write(f'- Google Play Developer Reporting enable status: `{enable["status"]}`\n')
               output.write(f'- Google Play Developer Reporting API status: `{play["status"]}`\n\n')
               output.write('Raw API responses are included in `crash-report.json`.\n')
           PY
