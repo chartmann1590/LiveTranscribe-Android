@@ -1,5 +1,7 @@
-New: the entire app interface can now be translated into 59 languages.
+New: safer caption sessions, transcript sharing, presets, and Pro glossary tools.
 
-• Pick a language in Settings or on first launch — menus, settings, overlay controls, and notifications all switch to it
-• Models download once (~30 MB), then the whole UI works fully offline
-• Shows download/translate progress and falls back automatically if a model can't be fetched
+• First launch explains permissions and checks that captioning is ready before Start is enabled
+• Share or copy transcript history as plain text, with stable deletion and safer local recovery
+• Save and reuse caption presets for common setups
+• Pro users can add custom glossary phrase replacements
+• Improved startup, language-picker, AdMob, and overlay stability

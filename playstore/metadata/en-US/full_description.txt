@@ -18,6 +18,9 @@ FEATURES
 • On-device translation via Google ML Kit, with LibreTranslate as an optional server backend for wider language coverage
 • Interface language — translate the entire app UI (menus, settings, overlay controls, notifications) into any of 59 languages; models download once, then the whole app works offline in that language
 • Transcript history, searchable from inside the app
+• Share or copy saved transcripts as plain text, with safer local history recovery
+• Guided first-launch setup with permission and model readiness checks before captioning starts
+• Save and reuse caption presets for common language and display setups
 • Tunable overlay: text size, opacity, width, height, remembered screen position
 • Automatic update notifications via the GitHub Releases API
 
@@ -26,7 +29,7 @@ FREE FOREVER, WITH OPTIONAL UPGRADES
 Every feature above is free, permanently — nothing gets taken away or paywalled. Two optional monthly subscriptions add more on top:
 
 • Ad-Free ($1.99/mo) — removes the banner and app-open ads
-• Pro ($4.99/mo) — unlocks larger server-grade Vosk speech models, additional Google ML Kit translation languages, and extra overlay color themes/fonts, all still fully on-device
+• Pro ($4.99/mo) — includes Ad-Free and unlocks larger server-grade Vosk speech models, additional Google ML Kit translation languages, extra overlay color themes/fonts, reusable Pro presets, and glossary phrase replacements
 
 PRIVACY-FIRST
 

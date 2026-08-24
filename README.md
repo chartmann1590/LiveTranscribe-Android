@@ -51,9 +51,13 @@ Both stages of the pipeline can run **fully on-device**: streaming Vosk handles 
 - **Built-in Vosk model downloader** — two quality tiers: **Small** (~30–80 MB, fast and light) and **Large** server-grade models (80 MB to 2 GB, lowest error rates) for Spanish, French, German, Russian, Chinese, Japanese, Hindi, Arabic, and more.
 - **Automatic update notifications** — a background WorkManager job polls the GitHub releases API; when a new version is published you get a system notification with a one-tap Download action, plus an in-app banner the next time you open the app.
 - **Transcript history** — every session is saved locally, searchable with per-entry delete from the history screen.
+- **Shareable transcript history** — copy or share saved transcripts as plain text, with stable entry deletion and safer recovery if storage is interrupted.
+- **Guided setup and readiness checks** — first launch explains the required permissions and the app prevents unusable caption sessions before they start.
+- **Caption presets** — save and reuse common language and display setups.
+- **Pro glossary** — define custom phrases and replacements for names, terminology, and recurring translations.
 - **Tunable overlay** — text size, opacity, width/height, "show original" toggle (dual-line original + translated display), minimized state, and remembered screen position.
 - **Private by default** — speech processing and translation both run against endpoints you configure. No accounts, no mandatory telemetry (Firebase Analytics/Crashlytics only in release builds, disabled in debug).
-- **Optional Ad-Free & Pro subscriptions** — everything above is free, forever. Two optional monthly upgrades add more: **Ad-Free** removes the banner/app-open ads, and **Pro** unlocks larger server-grade Vosk models, more ML Kit translation languages, and extra overlay themes/fonts. Billing is Google Play Billing on the Play Store build and Stripe (via a Cloudflare Worker) on the self-updating GitHub build — nothing free is ever gated.
+- **Optional Ad-Free & Pro subscriptions** — the core captioning experience remains free with ads. **Ad-Free** removes the banner/app-open ads. **Pro** includes Ad-Free and unlocks larger server-grade Vosk models, more ML Kit translation languages, extra overlay themes/fonts, reusable Pro presets, and glossary replacements. Billing is Google Play Billing on the Play Store build and Stripe (via a Cloudflare Worker) on the self-updating GitHub build.
 
 ## Translating different languages
 
