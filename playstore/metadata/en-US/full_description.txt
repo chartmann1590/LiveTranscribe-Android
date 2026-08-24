@@ -13,15 +13,13 @@ FEATURES
 
 • Floating caption overlay that sits on top of any app, with drag-to-move, pinch-resize, pause, minimize, and close controls
 • Mic or system audio (via MediaProjection) feeding the same low-latency pipeline
-• Streaming on-device Vosk recognizer — feels like Google Live Caption
-• Built-in downloader for additional on-device Vosk models, with two quality tiers: Small (~30 to 80 MB) and Large server-grade (80 MB to 2 GB, lowest error rate) for Spanish, French, German, Italian, Portuguese, Dutch, Russian, Ukrainian, Persian, Hindi, Chinese, Japanese, Arabic, Vietnamese and more
+• Built-in downloader for additional on-device Vosk models: Small (~30 to 80 MB) or Large server-grade (80 MB to 2 GB, lowest error rate)
 • On-device translation via Google ML Kit, with LibreTranslate as an optional server backend for wider language coverage
 • Interface language — translate the entire app UI (menus, settings, overlay controls, notifications) into any of 59 languages; models download once, then the whole app works offline in that language
 • Transcript history, searchable from inside the app
 • Share or copy saved transcripts as plain text, with safer local history recovery
 • Guided first-launch setup with permission and model readiness checks before captioning starts
 • Save and reuse caption presets for common language and display setups
-• Tunable overlay: text size, opacity, width, height, remembered screen position
 • Automatic update notifications via the GitHub Releases API
 
 FREE FOREVER, WITH OPTIONAL UPGRADES
