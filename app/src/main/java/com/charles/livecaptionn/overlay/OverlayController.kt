@@ -184,7 +184,13 @@ class OverlayController(
         frame.addView(resizeHandle)
 
         root = frame
-        wm.addView(frame, p)
+        try {
+            wm.addView(frame, p)
+        } catch (t: Throwable) {
+            root = null
+            params = null
+            throw t
+        }
     }
 
     fun update(ui: OverlayUiState) {
@@ -228,11 +234,15 @@ class OverlayController(
             else android.R.drawable.ic_media_pause
         )
         // Auto-scroll to bottom on new text
-        body?.post { body?.fullScroll(View.FOCUS_DOWN) }
+        body?.post {
+            try { body?.fullScroll(View.FOCUS_DOWN) } catch (_: Throwable) { }
+        }
     }
 
     fun hide() {
-        root?.let { wm.removeView(it) }
+        root?.let { view ->
+            try { wm.removeViewImmediate(view) } catch (_: Throwable) { }
+        }
         root = null
         // Must be cleared together with root: DragTouchListener/ResizeTouchListener
         // guard on `params` being non-null before calling wm.updateViewLayout(root, ...),
@@ -276,7 +286,7 @@ class OverlayController(
                     val view = root ?: return false
                     lp.x = startX + (event.rawX - touchX).roundToInt()
                     lp.y = startY + (event.rawY - touchY).roundToInt()
-                    wm.updateViewLayout(view, lp)
+                    try { wm.updateViewLayout(view, lp) } catch (_: IllegalArgumentException) { return false }
                     return true
                 }
                 MotionEvent.ACTION_UP -> {
@@ -310,7 +320,7 @@ class OverlayController(
                     val minH = (CaptionSettings.MIN_OVERLAY_HEIGHT_DP * density).roundToInt()
                     lp.width = (startW + (event.rawX - touchX).roundToInt()).coerceAtLeast(minW)
                     lp.height = (startH + (event.rawY - touchY).roundToInt()).coerceAtLeast(minH)
-                    wm.updateViewLayout(view, lp)
+                    try { wm.updateViewLayout(view, lp) } catch (_: IllegalArgumentException) { return false }
                     return true
                 }
                 MotionEvent.ACTION_UP -> {

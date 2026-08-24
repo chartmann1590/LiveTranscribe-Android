@@ -3,6 +3,9 @@ package com.charles.livecaptionn.speech
 import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,6 +30,8 @@ import java.util.zip.ZipInputStream
  */
 class VoskModelRegistry(private val context: Context) {
 
+    private val registryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     private val mutableModels = MutableStateFlow<List<VoskModelInfo>>(emptyList())
     val models: StateFlow<List<VoskModelInfo>> = mutableModels.asStateFlow()
 
@@ -38,7 +43,10 @@ class VoskModelRegistry(private val context: Context) {
     private val errorMap = ConcurrentHashMap<String, String>()
 
     init {
-        refresh()
+        // Asset enumeration and recursive model-directory inspection can block
+        // cold startup on devices with large app storage. Load the catalog off
+        // the main thread; the UI starts disabled until this state arrives.
+        registryScope.launch { refresh() }
     }
 
     fun refresh() {

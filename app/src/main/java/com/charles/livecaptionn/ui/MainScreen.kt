@@ -16,8 +16,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -847,12 +845,13 @@ private fun LanguagePickerDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(12.dp))
-                LazyColumn(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(max = 360.dp)
+                        .verticalScroll(rememberScrollState())
                 ) {
-                    items(filtered, key = { it.code }) { lang ->
+                    filtered.forEach { lang ->
                         val isSelected = lang.code.equals(selectedCode, ignoreCase = true)
                         val locked = requiresPro(lang)
                         Row(
@@ -888,14 +887,12 @@ private fun LanguagePickerDialog(
                         }
                     }
                     if (filtered.isEmpty()) {
-                        items(listOf(Unit)) {
-                            Text(
-                                text = t.format("No languages match \"%s\".", query),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(vertical = 16.dp)
-                            )
-                        }
+                        Text(
+                            text = t.format("No languages match \"%s\".", query),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(vertical = 16.dp)
+                        )
                     }
                 }
             }

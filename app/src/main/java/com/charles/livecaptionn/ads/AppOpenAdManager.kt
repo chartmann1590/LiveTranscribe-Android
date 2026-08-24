@@ -58,8 +58,16 @@ class AppOpenAdManager(
         appScope.launch {
             premiumRepository.state.collect { hasAdFree = it.hasAdFree }
         }
-        // Preload immediately so the first foreground opportunity can show fast.
-        loadAd()
+        // Do not perform ad SDK loading in the lifecycle callback/main-thread
+        // startup path. The next foreground opportunity will load it safely.
+        appScope.launch {
+            // AppOpenAd.load must be called on the main thread. Dispatching it
+            // asynchronously keeps it out of Application.onCreate while still
+            // satisfying the Mobile Ads SDK contract.
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main.immediate) {
+                loadAd()
+            }
+        }
     }
 
     // ── Foreground signal ──
