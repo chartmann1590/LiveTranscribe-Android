@@ -273,6 +273,9 @@ fun MainScreen(
                 onOpenReport = { feedbackVm.openIssueDetails(it) }
             )
 
+            MoreAppsSection()
+            Spacer(modifier = Modifier.height(16.dp))
+
             if (feedbackState.submitSuccess) {
                 SubmitSuccessSnackbar(
                     message = t["Report submitted successfully!"],
