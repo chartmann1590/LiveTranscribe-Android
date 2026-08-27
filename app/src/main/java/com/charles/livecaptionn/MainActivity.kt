@@ -8,6 +8,9 @@ import android.media.projection.MediaProjectionConfig
 import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.Bundle
+import com.charles.livecaptionn.review.PlayReviewHelper
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -71,6 +74,18 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Play In-App Review - trigger after 3 launches
+        try {
+            val prefs = getSharedPreferences("play_review", MODE_PRIVATE)
+            val count = prefs.getInt("launch_count", 0) + 1
+            prefs.edit().putInt("launch_count", count).apply()
+            if (count >= 3 && count % 5 == 0) {
+                lifecycleScope.launch {
+                    PlayReviewHelper.requestAndLaunch(this@MainActivity)
+                }
+            }
+        } catch (_: Exception) {}
+
         val app = application as LiveCaptionApp
         pendingCheckoutSessionId = extractCheckoutSessionId(intent)
         setContent {
