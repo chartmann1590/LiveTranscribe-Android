@@ -25,3 +25,5 @@ overlay_state.png
 # local tooling artifacts
 /.playwright-mcp/
 /Download/
+.kotlin/
+/scratch/

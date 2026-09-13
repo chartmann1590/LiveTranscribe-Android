@@ -1,0 +1,33 @@
+LiveCaptionN biến điện thoại Android của bạn thành công cụ nhận dạng giọng nói thành văn bản và dịch thuật trực tiếp trong thời gian thực, hiển thị nổi trên bất kỳ ứng dụng nào khác — phụ đề trực tiếp cho video, cuộc gọi, cuộc họp và cuộc trò chuyện hàng ngày. Ứng dụng lắng nghe qua micrô hoặc âm thanh của ứng dụng đang phát, chuyển đổi từng từ theo thời gian thực và dịch sang ngôn ngữ bạn chọn.
+
+TÍNH NĂNG CHÍNH
+
+• Cửa sổ phụ đề nổi kéo thả tự do trên bất kỳ ứng dụng nào
+• Nhận diện giọng nói từ Micrô hoặc âm thanh hệ thống (MediaProjection)
+• Tích hợp bộ tải mô hình Vosk ngoại tuyến: Bản nhỏ (Small) và bản máy chủ lớn (Large)
+• Dịch ngoại tuyến trên thiết bị qua Google ML Kit (~59 ngôn ngữ) hoặc kết nối LibreTranslate
+• Dịch toàn bộ giao diện ứng dụng sang ngôn ngữ của bạn
+• Lưu trữ và tìm kiếm lịch sử phụ đề trực tiếp trong ứng dụng
+• Hướng dẫn tương tác tích hợp sẵn kèm video, thuyết minh âm thanh và phụ đề trực tiếp
+
+YÊU CẦU HỆ THỐNG & KHẢ NĂNG TƯƠNG THÍCH
+
+• Chế độ AI trên thiết bị (Vosk STT + Google ML Kit dịch ngoại tuyến):
+  - Phần cứng tối thiểu: 2.5 GB RAM, CPU 4 nhân, 350 MB bộ nhớ trong khả dụng.
+  - Phần cứng khuyến nghị: 4 GB+ RAM, CPU 64-bit đa nhân (6+ nhân), 1.5 GB+ bộ nhớ trong khả dụng (cần thiết cho mô hình lớn Large).
+  - Kiểm tra tương thích tự động: Ứng dụng sẽ kiểm tra phần cứng thiết bị khi khởi động. Thiết bị dưới 2.5 GB RAM hoặc dưới 4 nhân CPU sẽ tự động chuyển sang chế độ Máy chủ từ xa (Remote) để tránh sập ứng dụng.
+  - Thiết bị có tài nguyên giới hạn (2.5 - 3.8 GB RAM hoặc CPU 32-bit như máy tính bảng 3 GB) sẽ nhận cảnh báo tài nguyên và có thể bấm "Tiếp tục" hoặc dùng máy chủ từ xa.
+
+• Chế độ máy chủ từ xa tự lưu trữ (OpenAI Whisper ASR + LibreTranslate):
+  - Phần cứng tối thiểu: 1.5 GB RAM, mọi thiết bị Android 9.0 trở lên, kết nối Wi-Fi cục bộ tới máy tính.
+  - Xử lý giọng nói và dịch trên máy tính cá nhân qua Docker, không tốn pin điện thoại, bảo mật 100% trong mạng LAN.
+  - Có sẵn tài liệu và video hướng dẫn cài đặt Docker chi tiết trong ứng dụng.
+
+QUYỀN HẠN YÊU CẦU
+
+• Android 9.0 (API 28) trở lên (Android 10+ cho ghi âm thanh hệ thống)
+• Quyền Micrô (cho chế độ mic)
+• Quyền "Hiển thị trên các ứng dụng khác" (cho cửa sổ phụ đề nổi)
+• Quyền Thông báo (cho thông báo cập nhật tùy chọn)
+
+Mã nguồn mở 100% và tôn trọng quyền riêng tư.

@@ -1,5 +1,7 @@
 package com.charles.livecaptionn.ui
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,12 +25,20 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Memory
+import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.TextFields
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
+import com.charles.livecaptionn.compatibility.CompatibilityTier
+import com.charles.livecaptionn.compatibility.DeviceSpecs
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Mic
@@ -159,6 +169,14 @@ fun MainScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
+    if (ui.showTutorial) {
+        TutorialScreen(
+            deviceSpecs = ui.deviceSpecs,
+            onDismiss = { viewModel.closeTutorial() }
+        )
+        return
+    }
+
     Scaffold(
         modifier = modifier,
         topBar = {
@@ -171,6 +189,9 @@ fun MainScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { viewModel.openTutorial() }) {
+                        Icon(Icons.Filled.HelpOutline, contentDescription = "Tutorial & Guide")
+                    }
                     IconButton(onClick = onHistory) {
                         Icon(Icons.Filled.History, contentDescription = t["History"])
                     }
@@ -199,6 +220,32 @@ fun MainScreen(
                     onDismiss = { viewModel.dismissUpdate() }
                 )
             }
+
+            val specs = ui.deviceSpecs
+            val setupContext = LocalContext.current
+            val openWebDoc: () -> Unit = {
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(REMOTE_SETUP_DOC_URL)).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                setupContext.startActivity(intent)
+            }
+
+            if (specs != null) {
+                if (specs.tier == CompatibilityTier.UNSUPPORTED) {
+                    UnsupportedDeviceBanner(
+                        specs = specs,
+                        onWatchTutorial = { viewModel.openTutorial() },
+                        onOpenDoc = openWebDoc
+                    )
+                } else if (specs.tier == CompatibilityTier.BORDERLINE && !ui.settings.borderlineWarningDismissed) {
+                    BorderlineDeviceBanner(
+                        specs = specs,
+                        onProceedAnyway = { viewModel.dismissBorderlineWarning() },
+                        onWatchTutorial = { viewModel.openTutorial() }
+                    )
+                }
+            }
+
             val modelReady = ui.settings.sttBackend != SttBackend.LOCAL_VOSK ||
                 ui.voskModels.any {
                     it.installed && it.languageCode.equals(ui.settings.sourceLanguageCode, ignoreCase = true)
@@ -207,6 +254,11 @@ fun MainScreen(
                 (ui.settings.audioSource == AudioSource.SYSTEM || ui.micPermissionGranted)
             CaptionControlCard(ui, onStart, onStop, canStart = modelReady && permissionReady)
             PermissionsCard(ui, onRequestAudioPermission, onOpenOverlaySettings)
+            DeviceCompatibilityCard(
+                specs = ui.deviceSpecs,
+                onWatchTutorial = { viewModel.openTutorial() },
+                onSimulateTier = { viewModel.setSimulatedTier(it) }
+            )
             AudioSourceCard(ui, viewModel, onManageModels = { showVoskSheet = true })
             LanguageCard(
                 ui = ui,
@@ -295,6 +347,17 @@ fun MainScreen(
                 onDownload = viewModel::downloadVoskModel,
                 onDelete = viewModel::deleteVoskModel,
                 onRequiresPro = { showVoskSheet = false }
+            )
+        }
+
+        if (ui.showUnsupportedModal) {
+            UnsupportedDeviceDialog(
+                specs = ui.deviceSpecs,
+                onDismiss = { viewModel.dismissUnsupportedModal() },
+                onWatchTutorial = {
+                    viewModel.dismissUnsupportedModal()
+                    viewModel.openTutorial()
+                }
             )
         }
 
@@ -547,6 +610,7 @@ private fun AudioSourceCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(t["Transcription engine"], style = MaterialTheme.typography.labelMedium)
+            val isSttUnsupported = ui.deviceSpecs?.tier == CompatibilityTier.UNSUPPORTED
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -559,8 +623,8 @@ private fun AudioSourceCard(
                     modifier = Modifier.weight(1f)
                 )
                 ChoiceChip(
-                    label = t["Local Vosk"],
-                    icon = Icons.Filled.Mic,
+                    label = if (isSttUnsupported) t["Local Vosk"] + " 🔒" else t["Local Vosk"],
+                    icon = if (isSttUnsupported) Icons.Filled.Lock else Icons.Filled.Mic,
                     selected = ui.settings.sttBackend == SttBackend.LOCAL_VOSK,
                     onClick = { viewModel.updateSttBackend(SttBackend.LOCAL_VOSK) },
                     modifier = Modifier.weight(1f)
@@ -1200,13 +1264,14 @@ private fun ServerCard(
                 SectionLabel(t["Translation engine"])
             }
 
+            val isTranslateUnsupported = ui.deviceSpecs?.tier == CompatibilityTier.UNSUPPORTED
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 ChoiceChip(
-                    label = t["On-device (ML Kit)"],
-                    icon = Icons.Filled.Mic,
+                    label = if (isTranslateUnsupported) t["On-device (ML Kit)"] + " 🔒" else t["On-device (ML Kit)"],
+                    icon = if (isTranslateUnsupported) Icons.Filled.Lock else Icons.Filled.Mic,
                     selected = ui.settings.translationBackend == TranslationBackend.ML_KIT,
                     onClick = { onSelectTranslationBackend(TranslationBackend.ML_KIT) },
                     modifier = Modifier.weight(1f)
@@ -1475,4 +1540,271 @@ private fun UiLanguageCard(
         )
     }
 }
+
+// ── Compatibility & Hardware Requirements ──
+
+@Composable
+private fun UnsupportedDeviceBanner(
+    specs: DeviceSpecs,
+    onWatchTutorial: () -> Unit,
+    onOpenDoc: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE))
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Filled.Error,
+                    contentDescription = null,
+                    tint = Color(0xFFC62828),
+                    modifier = Modifier.size(22.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = "Unsupported for On-Device AI",
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFB71C1C),
+                    style = MaterialTheme.typography.titleSmall
+                )
+            }
+            Text(
+                text = "This device does not meet the minimum hardware requirements (2.5 GB RAM, 4 CPU cores) for on-device Vosk & ML Kit processing. To prevent crashes, the app has automatically enabled Remote Whisper and LibreTranslate.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFF37474F)
+            )
+            Text(
+                text = "Detected: ${specs.totalRamMb} MB RAM • ${specs.cpuCores} cores • ${if (specs.is64Bit) "64-bit" else "32-bit"} • ${specs.freeStorageMb} MB free",
+                style = MaterialTheme.typography.labelSmall,
+                color = Color(0xFF546E7A)
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = onWatchTutorial,
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828)),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Watch Tutorial", fontSize = 12.sp)
+                }
+                OutlinedButton(
+                    onClick = onOpenDoc,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Filled.OpenInBrowser, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Setup Guide", fontSize = 12.sp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BorderlineDeviceBanner(
+    specs: DeviceSpecs,
+    onProceedAnyway: () -> Unit,
+    onWatchTutorial: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E1))
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Filled.Memory,
+                    contentDescription = null,
+                    tint = Color(0xFFE65100),
+                    modifier = Modifier.size(22.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = "Notice: Limited Hardware Resources",
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFE65100),
+                    style = MaterialTheme.typography.titleSmall
+                )
+            }
+            Text(
+                text = "Your device (${specs.deviceModel}) meets the minimum requirements, but has limited resources (${specs.totalRamMb} MB RAM, ${specs.cpuCores} cores, ${if (specs.is64Bit) "64-bit" else "32-bit"}). On-device models may experience latency or memory pressure. For best performance, remote Whisper is recommended.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFF3E2723)
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = onProceedAnyway,
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE65100)),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Proceed Anyway", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+                OutlinedButton(
+                    onClick = onWatchTutorial,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Setup Guide", fontSize = 12.sp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun UnsupportedDeviceDialog(
+    specs: DeviceSpecs?,
+    onDismiss: () -> Unit,
+    onWatchTutorial: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(Icons.Filled.Error, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(32.dp))
+        },
+        title = {
+            Text("Hardware Requirements Not Met", fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "On-device neural speech recognition and translation require at least 2.5 GB RAM and 4 CPU cores to run reliably."
+                )
+                if (specs != null) {
+                    Text(
+                        "Device specs:\n• RAM: ${specs.totalRamMb} MB (min 2560 MB)\n• CPU: ${specs.cpuCores} cores (min 4)\n• Architecture: ${if (specs.is64Bit) "64-bit" else "32-bit"}\n• Free storage: ${specs.freeStorageMb} MB",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+                Text(
+                    "On-device models are locked. Remote Whisper STT and LibreTranslate have been selected automatically so you can use live captions seamlessly."
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = onWatchTutorial) {
+                Text("Watch Tutorial")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Understood")
+            }
+        }
+    )
+}
+
+@Composable
+private fun DeviceCompatibilityCard(
+    specs: DeviceSpecs?,
+    onWatchTutorial: () -> Unit,
+    onSimulateTier: (CompatibilityTier?) -> Unit
+) {
+    if (specs == null) return
+    var showSimMenu by remember { mutableStateOf(false) }
+
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                SectionLabel("System Compatibility Check")
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(
+                            when (specs.tier) {
+                                CompatibilityTier.PASSED -> Color(0xFF2E7D32)
+                                CompatibilityTier.BORDERLINE -> Color(0xFFE65100)
+                                CompatibilityTier.UNSUPPORTED -> Color(0xFFC62828)
+                            }
+                        )
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = specs.tier.label,
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Text(
+                text = "${specs.deviceModel} • ${specs.androidVersion}",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("• RAM: ${specs.totalRamMb} MB (min 2.5 GB, 4 GB+ recommended)", style = MaterialTheme.typography.bodySmall)
+                Text("• CPU: ${specs.cpuCores} cores (${if (specs.is64Bit) "64-bit" else "32-bit"})", style = MaterialTheme.typography.bodySmall)
+                Text("• Free Storage: ${specs.freeStorageMb} MB", style = MaterialTheme.typography.bodySmall)
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilledTonalButton(
+                    onClick = onWatchTutorial,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Tutorial & Guide", fontSize = 12.sp)
+                }
+                OutlinedButton(
+                    onClick = { showSimMenu = true },
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Test Tier...", fontSize = 12.sp)
+                }
+            }
+
+            if (showSimMenu) {
+                AlertDialog(
+                    onDismissRequest = { showSimMenu = false },
+                    title = { Text("Simulate Compatibility Tier") },
+                    text = {
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text("Select a tier to test app behavior and UI adaptation on this device:")
+                            OutlinedButton(
+                                onClick = { onSimulateTier(CompatibilityTier.PASSED); showSimMenu = false },
+                                modifier = Modifier.fillMaxWidth()
+                            ) { Text("Passed (>= 4 GB RAM, 64-bit)") }
+                            OutlinedButton(
+                                onClick = { onSimulateTier(CompatibilityTier.BORDERLINE); showSimMenu = false },
+                                modifier = Modifier.fillMaxWidth()
+                            ) { Text("Borderline (3 GB RAM / 32-bit / 4 cores)") }
+                            OutlinedButton(
+                                onClick = { onSimulateTier(CompatibilityTier.UNSUPPORTED); showSimMenu = false },
+                                modifier = Modifier.fillMaxWidth()
+                            ) { Text("Unsupported (< 2.5 GB RAM / < 4 cores)") }
+                            TextButton(
+                                onClick = { onSimulateTier(null); showSimMenu = false },
+                                modifier = Modifier.fillMaxWidth()
+                            ) { Text("Reset to Real Hardware") }
+                        }
+                    },
+                    confirmButton = {},
+                    dismissButton = {
+                        TextButton(onClick = { showSimMenu = false }) { Text("Cancel") }
+                    }
+                )
+            }
+        }
+    }
+}
+
 

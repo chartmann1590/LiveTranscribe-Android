@@ -1,0 +1,31 @@
+LiveCaptionN verwandelt Ihr Android-Gerät in ein Tool für Echtzeit-Spracherkennung und Übersetzung, das als schwebendes Fenster über jeder beliebigen App angezeigt wird.
+
+FUNKTIONEN
+
+• Schwebendes, verschiebbares Untertitel-Overlay über jeder App
+• Aufnahme über Mikrofon oder System-Audio
+• Offline-Spracherkennungsmodelle von Vosk (Small & Large)
+• Offline-Übersetzung via Google ML Kit (~59 Sprachen) oder LibreTranslate-Server
+• Lokaler Transkriptionsverlauf
+• Interaktives Tutorial mit Video, Sprachausgabe und Untertiteln
+
+SYSTEMANFORDERUNGEN & KOMPATIBILITÄT
+
+• Auf-Gerät-KI-Modus (Vosk STT + Google ML Kit):
+  - Mindestanforderungen: 2.5 GB RAM, 4-Kern-Prozessor, 350 MB freier Speicher.
+  - Empfohlen: 4 GB+ RAM, 64-Bit-Prozessor (6+ Kerne), 1.5 GB+ freier Speicher.
+  - Automatische Systemprüfung: Die App analysiert die Hardware beim Start. Geräte mit weniger als 2.5 GB RAM oder unter 4 Kernen werden automatisch auf den Remote-Modus umgestellt, um Abstürze zu verhindern.
+  - Geräte mit begrenzten Ressourcen (2.5 bis 3.8 GB RAM oder 32-Bit) erhalten einen Hinweis, können aber fortfahren.
+
+• Selbstgehosteter Remote-Modus (OpenAI Whisper + LibreTranslate):
+  - Mindestanforderungen: 1.5 GB RAM, Android 9.0+, lokales WLAN zu Ihrem PC.
+  - Spart Akku und bietet maximale Genauigkeit bei 100% Datenschutz im Heimnetzwerk.
+
+BERECHTIGUNGEN
+
+• Android 9.0 (API 28) oder neuer
+• Mikrofonberechtigung
+• Berechtigung „Über anderen Apps anzeigen“
+• Benachrichtigungsberechtigung
+
+Open-Source und datenschutzfreundlich.

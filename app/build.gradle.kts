@@ -43,7 +43,7 @@ android {
 
     defaultConfig {
         applicationId = "com.charles.livecaptionn"
-        minSdk = 29
+        minSdk = 28
         targetSdk = 36
         versionCode = appVersionCode
         versionName = appVersionName

@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-7NGY5W0W0Q"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-7NGY5W0W0Q');
+  </script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Self-Hosted Remote Services Setup Guide — LiveCaptionN</title>
+<meta name="description" content="Step-by-step guide to self-hosting OpenAI Whisper ASR and LibreTranslate servers for LiveCaptionN. High accuracy, zero cloud cost, 100% private.">
+<meta name="theme-color" content="#0b0717">
+<link rel="canonical" href="https://chartmann1590.github.io/LiveTranscribe-Android/remote-setup.html">
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+
+<style>
+  .guide-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 120px 24px 80px;
+  }
+  .guide-header {
+    margin-bottom: 48px;
+    text-align: center;
+  }
+  .guide-header h1 {
+    font-size: 2.4rem;
+    font-weight: 700;
+    margin-bottom: 16px;
+    background: linear-gradient(135deg, #fff 30%, #a78bfa 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .guide-header p {
+    color: #94a3b8;
+    font-size: 1.15rem;
+    max-width: 700px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+  .guide-card {
+    background: rgba(30, 27, 50, 0.7);
+    border: 1px solid rgba(167, 139, 250, 0.15);
+    border-radius: 16px;
+    padding: 32px;
+    margin-bottom: 32px;
+    backdrop-filter: blur(12px);
+  }
+  .guide-card h2 {
+    font-size: 1.5rem;
+    color: #f1f5f9;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #a78bfa, #7c3aed);
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 700;
+  }
+  .code-block {
+    background: #0f0c1b;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 16px 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.92rem;
+    color: #a78bfa;
+    overflow-x: auto;
+    margin: 16px 0;
+    line-height: 1.5;
+  }
+  .tier-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-right: 8px;
+  }
+  .tier-passed { background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+  .tier-borderline { background: rgba(234, 179, 8, 0.2); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.3); }
+  .tier-unsupported { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+  table.req-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    font-size: 0.95rem;
+  }
+  table.req-table th, table.req-table td {
+    padding: 12px 16px;
+    border: 1px solid rgba(167, 139, 250, 0.15);
+    text-align: left;
+  }
+  table.req-table th {
+    background: rgba(167, 139, 250, 0.1);
+    color: #e2e8f0;
+  }
+  table.req-table td {
+    color: #94a3b8;
+  }
+  ul.details-list {
+    margin: 12px 0 16px 24px;
+    color: #cbd5e1;
+    line-height: 1.7;
+  }
+  .tip-box {
+    background: rgba(124, 58, 237, 0.12);
+    border-left: 4px solid #a78bfa;
+    padding: 16px 20px;
+    border-radius: 0 8px 8px 0;
+    margin: 16px 0;
+    color: #e2e8f0;
+    font-size: 0.95rem;
+  }
+</style>
+</head>
+<body>
+
+<!-- ============== NAV ============== -->
+<nav class="nav">
+  <div class="container nav-inner">
+    <a href="index.html" class="brand">
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <defs>
+          <linearGradient id="navg" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#a78bfa"/>
+            <stop offset="100%" stop-color="#6d28d9"/>
+          </linearGradient>
+        </defs>
+        <rect width="64" height="64" rx="14" fill="url(#navg)"/>
+        <g fill="#fff">
+          <rect x="12" y="22" width="40" height="4" rx="2"/>
+          <rect x="12" y="30" width="28" height="4" rx="2"/>
+          <rect x="12" y="38" width="34" height="4" rx="2"/>
+          <circle cx="48" cy="46" r="4"/>
+        </g>
+      </svg>
+      LiveCaptionN
+    </a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="index.html#features">Features</a>
+      <a href="index.html#faq">FAQ</a>
+    </div>
+    <a class="nav-cta" href="https://play.google.com/store/apps/details?id=com.charles.livecaptionn" style="margin-right:8px;">Google Play</a>
+    <a class="nav-cta" href="https://github.com/chartmann1590/LiveTranscribe-Android/releases/latest">Download APK</a>
+  </div>
+</nav>
+
+<div class="guide-container">
+  <div class="guide-header">
+    <span class="eyebrow">Setup &amp; Optimization</span>
+    <h1>Self-Hosted Remote Services Setup Guide</h1>
+    <p>Run server-grade OpenAI Whisper speech recognition and LibreTranslate on your local network. Perfect for budget hardware, tablets, or anyone who wants maximum transcription accuracy with complete privacy.</p>
+  </div>
+
+  <!-- Hardware Overview -->
+  <div class="guide-card">
+    <h2>System Requirements &amp; Architecture</h2>
+    <p style="color:#cbd5e1; line-height:1.6;">LiveCaptionN gives you the choice between two transcription and translation pipelines:</p>
+    
+    <table class="req-table">
+      <thead>
+        <tr>
+          <th>Requirement Tier</th>
+          <th>Specs (RAM / CPU / Storage)</th>
+          <th>Recommended Mode</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="tier-badge tier-passed">Passed</span> Fully Supported</td>
+          <td>&ge; 4 GB RAM, 64-bit 6+ cores, &ge; 1.5 GB free storage</td>
+          <td><strong>On-Device (Vosk &amp; ML Kit)</strong> or Remote</td>
+        </tr>
+        <tr>
+          <td><span class="tier-badge tier-borderline">Borderline</span> Low Resource</td>
+          <td>2.5 &ndash; 3.8 GB RAM (3 GB devices, e.g. Kindle Fire HD 8), 32-bit or 4 cores</td>
+          <td><strong>Remote Whisper</strong> recommended (small on-device allowed with warning)</td>
+        </tr>
+        <tr>
+          <td><span class="tier-badge tier-unsupported">Unsupported</span> Below Minimum</td>
+          <td>&lt; 2.5 GB RAM, &lt; 4 CPU cores, or &lt; 350 MB free space</td>
+          <td><strong>Remote Whisper &amp; LibreTranslate (Enforced)</strong></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="tip-box">
+      <strong>Why use self-hosted services?</strong> On-device neural models require heavy CPU and RAM. By running Whisper ASR and LibreTranslate in Docker on your laptop or home desktop, your phone uses almost no battery or RAM while receiving instant, high-accuracy captions over your local Wi-Fi.
+    </div>
+  </div>
+
+  <!-- Step 1 -->
+  <div class="guide-card">
+    <h2><span class="step-num">1</span> Install Docker Desktop</h2>
+    <p style="color:#cbd5e1; line-height:1.6;">If you do not already have Docker installed on your PC or Mac:</p>
+    <ul class="details-list">
+      <li><strong>Windows:</strong> Download <a href="https://www.docker.com/products/docker-desktop/" target="_blank" style="color:#a78bfa;">Docker Desktop for Windows</a> (requires WSL 2 enabled).</li>
+      <li><strong>Mac:</strong> Download <a href="https://www.docker.com/products/docker-desktop/" target="_blank" style="color:#a78bfa;">Docker Desktop for Mac</a> (Apple Silicon or Intel).</li>
+      <li><strong>Linux:</strong> Install Docker Engine via your package manager (e.g. <code>sudo apt install docker.io</code>).</li>
+    </ul>
+  </div>
+
+  <!-- Step 2 -->
+  <div class="guide-card">
+    <h2><span class="step-num">2</span> Start the Whisper Speech-to-Text Server</h2>
+    <p style="color:#cbd5e1; line-height:1.6;">Run the high-performance Whisper ASR container with a single command in your terminal or PowerShell:</p>
+    
+    <div class="code-block">docker run -d -p 9000:9000 -e ASR_MODEL=base -e ASR_ENGINE=openai_whisper onerahmet/openai-whisper-asr-webservice</div>
+
+    <ul class="details-list">
+      <li><strong>Model options:</strong> You can replace <code>ASR_MODEL=base</code> with <code>small</code>, <code>medium</code>, or <code>large-v3</code> if your computer has a dedicated GPU.</li>
+      <li><strong>Port:</strong> The service listens on port <code>9000</code>.</li>
+      <li><strong>Verify:</strong> Open your browser to <code>http://localhost:9000/docs</code> to see the Swagger API documentation.</li>
+    </ul>
+  </div>
+
+  <!-- Step 3 -->
+  <div class="guide-card">
+    <h2><span class="step-num">3</span> Start the LibreTranslate Server</h2>
+    <p style="color:#cbd5e1; line-height:1.6;">Run the self-hosted LibreTranslate container in your terminal:</p>
+
+    <div class="code-block">docker run -d -p 5000:5000 libretranslate/libretranslate</div>
+
+    <ul class="details-list">
+      <li><strong>Languages:</strong> Automatically downloads official language translation packages on first boot.</li>
+      <li><strong>Port:</strong> The service listens on port <code>5000</code>.</li>
+      <li><strong>Verify:</strong> Open your browser to <code>http://localhost:5000</code> to verify the translation web interface.</li>
+    </ul>
+  </div>
+
+  <!-- Step 4 -->
+  <div class="guide-card">
+    <h2><span class="step-num">4</span> Find Your Computer's Local IP Address</h2>
+    <p style="color:#cbd5e1; line-height:1.6;">Your phone connects to your computer over your local home Wi-Fi. Find your computer's local IP:</p>
+
+    <ul class="details-list">
+      <li><strong>Windows:</strong> Open PowerShell and run <code>ipconfig</code>. Look for <code>IPv4 Address</code> under your Wi-Fi adapter (e.g., <code>192.168.1.50</code> or <code>10.0.0.74</code>).</li>
+      <li><strong>macOS:</strong> Open System Settings &gt; Wi-Fi &gt; Details, or run <code>ipconfig getifaddr en0</code> in Terminal.</li>
+      <li><strong>Linux:</strong> Run <code>ip a</code> or <code>hostname -I</code>.</li>
+    </ul>
+  </div>
+
+  <!-- Step 5 -->
+  <div class="guide-card">
+    <h2><span class="step-num">5</span> Configure LiveCaptionN on Your Android Device</h2>
+    <p style="color:#cbd5e1; line-height:1.6;">In the LiveCaptionN app:</p>
+
+    <ol class="details-list" style="padding-left: 20px;">
+      <li>Make sure your Android device is connected to the <strong>same Wi-Fi network</strong> as your computer.</li>
+      <li>Open LiveCaptionN and scroll down to <strong>Server Settings</strong>.</li>
+      <li>Under <strong>Speech-to-Text URL (Whisper)</strong>, enter:
+        <div class="code-block" style="margin: 8px 0;">http://&lt;YOUR_LOCAL_IP&gt;:9000/asr?output=json</div>
+        <em>Example: <code>http://192.168.1.50:9000/asr?output=json</code></em>
+      </li>
+      <li>Under <strong>LibreTranslate URL</strong>, enter:
+        <div class="code-block" style="margin: 8px 0;">http://&lt;YOUR_LOCAL_IP&gt;:5000</div>
+        <em>Example: <code>http://192.168.1.50:5000</code></em>
+      </li>
+      <li>Tap <strong>Save</strong> and <strong>Refresh</strong>. The app will fetch the available languages directly from your server!</li>
+    </ol>
+  </div>
+
+  <!-- Troubleshooting -->
+  <div class="guide-card">
+    <h2>Troubleshooting &amp; Tips</h2>
+    <ul class="details-list">
+      <li><strong>Firewall blocking:</strong> On Windows, if your phone cannot reach your PC, ensure Windows Defender Firewall allows incoming connections on private networks for Docker or ports <code>9000</code> and <code>5000</code>.</li>
+      <li><strong>Check from phone browser:</strong> Test by opening <code>http://&lt;YOUR_LOCAL_IP&gt;:5000</code> in Chrome on your phone. If it opens, LiveCaptionN will connect instantly.</li>
+      <li><strong>Auto-start on boot:</strong> Add <code>--restart unless-stopped</code> to both docker commands so your transcription services start automatically whenever your computer boots.</li>
+    </ul>
+  </div>
+</div>
+
+</body>
+</html>

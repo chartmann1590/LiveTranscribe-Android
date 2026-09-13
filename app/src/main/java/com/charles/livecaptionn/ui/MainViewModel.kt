@@ -12,6 +12,9 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.charles.livecaptionn.BuildConfig
+import com.charles.livecaptionn.compatibility.CompatibilityTier
+import com.charles.livecaptionn.compatibility.DeviceCompatibilityChecker
+import com.charles.livecaptionn.compatibility.DeviceSpecs
 import com.charles.livecaptionn.di.AppContainer
 import com.charles.livecaptionn.settings.AudioSource
 import com.charles.livecaptionn.settings.SttBackend
@@ -38,12 +41,34 @@ class MainViewModel(
     init {
         viewModelScope.launch {
             container.settingsRepository.settingsFlow.collectLatest { settings ->
+                val simulatedTier = settings.simulatedCompatibilityTier?.let { name ->
+                    try { CompatibilityTier.valueOf(name) } catch (_: Throwable) { null }
+                }
+                val specs = DeviceCompatibilityChecker.inspect(getApplication(), simulatedTier)
+                var shouldShowUnsupported = mutableState.value.showUnsupportedModal
+
+                if (specs.tier == CompatibilityTier.UNSUPPORTED) {
+                    if (settings.sttBackend == SttBackend.LOCAL_VOSK || settings.translationBackend == TranslationBackend.ML_KIT) {
+                        shouldShowUnsupported = true
+                        viewModelScope.launch {
+                            container.settingsRepository.update { curr ->
+                                curr.copy(
+                                    sttBackend = SttBackend.REMOTE_WHISPER,
+                                    translationBackend = TranslationBackend.LIBRE_TRANSLATE
+                                )
+                            }
+                        }
+                    }
+                }
+
                 mutableState.value = mutableState.value.copy(
                     settings = settings,
                     uiLanguageCode = settings.uiLanguageCode,
                     onboardingComplete = settings.onboardingComplete,
                     micPermissionGranted = hasMicPermission(),
-                    overlayPermissionGranted = hasOverlayPermission()
+                    overlayPermissionGranted = hasOverlayPermission(),
+                    deviceSpecs = specs,
+                    showUnsupportedModal = shouldShowUnsupported
                 )
             }
         }
@@ -195,11 +220,56 @@ class MainViewModel(
     }
 
     fun updateSttBackend(backend: SttBackend) {
+        val specs = mutableState.value.deviceSpecs
+        if (specs?.tier == CompatibilityTier.UNSUPPORTED && backend == SttBackend.LOCAL_VOSK) {
+            mutableState.value = mutableState.value.copy(showUnsupportedModal = true)
+            return
+        }
         viewModelScope.launch { container.settingsRepository.update { it.copy(sttBackend = backend) } }
     }
 
     fun updateTranslationBackend(backend: TranslationBackend) {
+        val specs = mutableState.value.deviceSpecs
+        if (specs?.tier == CompatibilityTier.UNSUPPORTED && backend == TranslationBackend.ML_KIT) {
+            mutableState.value = mutableState.value.copy(showUnsupportedModal = true)
+            return
+        }
         viewModelScope.launch { container.settingsRepository.update { it.copy(translationBackend = backend) } }
+    }
+
+    fun dismissUnsupportedModal() {
+        mutableState.value = mutableState.value.copy(showUnsupportedModal = false)
+    }
+
+    fun dismissBorderlineWarning() {
+        viewModelScope.launch {
+            container.settingsRepository.update { it.copy(borderlineWarningDismissed = true) }
+        }
+    }
+
+    fun resetBorderlineWarning() {
+        viewModelScope.launch {
+            container.settingsRepository.update { it.copy(borderlineWarningDismissed = false) }
+        }
+    }
+
+    fun setSimulatedTier(tier: CompatibilityTier?) {
+        viewModelScope.launch {
+            container.settingsRepository.update {
+                it.copy(
+                    simulatedCompatibilityTier = tier?.name,
+                    borderlineWarningDismissed = false
+                )
+            }
+        }
+    }
+
+    fun openTutorial() {
+        mutableState.value = mutableState.value.copy(showTutorial = true)
+    }
+
+    fun closeTutorial() {
+        mutableState.value = mutableState.value.copy(showTutorial = false)
     }
 
     fun updateSttUrl(url: String) {

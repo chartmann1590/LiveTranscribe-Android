@@ -1,0 +1,31 @@
+LiveCaptionN transforma seu celular Android em uma ferramenta de legendagem e tradução de voz em tempo real em uma janela flutuante sobre qualquer aplicativo.
+
+RECURSOS
+
+• Janela de legendas flutuante arrastável sobre qualquer app
+• Áudio do microfone ou áudio interno do sistema
+• Modelos de reconhecimento de voz offline Vosk (Small e Large)
+• Tradução offline integrada com Google ML Kit (~59 idiomas) ou LibreTranslate
+• Histórico de transcrição salvo no aparelho
+• Tutorial interativo com vídeo, narração e legendas
+
+REQUISITOS DO SISTEMA & COMPATIBILIDADE
+
+• Modo IA no Dispositivo (Vosk STT + Tradução ML Kit):
+  - Hardware Mínimo: 2.5 GB de RAM, processador de 4 núcleos, 350 MB de armazenamento livre.
+  - Hardware Recomendado: 4 GB+ de RAM, processador 64-bit (6+ núcleos), 1.5 GB+ de armazenamento livre.
+  - Verificação de Sistema: O app verifica seu hardware ao iniciar. Dispositivos com menos de 2.5 GB de RAM ou menos de 4 núcleos são automaticamente direcionados para o modo Remoto para evitar falhas.
+  - Dispositivos de entrada (2.5 a 3.8 GB de RAM ou 32-bit) recebem um aviso de desempenho com opção de prosseguir.
+
+• Modo Remoto Auto-hospedado (Whisper ASR + LibreTranslate):
+  - Hardware Mínimo: 1.5 GB de RAM, Android 9.0+, rede Wi-Fi local compartilhada com o computador.
+  - Processa no seu PC via Docker, economizando bateria com 100% de privacidade na rede local.
+
+PERMISSÕES
+
+• Android 9.0 (API 28) ou superior
+• Permissão de microfone
+• Permissão de sobreposição sobre outros apps
+• Permissão de notificações
+
+Código aberto e seguro.

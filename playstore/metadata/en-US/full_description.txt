@@ -33,9 +33,22 @@ PRIVACY-FIRST
 
 LiveCaptionN does not create an account. Speech recognition and translation both run on your phone, and your captions never leave it. The app shows AdMob ads and uses Firebase Crashlytics/Analytics for crash reports and basic feature-usage stats in release builds — see the privacy policy for details. The app only reaches the internet for ads, for downloading Vosk models (from alphacephei.com) and ML Kit translation pairs (from Google's model service) when you ask it to, to check GitHub for new release builds, and — only if you subscribe — to process your subscription through Google Play Billing. If you enable an optional Whisper or LibreTranslate server in settings, traffic goes to the URL you configure and nothing else.
 
-REQUIREMENTS
+SYSTEM REQUIREMENTS & COMPATIBILITY
 
-• Android 10 (API 29) or newer
+• On-Device AI Mode (Streaming Vosk STT + Google ML Kit Translation):
+  - Minimum Hardware: 2.5 GB RAM, 4-core CPU, 350 MB free internal storage.
+  - Recommended Hardware: 4 GB+ RAM, 64-bit multi-core CPU (6+ cores), 1.5 GB+ free storage (required for Large server-grade acoustic models).
+  - Built-in System Check: The app checks your device hardware upon startup. Devices with less than 2.5 GB RAM or fewer than 4 CPU cores are automatically switched to Remote mode to prevent crashes and ensure responsive captions.
+  - Devices with limited resources (2.5 GB to 3.8 GB RAM or 32-bit CPUs, such as 3 GB tablets) will receive a performance advisory with the option to proceed with small offline models or switch to self-hosted remote services.
+
+• Remote Self-Hosted Mode (OpenAI Whisper ASR + LibreTranslate):
+  - Minimum Hardware: 1.5 GB RAM, any Android 9.0+ device, local Wi-Fi connection to your PC/server.
+  - Offloads speech recognition and translation to your home PC or Docker container with zero mobile battery drain and 100% LAN privacy.
+  - Includes an interactive in-app tutorial with embedded video, audio narration, synchronized captions, and complete self-hosting web documentation.
+
+PERMISSIONS
+
+• Android 9.0 (API 28) or newer (Android 10+ for system audio capture)
 • Microphone permission (for mic mode)
 • "Display over other apps" permission (for the floating caption window)
 • Notification permission (for optional update alerts)

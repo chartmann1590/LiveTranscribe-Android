@@ -7,6 +7,7 @@ import com.charles.livecaptionn.settings.TranslationBackend
 import com.charles.livecaptionn.speech.VoskModelInfo
 import com.charles.livecaptionn.translation.MlKitLanguages
 import com.charles.livecaptionn.ui.l10n.UiLocalizationRepository.UiLocalizationStage
+import com.charles.livecaptionn.compatibility.DeviceSpecs
 import com.charles.livecaptionn.update.UpdateInfo
 
 data class MainUiState(
@@ -35,7 +36,13 @@ data class MainUiState(
     val uiLocalizationTranslated: Int = 0,
     val uiLocalizationTotal: Int = 0,
     /** True once the first-launch onboarding has been completed. */
-    val onboardingComplete: Boolean = false
+    val onboardingComplete: Boolean = false,
+    /** Hardware inspection results for running on-device AI models. */
+    val deviceSpecs: DeviceSpecs? = null,
+    /** Dismissible alert when device is unsupported for on-device AI. */
+    val showUnsupportedModal: Boolean = false,
+    /** Whether the in-app tutorial screen is open. */
+    val showTutorial: Boolean = false
 ) {
     /** Languages the user is allowed to pick as the speech source, given the
      *  current audio source + STT backend combination. */

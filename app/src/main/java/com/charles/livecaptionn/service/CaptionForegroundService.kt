@@ -137,13 +137,21 @@ class CaptionForegroundService : Service() {
         // actually granted. MainActivity checks this before the initial launch,
         // but startFlow()'s audioSource-mismatch re-entry can call this again
         // mid-session — fail closed instead of crashing with the OS exception.
-        val type = when {
-            audioSource == AudioSource.SYSTEM -> ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
-            wantsMicrophone && hasMicPermission -> ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
-            else -> 0
+        val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            when {
+                audioSource == AudioSource.SYSTEM -> ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
+                wantsMicrophone && hasMicPermission -> ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+                else -> 0
+            }
+        } else {
+            0
         }
         return try {
-            startForeground(NOTIF_ID, buildNotification(), type)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(NOTIF_ID, buildNotification(), type)
+            } else {
+                startForeground(NOTIF_ID, buildNotification())
+            }
             if (wantsMicrophone && !hasMicPermission) {
                 failAndStop("Microphone permission not granted. Allow microphone access and try again.")
                 false

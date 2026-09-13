@@ -1,0 +1,31 @@
+LiveCaptionN convierte tu dispositivo Android en una herramienta de subtítulos y traducción en tiempo real en una ventana flotante sobre cualquier aplicación: vídeos, llamadas, conferencias y conversaciones diarias.
+
+CARACTERÍSTICAS
+
+• Ventana flotante de subtítulos arrastrable sobre cualquier aplicación
+• Captura por micrófono o audio interno del sistema
+• Modelos de reconocimiento offline Vosk (Small y Large)
+• Traducción offline integrada con Google ML Kit (~59 idiomas) o LibreTranslate
+• Historial de transcripción local
+• Tutorial interactivo con vídeo, narración por voz y subtítulos
+
+REQUISITOS DEL SISTEMA Y COMPATIBILIDAD
+
+• Modo IA en el dispositivo (Vosk STT + Google ML Kit offline):
+  - Requisitos mínimos: 2.5 GB RAM, procesador de 4 núcleos, 350 MB de almacenamiento libre.
+  - Requisitos recomendados: 4 GB+ RAM, procesador de 64 bits (6+ núcleos), 1.5 GB+ de almacenamiento libre.
+  - Comprobación de hardware: El sistema comprueba tu dispositivo al inicio. Si tiene menos de 2.5 GB de RAM o menos de 4 núcleos, se activa automáticamente el modo remoto para evitar fallos.
+  - Dispositivos de gama de entrada (2.5 - 3.8 GB RAM o 32 bits) reciben una advertencia pero permiten continuar.
+
+• Modo Remoto Autoalojado (Whisper ASR + LibreTranslate):
+  - Requisitos mínimos: 1.5 GB RAM, Android 9.0+, conexión Wi-Fi con tu PC.
+  - Procesa el audio en tu propio equipo con Docker, con total privacidad en tu red local.
+
+PERMISOS
+
+• Android 9.0 (API 28) o posterior
+• Permiso de micrófono
+• Permiso de superposición sobre otras apps
+• Permiso de notificaciones
+
+Código abierto y privacidad total.

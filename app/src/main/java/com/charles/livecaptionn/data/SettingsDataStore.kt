@@ -45,6 +45,12 @@ class SettingsDataStore(private val context: Context) : SettingsRepository {
             p[UI_LANG] = next.uiLanguageCode.orEmpty().ifBlank { "en" }
             p[ONBOARDING_COMPLETE] = next.onboardingComplete
             p[SAVE_HISTORY] = next.saveHistory
+            p[BORDERLINE_WARNING_DISMISSED] = next.borderlineWarningDismissed
+            if (next.simulatedCompatibilityTier != null) {
+                p[SIMULATED_TIER] = next.simulatedCompatibilityTier
+            } else {
+                p.remove(SIMULATED_TIER)
+            }
         }
     }
 
@@ -71,7 +77,9 @@ class SettingsDataStore(private val context: Context) : SettingsRepository {
             overlayFontId = this[OVERLAY_FONT] ?: defaults.overlayFontId,
             uiLanguageCode = this[UI_LANG] ?: defaults.uiLanguageCode,
             onboardingComplete = this[ONBOARDING_COMPLETE] ?: defaults.onboardingComplete,
-            saveHistory = this[SAVE_HISTORY] ?: defaults.saveHistory
+            saveHistory = this[SAVE_HISTORY] ?: defaults.saveHistory,
+            borderlineWarningDismissed = this[BORDERLINE_WARNING_DISMISSED] ?: defaults.borderlineWarningDismissed,
+            simulatedCompatibilityTier = this[SIMULATED_TIER]
         )
     }
 
@@ -97,5 +105,7 @@ class SettingsDataStore(private val context: Context) : SettingsRepository {
         val UI_LANG = stringPreferencesKey("ui_language")
         val ONBOARDING_COMPLETE = booleanPreferencesKey("onboarding_complete")
         val SAVE_HISTORY = booleanPreferencesKey("save_history")
+        val BORDERLINE_WARNING_DISMISSED = booleanPreferencesKey("borderline_warning_dismissed")
+        val SIMULATED_TIER = stringPreferencesKey("simulated_tier")
     }
 }

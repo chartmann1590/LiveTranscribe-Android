@@ -6,6 +6,7 @@ import android.media.AudioFormat
 import android.media.AudioPlaybackCaptureConfiguration
 import android.media.AudioRecord
 import android.media.projection.MediaProjection
+import android.os.Build
 import android.util.Log
 import com.charles.livecaptionn.settings.SttBackend
 import kotlinx.coroutines.CoroutineScope
@@ -85,6 +86,12 @@ class SystemAudioEngine(
     }
 
     private fun startCapture() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            onSttError("System audio capture requires Android 10 (API 29) or newer.")
+            statusMutable.value = RecognitionStatus.ERROR
+            stop()
+            return
+        }
         val config = AudioPlaybackCaptureConfiguration.Builder(projection)
             .addMatchingUsage(AudioAttributes.USAGE_MEDIA)
             .addMatchingUsage(AudioAttributes.USAGE_GAME)

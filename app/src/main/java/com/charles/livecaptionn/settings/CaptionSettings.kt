@@ -28,7 +28,11 @@ data class CaptionSettings(
     /** True once the first-launch onboarding has been completed. */
     val onboardingComplete: Boolean = false,
     /** Whether completed captions should be persisted to local history. */
-    val saveHistory: Boolean = true
+    val saveHistory: Boolean = true,
+    /** Whether the user acknowledged/dismissed the borderline hardware warning. */
+    val borderlineWarningDismissed: Boolean = false,
+    /** Optional simulated compatibility tier for manual testing (e.g. PASSED, BORDERLINE, UNSUPPORTED). */
+    val simulatedCompatibilityTier: String? = null
 ) {
     companion object {
         val DEFAULT_BASE_URL: String = BuildConfig.DEFAULT_TRANSLATE_URL

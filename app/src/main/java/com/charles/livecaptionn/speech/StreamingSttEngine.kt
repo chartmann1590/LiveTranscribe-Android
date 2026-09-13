@@ -9,6 +9,7 @@ import android.media.AudioPlaybackCaptureConfiguration
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.media.projection.MediaProjection
+import android.os.Build
 import android.util.Log
 import androidx.core.content.ContextCompat
 import com.charles.livecaptionn.settings.AudioSource
@@ -245,6 +246,10 @@ class StreamingSttEngine(
 
         return when (audioSource) {
             AudioSource.SYSTEM -> {
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                    onError("System audio capture requires Android 10 (API 29) or newer. Please switch to Microphone mode.")
+                    return null
+                }
                 val projection = mediaProjection
                     ?: run {
                         onError("MediaProjection not available for system audio")
