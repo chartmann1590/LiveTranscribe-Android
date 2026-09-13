@@ -20,6 +20,17 @@ fun localBool(key: String, default: Boolean): Boolean {
     } ?: default
 }
 
+fun sanitizeServerUrl(raw: String?, fallback: String): String {
+    val trimmed = raw?.trim().orEmpty()
+    if (trimmed.isEmpty()) return fallback
+    // Disallow raw IPv4 or IPv6 addresses from ever being baked into release/debug builds
+    val ipRegex = Regex("""^https?://(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|\[[0-9a-fA-F:]+\])""")
+    if (ipRegex.containsMatchIn(trimmed)) {
+        return fallback
+    }
+    return trimmed
+}
+
 // Play Store upload key lives in keystore.properties at the repo root. File
 // is gitignored; a template lives at playstore/keystore.properties.example.
 val keystoreProps = Properties().apply {
@@ -53,11 +64,11 @@ android {
             useSupportLibrary = true
         }
 
-        // Inject server URLs from local.properties; falls back to localhost
-        buildConfigField("String", "DEFAULT_TRANSLATE_URL",
-            "\"${localProps.getProperty("translate.url", "http://localhost:3006")}\"")
-        buildConfigField("String", "DEFAULT_STT_URL",
-            "\"${localProps.getProperty("stt.url", "http://localhost:9000/asr?output=json")}\"")
+        // Inject server URLs; sanitizes any raw IP address so builds never ship baked-in IPs
+        val defaultTranslate = sanitizeServerUrl(localProps.getProperty("translate.url"), "http://localhost:3006")
+        val defaultStt = sanitizeServerUrl(localProps.getProperty("stt.url"), "http://localhost:9000/asr?output=json")
+        buildConfigField("String", "DEFAULT_TRANSLATE_URL", "\"$defaultTranslate\"")
+        buildConfigField("String", "DEFAULT_STT_URL", "\"$defaultStt\"")
         buildConfigField("boolean", "ADS_ENABLED", localBool("ads.enabled", true).toString())
         buildConfigField(
             "String",

@@ -1300,7 +1300,7 @@ private fun ServerCard(
                     singleLine = true
                 )
                 Text(
-                    text = t.format("Example: %s", "http://192.168.1.50:5000") +
+                    text = t.format("Example: %s", "http://<your-pc-ip>:5000") +
                         " The app fetches /languages to populate the dropdowns.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1339,7 +1339,7 @@ private fun ServerCard(
                     singleLine = true
                 )
                 Text(
-                    text = t.format("Example: %s", "http://192.168.1.50:9000/asr?output=json"),
+                    text = t.format("Example: %s", "http://<your-pc-ip>:9000/asr?output=json"),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
