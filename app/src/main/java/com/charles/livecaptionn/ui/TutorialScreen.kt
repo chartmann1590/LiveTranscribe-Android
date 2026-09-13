@@ -47,6 +47,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -113,8 +115,8 @@ val TUTORIAL_STEPS = listOf(
         narration = "You can host your own Whisper and LibreTranslate servers at home with Docker. This gives budget devices blazing fast speech recognition with 100% data privacy.",
         captionPreview = "Run Whisper ASR and LibreTranslate servers on your PC via Docker.",
         details = listOf(
-            "Whisper ASR: Transcribes speech accurately with OpenAI Whisper.",
-            "LibreTranslate: Translates text across dozens of language pairs.",
+            "Whisper ASR: Transcribes speech accurately with OpenAI Whisper on port 9000.",
+            "LibreTranslate: Translates text across dozens of language pairs on port 5000.",
             "Runs on Windows, Mac, or Linux with Docker Desktop."
         ),
         dockerCommand = "docker run -d -p 9000:9000 -e ASR_MODEL=base onerahmet/openai-whisper-asr-webservice\n\ndocker run -d -p 5000:5000 libretranslate/libretranslate"
@@ -145,6 +147,12 @@ fun TutorialScreen(
     val step = TUTORIAL_STEPS[currentStepIndex]
     var isTtsEnabled by remember { mutableStateOf(true) }
     var ttsReady by remember { mutableStateOf(false) }
+    var isTtsSpeaking by remember { mutableStateOf(false) }
+
+    // Video playback state
+    var isVideoPlaying by remember { mutableStateOf(false) }
+    var isVideoCompleted by remember { mutableStateOf(false) }
+    var videoViewInstance by remember { mutableStateOf<android.widget.VideoView?>(null) }
 
     // TTS instance lifecycle
     var ttsInstance by remember { mutableStateOf<TextToSpeech?>(null) }
@@ -154,6 +162,17 @@ fun TutorialScreen(
         tts = TextToSpeech(context) { status ->
             if (status == TextToSpeech.SUCCESS) {
                 tts?.language = Locale.US
+                tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                    override fun onStart(utteranceId: String?) {
+                        isTtsSpeaking = true
+                    }
+                    override fun onDone(utteranceId: String?) {
+                        isTtsSpeaking = false
+                    }
+                    override fun onError(utteranceId: String?) {
+                        isTtsSpeaking = false
+                    }
+                })
                 ttsReady = true
             }
         }
@@ -165,8 +184,13 @@ fun TutorialScreen(
         }
     }
 
-    // Speak narration whenever step changes or TTS is toggled on
+    // Speak narration whenever step changes or TTS is toggled on.
+    // Ensure video is paused so video never plays over TTS!
     LaunchedEffect(currentStepIndex, isTtsEnabled, ttsReady) {
+        // Pause video immediately when step changes
+        videoViewInstance?.pause()
+        isVideoPlaying = false
+
         if (ttsReady && isTtsEnabled && ttsInstance != null) {
             ttsInstance?.speak(
                 step.narration,
@@ -176,6 +200,7 @@ fun TutorialScreen(
             )
         } else if (!isTtsEnabled) {
             ttsInstance?.stop()
+            isTtsSpeaking = false
         }
     }
 
@@ -261,14 +286,88 @@ fun TutorialScreen(
                                 val videoUri = Uri.parse("android.resource://${ctx.packageName}/${R.raw.tutorial_video}")
                                 setVideoURI(videoUri)
                                 setOnPreparedListener { mp ->
-                                    mp.isLooping = true
-                                    mp.setVolume(0.3f, 0.3f)
-                                    start()
+                                    mp.isLooping = false // DO NOT LOOP
+                                    mp.setVolume(1.0f, 1.0f)
                                 }
+                                setOnCompletionListener {
+                                    isVideoPlaying = false
+                                    isVideoCompleted = true
+                                }
+                                videoViewInstance = this
                             }
                         },
                         modifier = Modifier.fillMaxSize()
                     )
+
+                    // Video Play / Pause / Replay Tap Target & Control Overlay
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clickable {
+                                if (isVideoPlaying) {
+                                    videoViewInstance?.pause()
+                                    isVideoPlaying = false
+                                } else {
+                                    // Stop TTS so video never plays over TTS narration!
+                                    ttsInstance?.stop()
+                                    isTtsSpeaking = false
+                                    if (isVideoCompleted) {
+                                        videoViewInstance?.seekTo(0)
+                                        isVideoCompleted = false
+                                    }
+                                    videoViewInstance?.start()
+                                    isVideoPlaying = true
+                                }
+                            }
+                    ) {
+                        if (!isVideoPlaying) {
+                            // Centered Play / Replay button
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.Center)
+                                    .clip(CircleShape)
+                                    .background(Color.Black.copy(alpha = 0.65f))
+                                    .padding(14.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (isVideoCompleted) Icons.Default.Refresh else Icons.Default.PlayArrow,
+                                    contentDescription = if (isVideoCompleted) "Replay Setup Video" else "Play Setup Video",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(36.dp)
+                                )
+                            }
+
+                            // Top state badge
+                            Surface(
+                                modifier = Modifier
+                                    .align(Alignment.TopStart)
+                                    .padding(10.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isTtsSpeaking) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.92f)
+                                       else Color.Black.copy(alpha = 0.72f)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = if (isTtsSpeaking) Icons.Default.VolumeUp else Icons.Default.PlayArrow,
+                                        contentDescription = null,
+                                        tint = if (isTtsSpeaking) MaterialTheme.colorScheme.primary else Color.White,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = if (isTtsSpeaking) "Narration Active (Tap to play video)"
+                                               else if (isVideoCompleted) "Video Finished (Tap to replay)"
+                                               else "Video Guide (Tap to play)",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (isTtsSpeaking) MaterialTheme.colorScheme.onPrimaryContainer else Color.White
+                                    )
+                                }
+                            }
+                        }
+                    }
 
                     // Synchronized Floating Caption Overlay Simulation
                     Box(
