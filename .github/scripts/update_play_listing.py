@@ -26,6 +26,11 @@ def read(path: Path) -> str:
     return path.read_text(encoding="utf-8").strip()
 
 
+PLAY_LANG_MAP = {
+    "vi-VN": "vi",
+}
+
+
 def main() -> None:
     sa_key = os.environ.get("GOOGLE_PLAY_SERVICE_ACCOUNT_JSON")
     if not sa_key:
@@ -48,7 +53,7 @@ def main() -> None:
         if not (title_file.exists() and short_file.exists() and full_file.exists()):
             continue
 
-        language = lang_dir.name
+        language = PLAY_LANG_MAP.get(lang_dir.name, lang_dir.name)
         body = {
             "language": language,
             "title": read(title_file),
