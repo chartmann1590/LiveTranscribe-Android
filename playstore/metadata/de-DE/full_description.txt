@@ -1,31 +1,45 @@
-LiveCaptionN verwandelt Ihr Android-Gerät in ein Tool für Echtzeit-Spracherkennung und Übersetzung, das als schwebendes Fenster über jeder beliebigen App angezeigt wird.
+LiveCaptionN verwandelt Ihr Android-Gerät in einen leistungsstarken Assistenten für Live-Untertitel und Echtzeit-Übersetzung, der als schwebendes Fenster über jeder beliebigen App angezeigt wird. Erleben Sie sofortige Untertitel für Videos, soziale Medien, Sprach- und Videoanrufe, Podcasts, Meetings, Vorlesungen und Gespräche. Perfekt für fremdsprachige Inhalte, Sprachenlernen oder barrierefreies Hören.
 
-FUNKTIONEN
+HAUPTFUNKTIONEN
+• Schwebendes Untertitel-Overlay: Frei verschiebbares, anpassbares Fenster über allen Apps; jederzeit pausieren oder minimieren.
+• Duale Audioaufnahme: Hören über das Gerätemikrofon oder direkte Erfassung des internen Systemtons (Android 10+).
+• Echtzeit-Transkription: Blitzschnelle Spracherkennung mit minimaler Latenz dank kontinuierlicher Vosk-Engine.
+• Sofortige Übersetzung: Live-Übersetzung in über 59 Sprachen mit Google ML Kit oder selbstgehostetem LibreTranslate.
+• Vollständige App-Lokalisierung: Übersetzung der gesamten Benutzeroberfläche in 59 Sprachen.
+• Verlauf & Export: Durchsuchen, Überprüfen und Exportieren von Untertiteln mit Zeitstempeln.
+• Umfassende Anpassung: Schriftgröße, Textfarben, Hintergrundtransparenz und Position frei wählbar.
 
-• Schwebendes, verschiebbares Untertitel-Overlay über jeder App
-• Aufnahme über Mikrofon oder System-Audio
-• Offline-Spracherkennungsmodelle von Vosk (Small & Large)
-• Offline-Übersetzung via Google ML Kit (~59 Sprachen) oder LibreTranslate-Server
-• Lokaler Transkriptionsverlauf
-• Interaktives Tutorial mit Video, Sprachausgabe und Untertiteln
+ON-DEVICE-KI VS. SELBSTGEHOSTETER MODUS
+LiveCaptionN bietet Ihnen die Wahl, wie Ihre Sprachdaten verarbeitet werden:
 
-SYSTEMANFORDERUNGEN & KOMPATIBILITÄT
+• Modus 1: On-Device-KI (100% Offline & Privat)
+Verarbeitet alles lokal auf Ihrem Smartphone ohne Internetverbindung. Nach dem Herunterladen der Vosk-Sprachmodelle und ML Kit-Sprachpakete verlassen Ihre Audiodaten und Transkripte niemals das Gerät. Keine Registrierung, kein Tracking, absolute Privatsphäre.
 
-• Auf-Gerät-KI-Modus (Vosk STT + Google ML Kit):
-  - Mindestanforderungen: 2.5 GB RAM, 4-Kern-Prozessor, 350 MB freier Speicher.
-  - Empfohlen: 4 GB+ RAM, 64-Bit-Prozessor (6+ Kerne), 1.5 GB+ freier Speicher.
-  - Automatische Systemprüfung: Die App analysiert die Hardware beim Start. Geräte mit weniger als 2.5 GB RAM oder unter 4 Kernen werden automatisch auf den Remote-Modus umgestellt, um Abstürze zu verhindern.
-  - Geräte mit begrenzten Ressourcen (2.5 bis 3.8 GB RAM oder 32-Bit) erhalten einen Hinweis, können aber fortfahren.
+• Modus 2: Remote Selbstgehostet (Höchste Präzision & Akkuschonend)
+Verbinden Sie sich mit Ihrem PC oder Heimserver, auf dem OpenAI Whisper ASR und LibreTranslate (Docker-fähig) laufen.
+- Einrichtung: Starten Sie den Docker-Container auf Ihrem PC und tragen Sie die lokale Netzwerkadresse (z. B. http://192.168.1.50:9000) in den App-Einstellungen ein.
+- Vorteile: Lagert rechenintensive KI auf Ihren Rechner aus, schont Smartphone-Akku und Prozessor bei überragender Whisper-Genauigkeit. Inklusive interaktivem Video- und Audio-Tutorial.
 
-• Selbstgehosteter Remote-Modus (OpenAI Whisper + LibreTranslate):
-  - Mindestanforderungen: 1.5 GB RAM, Android 9.0+, lokales WLAN zu Ihrem PC.
-  - Spart Akku und bietet maximale Genauigkeit bei 100% Datenschutz im Heimnetzwerk.
+SYSTEMANFORDERUNGEN & HARDWARE-PRÜFUNG
+LiveCaptionN analysiert Ihre Hardware beim Start und empfiehlt den optimalen Modus:
 
-BERECHTIGUNGEN
+• On-Device-Modus:
+- Minimum: 2.5 GB RAM, 4 CPU-Kerne, 350 MB freier Speicherplatz.
+- Empfohlen: 4 GB+ RAM, 64-Bit-Mehrkernprozessor, 1.5 GB freier Speicher (für große Modelle).
+- Stabilitätsschutz: Geräte mit weniger als 2.5 GB RAM oder unter 4 Kernen werden automatisch auf den Remote-Modus umgestellt, um Speicherüberlastungen und Ruckeln zu vermeiden.
 
-• Android 9.0 (API 28) oder neuer
-• Mikrofonberechtigung
-• Berechtigung „Über anderen Apps anzeigen“
-• Benachrichtigungsberechtigung
+• Selbstgehosteter Remote-Modus:
+- Minimum: 1.5 GB RAM, Android 9.0+ (API 28), im selben WLAN-Heimnetzwerk. Läuft flüssig auch auf älteren Geräten.
 
-Open-Source und datenschutzfreundlich.
+KOSTENLOS VS. OPTIONALE UPGRADES
+Alle Kernfunktionen sind dauerhaft 100% kostenlos:
+• Kostenlos: Unbegrenzte Untertitel über Mikrofon und internen Ton, Vosk-STT, ML Kit-Übersetzung, schwebendes Fenster und Remote-Modus.
+• Werbefrei (1,99 €/Monat): Entfernt jegliche Werbung für ein störungsfreies Erlebnis.
+• Pro (4,99 €/Monat): Komplett werbefrei, hochpräzise Vosk-Modelle in Serverqualität, Premium-Farbthemen, benutzerdefiniertes Glossar für Fachbegriffe und erweiterte Offline-Sprachpakete.
+
+DATENSCHUTZ & BERECHTIGUNGEN
+Ihre Privatsphäre steht an erster Stelle. Audiodaten bleiben lokal:
+• Mikrofon: Zur Erfassung gesprochener Sprache für Untertitel.
+• Über anderen Apps anzeigen: Für das schwebende Untertitelfenster über Drittanbieter-Apps.
+• Vordergrunddienst: Für unterbrechungsfreie Untertitelung beim Multitasking.
+• Systemaudio: Optionale Berechtigung zur Erfassung interner App-Wiedergabe (Android 10+).

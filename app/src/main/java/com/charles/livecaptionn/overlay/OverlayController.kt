@@ -3,8 +3,10 @@ package com.charles.livecaptionn.overlay
 import android.content.Context
 import android.graphics.Color
 import android.graphics.PixelFormat
+import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
+import android.text.TextUtils
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
@@ -36,7 +38,9 @@ class OverlayController(
 
     private var root: FrameLayout? = null
     private var statusText: TextView? = null
+    private var originalContainer: LinearLayout? = null
     private var originalText: TextView? = null
+    private var dividerView: View? = null
     private var translatedText: TextView? = null
     private var transcriptText: TextView? = null
     private var body: ScrollView? = null
@@ -117,44 +121,69 @@ class OverlayController(
         header.addView(minButton)
         header.addView(closeButton)
 
-        // Original text (shown when showOriginal is enabled, italic + smaller)
+        // Original speech section (shown when transcribing + translating with showOriginal)
+        val origContainer = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                setMargins(0, dp(4), 0, dp(2))
+            }
+        }
+
         originalText = TextView(context).apply {
             setTextColor(Color.WHITE)
             text = ""
-            setLineSpacing(dp(2).toFloat(), 1.0f)
-            setPadding(0, dp(4), 0, dp(2))
+            setLineSpacing(dp(2).toFloat(), 1.05f)
+            setPadding(0, dp(1), 0, dp(2))
             textSize = 14f
-            // visibility managed by update()
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT
-            )
-        }
-        // Translated text / scrolling history (the primary caption body)
-        translatedText = TextView(context).apply {
-            setTextColor(Color.WHITE)
-            text = "…"
-            setLineSpacing(dp(3).toFloat(), 1.0f)
-            setPadding(0, dp(2), 0, dp(4))
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT
-            )
-        }
-        transcriptText = translatedText // alias for update() compatibility
-
-        // Container that holds both caption TextViews, inside the scroll body
-        val captionContainer = FrameLayout(context).apply {
+            maxLines = 3
+            ellipsize = TextUtils.TruncateAt.END
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             )
         }
-        captionContainer.addView(originalText)
-        captionContainer.addView(translatedText)
+
+        dividerView = View(context).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(1)
+            ).apply {
+                setMargins(0, dp(3), 0, dp(3))
+            }
+        }
+
+        origContainer.addView(originalText)
+        origContainer.addView(dividerView)
+        originalContainer = origContainer
+
+        // Translated text / scrolling history (primary caption body)
+        translatedText = TextView(context).apply {
+            setTextColor(Color.WHITE)
+            text = "…"
+            setLineSpacing(dp(3).toFloat(), 1.1f)
+            setPadding(0, dp(2), 0, dp(4))
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
+        transcriptText = translatedText // alias for update() compatibility
+
+        val scrollContent = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT
+            )
+            addView(translatedText)
+        }
 
         body = ScrollView(context).apply {
-            addView(captionContainer)
+            addView(scrollContent)
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f
             )
@@ -163,6 +192,7 @@ class OverlayController(
         }
 
         container.addView(header)
+        container.addView(origContainer)
         container.addView(body)
 
         frame.addView(container)
@@ -219,14 +249,28 @@ class OverlayController(
         pauseButton?.contentDescription = if (ui.status == RecognitionStatus.PAUSED) s["Resume captioning"] else s["Pause captioning"]
         minButton?.contentDescription = s["Minimize overlay"]
         closeButton?.contentDescription = s["Close overlay"]
-        originalText?.setTextColor(theme.textRgb)
-        originalText?.typeface = font.typeface
-        originalText?.text = ui.originalText.ifBlank { "…" }
-        originalText?.visibility = if (ui.showOriginal && ui.originalText.isNotBlank()) View.VISIBLE else View.GONE
+
+        val textR = Color.red(theme.textRgb)
+        val textG = Color.green(theme.textRgb)
+        val textB = Color.blue(theme.textRgb)
+
+        val display = computeOverlayTextDisplay(ui)
+
+        if (display.showOriginal) {
+            originalText?.setTextColor(Color.argb(190, textR, textG, textB))
+            originalText?.typeface = Typeface.create(font.typeface, Typeface.ITALIC)
+            originalText?.text = display.originalText
+            originalText?.textSize = display.originalTextSizeSp
+            dividerView?.setBackgroundColor(Color.argb(45, textR, textG, textB))
+            originalContainer?.visibility = if (ui.minimized) View.GONE else View.VISIBLE
+        } else {
+            originalContainer?.visibility = View.GONE
+        }
+
         translatedText?.setTextColor(theme.textRgb)
         translatedText?.typeface = font.typeface
-        translatedText?.text = ui.transcriptText.ifBlank { "…" }
-        translatedText?.textSize = ui.textSizeSp
+        translatedText?.text = display.translatedText
+        translatedText?.textSize = display.translatedTextSizeSp
         translatedText?.visibility = View.VISIBLE
         body?.visibility = if (ui.minimized) View.GONE else View.VISIBLE
         pauseButton?.setImageResource(
@@ -250,6 +294,16 @@ class OverlayController(
         // guard with a stale non-null params while root is already null, crashing
         // with "view must not be null" inside WindowManager.
         params = null
+        statusText = null
+        originalContainer = null
+        originalText = null
+        dividerView = null
+        translatedText = null
+        transcriptText = null
+        body = null
+        pauseButton = null
+        minButton = null
+        closeButton = null
     }
 
     // ── Helpers ──

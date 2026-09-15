@@ -1,31 +1,45 @@
-LiveCaptionN transforme votre appareil Android en un outil de sous-titrage et de traduction vocale en temps réel flottant au-dessus de n'importe quelle application (vidéos, appels, réunions).
+LiveCaptionN transforme votre appareil Android en un assistant complet de sous-titrage en direct et de traduction instantanée flottant au-dessus de n'importe quelle application. Profitez de sous-titres en temps réel pour vos vidéos, réseaux sociaux, appels vocaux et vidéo, podcasts, réunions et conversations. Idéal pour visionner des contenus étrangers, apprendre une langue ou pour l'accessibilité auditive.
 
-FONCTIONNALITÉS
+FONCTIONNALITÉS PRINCIPALES
+• Fenêtre Flottante de Sous-titres : Redimensionnable et déplaçable au-dessus de vos applications ; mettez en pause ou réduisez à tout moment.
+• Double Capture Audio : Écoutez via le microphone ou capturez directement l'audio interne du système (Android 10+).
+• Transcription en Temps Réel : Reconnaissance vocale rapide à faible latence propulsée par le moteur continu Vosk.
+• Traduction Instantanée : Traduction en direct dans plus de 59 langues via Google ML Kit ou LibreTranslate auto-hébergé.
+• Traduction Complète de l'Interface : Traduisez l'ensemble de l'interface de l'application en 59 langues.
+• Historique et Exportation : Recherchez, consultez et exportez vos journaux de sous-titres horodatés.
+• Personnalisation Complète : Ajustez la taille de police, les couleurs du texte, l'opacité et l'emplacement.
 
-• Fenêtre de sous-titres flottante déplaçable et redimensionnable
-• Capture depuis le microphone ou l'audio du système
-• Reconnaissance vocale hors-ligne Vosk (modèles Small et Large)
-• Traduction hors-ligne Google ML Kit (~59 langues) ou serveur LibreTranslate
-• Historique des transcriptions sauvegardé localement
-• Tutoriel interactif avec vidéo, narration vocale et sous-titres
+IA SUR L'APPAREIL VS. MODE AUTO-HÉBERGÉ
+LiveCaptionN vous offre le choix du mode de traitement audio :
 
-CONFIGURATION REQUISE & COMPATIBILITÉ
+• Mode 1 : IA sur l'appareil (100% Hors Ligne et Privé)
+Traite l'intégralité du flux localement sur votre téléphone sans connexion Internet. Après téléchargement du modèle vocal Vosk et des packs de langue ML Kit, vos données audio et textes ne quittent jamais votre mobile. Zéro compte requis, zéro pistage.
 
-• Mode IA sur l'appareil (Vosk STT + Google ML Kit hors-ligne) :
-  - Minimum : 2.5 Go de RAM, processeur 4 cœurs, 350 Mo de stockage libre.
-  - Recommandé : 4 Go+ de RAM, processeur 64 bits (6+ cœurs), 1.5 Go+ de stockage libre.
-  - Vérification automatique : L'application vérifie votre matériel au démarrage. Les appareils avec moins de 2.5 Go de RAM ou moins de 4 cœurs sont automatiquement basculés en mode distant pour éviter les plantages.
-  - Les appareils avec ressources limitées (2.5 à 3.8 Go de RAM ou 32 bits) reçoivent un avertissement avec option de poursuivre.
+• Mode 2 : Distant Auto-Hébergé (Ultra Précis et Économe en Batterie)
+Connectez-vous à votre propre ordinateur ou serveur domestique exécutant OpenAI Whisper ASR et LibreTranslate (prêt pour Docker).
+- Utilisation : Lancez le conteneur Docker sur votre PC et saisissez l'adresse de votre réseau local (ex. http://192.168.1.50:9000) dans les paramètres.
+- Avantages : Délègue les calculs lourds à votre PC, préservant la batterie et le processeur de votre téléphone avec la précision maximale de Whisper. Tutoriel interactif vidéo et audio intégré.
 
-• Mode Distant Auto-hébergé (Whisper ASR + LibreTranslate) :
-  - Minimum : 1.5 Go de RAM, Android 9.0+, connexion Wi-Fi locale avec votre PC.
-  - Traite l'audio sur votre PC via Docker avec une confidentialité totale sur votre réseau local.
+EXIGENCES SYSTÈME ET CONTRÔLE DE COMPATIBILITÉ
+LiveCaptionN teste automatiquement votre matériel au démarrage pour sélectionner le mode optimal :
 
-AUTORISATIONS
+• Mode sur l'appareil :
+- Minimum : 2.5 Go de RAM, processeur 4 cœurs, 350 Mo de stockage libre.
+- Recommandé : 4 Go+ de RAM, processeur 64 bits multi-cœurs, 1.5 Go libres (pour les modèles volumineux).
+- Protection de stabilité : Les appareils disposant de moins de 2.5 Go de RAM ou de moins de 4 cœurs basculent automatiquement en mode distant pour éviter tout ralentissement.
 
-• Android 9.0 (API 28) ou plus récent
-• Autorisation microphone
-• Autorisation superposition sur les autres applications
-• Autorisation notifications
+• Mode Distant Auto-Hébergé :
+- Minimum : 1.5 Go de RAM, Android 9.0+ (API 28), connecté au même réseau Wi-Fi local.
 
-Open-source et respectueux de la vie privée.
+GRATUIT VS. OPTIONS PAYANTES
+Toutes les fonctions essentielles de sous-titrage et de traduction sont 100% gratuites :
+• Gratuit : Sous-titres illimités par micro et audio interne, modèles Vosk et ML Kit locaux, fenêtre flottante et mode distant.
+• Sans Publicité (1,99 €/mois) : Supprime tous les bandeaux et annonces pour un confort maximal.
+• Pro (4,99 €/mois) : Sans publicité, modèles Vosk haute précision de niveau serveur, thèmes de couleurs premium, glossaire personnalisé pour termes spécifiques et packs de langues étendus.
+
+CONFIDENTIALITÉ ET AUTORISATIONS
+Vos données restent strictement confidentielles sur votre appareil ou réseau local :
+• Microphone : Capture la voix en direct pour le sous-titrage.
+• Afficher sur les autres applications : Affiche la fenêtre flottante de sous-titres.
+• Service de premier plan : Maintient le sous-titrage actif en multitâche.
+• Audio système : Autorisation facultative pour capturer le son interne (Android 10+).

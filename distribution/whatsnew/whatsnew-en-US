@@ -1,4 +1,4 @@
-• System Compatibility Check: Validates device RAM and CPU cores to ensure smooth on-device AI captioning.
-• Low-Spec Fallback: Devices under 2.5 GB RAM / 4 cores are automatically guided to self-hosted remote mode (Whisper + LibreTranslate).
-• Interactive Setup Tutorial: Built-in video guide, audio narration, and synchronized captions for running Docker services.
-• Expanded compatibility for Android 9.0+ (API 28).
+• Fixed overlay layout: transcription and translation no longer overlap, featuring clean row separation and typography.
+• Hardware Compatibility Check: automatically recommends optimal on-device or remote AI mode based on device RAM and CPU.
+• Interactive Self-Hosted Tutorial: step-by-step video and voice guidance for Docker Whisper and LibreTranslate setup.
+• Performance & Stability: smoother overlay dragging, lower latency, and enhanced memory efficiency.

@@ -1,7 +1,4 @@
-New: safer caption sessions, transcript sharing, presets, and Pro glossary tools.
-
-• First launch explains permissions and checks that captioning is ready before Start is enabled
-• Share or copy transcript history as plain text, with stable deletion and safer local recovery
-• Save and reuse caption presets for common setups
-• Pro users can add custom glossary phrase replacements
-• Improved startup, language-picker, AdMob, and overlay stability
+• Fixed overlay layout: transcription and translation no longer overlap, featuring clean row separation and typography.
+• Hardware Compatibility Check: automatically recommends optimal on-device or remote AI mode based on device RAM and CPU.
+• Interactive Self-Hosted Tutorial: step-by-step video and voice guidance for Docker Whisper and LibreTranslate setup.
+• Performance & Stability: smoother overlay dragging, lower latency, and enhanced memory efficiency.

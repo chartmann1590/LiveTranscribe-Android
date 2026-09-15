@@ -1,33 +1,45 @@
-LiveCaptionN biến điện thoại Android của bạn thành công cụ nhận dạng giọng nói thành văn bản và dịch thuật trực tiếp trong thời gian thực, hiển thị nổi trên bất kỳ ứng dụng nào khác — phụ đề trực tiếp cho video, cuộc gọi, cuộc họp và cuộc trò chuyện hàng ngày. Ứng dụng lắng nghe qua micrô hoặc âm thanh của ứng dụng đang phát, chuyển đổi từng từ theo thời gian thực và dịch sang ngôn ngữ bạn chọn.
+LiveCaptionN biến thiết bị Android của bạn thành trợ lý tạo phụ đề trực tiếp và dịch thuật tức thì với cửa sổ nổi trên mọi ứng dụng. Xem phụ đề thời gian thực cho video, mạng xã hội, cuộc gọi thoại và video, podcast, cuộc họp và trò chuyện hàng ngày. Lựa chọn lý tưởng khi xem nội dung nước ngoài, học ngoại ngữ hoặc hỗ trợ người khiếm thính.
 
-TÍNH NĂNG CHÍNH
+TÍNH NĂNG NỔI BẬT
+• Cửa sổ Phụ Đề Nổi: Tự do thay đổi kích thước và di chuyển trên mọi app; tạm dừng, thu nhỏ hoặc tùy chỉnh bất kỳ lúc nào.
+• Thu Âm Kép: Thu trực tiếp qua micro hoặc ghi âm thanh nội bộ hệ thống (Android 10+).
+• Chuyển Giọng Nói Thành Văn Bản: Nhận diện giọng nói tức thì với độ trễ thấp nhờ công nghệ streaming Vosk.
+• Dịch Thuật Trực Tiếp: Dịch tức thì sang hơn 59 ngôn ngữ với Google ML Kit hoặc LibreTranslate tự lưu trữ.
+• Bản Địa Hóa Giao Diện: Dịch toàn bộ giao diện ứng dụng sang 59 ngôn ngữ khác nhau.
+• Lịch Sử và Xuất Dữ Liệu: Tìm kiếm, xem lại và xuất lịch sử phụ đề có gắn mốc thời gian.
+• Tùy Biến Toàn Diện: Điều chỉnh kích thước chữ, màu văn bản, độ trong suốt nền và vị trí hiển thị.
 
-• Cửa sổ phụ đề nổi kéo thả tự do trên bất kỳ ứng dụng nào
-• Nhận diện giọng nói từ Micrô hoặc âm thanh hệ thống (MediaProjection)
-• Tích hợp bộ tải mô hình Vosk ngoại tuyến: Bản nhỏ (Small) và bản máy chủ lớn (Large)
-• Dịch ngoại tuyến trên thiết bị qua Google ML Kit (~59 ngôn ngữ) hoặc kết nối LibreTranslate
-• Dịch toàn bộ giao diện ứng dụng sang ngôn ngữ của bạn
-• Lưu trữ và tìm kiếm lịch sử phụ đề trực tiếp trong ứng dụng
-• Hướng dẫn tương tác tích hợp sẵn kèm video, thuyết minh âm thanh và phụ đề trực tiếp
+TRÍ TUỆ NHÂN TẠO TRÊN MÁY VS. TỰ LƯU TRỮ (SELF-HOSTED)
+LiveCaptionN cho phép bạn linh hoạt lựa chọn phương thức xử lý giọng nói:
 
-YÊU CẦU HỆ THỐNG & KHẢ NĂNG TƯƠNG THÍCH
+• Chế độ 1: AI Trực Tiếp Trên Máy (100% Ngoại Tuyến & Riêng Tư)
+Xử lý hoàn toàn cục bộ trên điện thoại mà không cần kết nối mạng. Sau khi tải mô hình giọng nói Vosk và gói ngôn ngữ ML Kit, âm thanh và văn bản không bao giờ rời khỏi máy. Không cần tài khoản, hoàn toàn bảo mật.
 
-• Chế độ AI trên thiết bị (Vosk STT + Google ML Kit dịch ngoại tuyến):
-  - Phần cứng tối thiểu: 2.5 GB RAM, CPU 4 nhân, 350 MB bộ nhớ trong khả dụng.
-  - Phần cứng khuyến nghị: 4 GB+ RAM, CPU 64-bit đa nhân (6+ nhân), 1.5 GB+ bộ nhớ trong khả dụng (cần thiết cho mô hình lớn Large).
-  - Kiểm tra tương thích tự động: Ứng dụng sẽ kiểm tra phần cứng thiết bị khi khởi động. Thiết bị dưới 2.5 GB RAM hoặc dưới 4 nhân CPU sẽ tự động chuyển sang chế độ Máy chủ từ xa (Remote) để tránh sập ứng dụng.
-  - Thiết bị có tài nguyên giới hạn (2.5 - 3.8 GB RAM hoặc CPU 32-bit như máy tính bảng 3 GB) sẽ nhận cảnh báo tài nguyên và có thể bấm "Tiếp tục" hoặc dùng máy chủ từ xa.
+• Chế độ 2: Tự Lưu Trữ Từ Xa (Siêu Chính Xác & Tiết Kiệm Pin)
+Kết nối với máy tính cá nhân hoặc máy chủ gia đình chạy OpenAI Whisper ASR và LibreTranslate (hỗ trợ Docker).
+- Cách sử dụng: Chạy container Docker trên PC và nhập địa chỉ mạng nội bộ (ví dụ: http://192.168.1.50:9000) vào cài đặt ứng dụng.
+- Ưu điểm: Chuyển toàn bộ gánh nặng tính toán AI sang máy tính, tiết kiệm pin và CPU điện thoại với độ chính xác tuyệt đối của Whisper. Kèm video hướng dẫn tương tác trực quan.
 
-• Chế độ máy chủ từ xa tự lưu trữ (OpenAI Whisper ASR + LibreTranslate):
-  - Phần cứng tối thiểu: 1.5 GB RAM, mọi thiết bị Android 9.0 trở lên, kết nối Wi-Fi cục bộ tới máy tính.
-  - Xử lý giọng nói và dịch trên máy tính cá nhân qua Docker, không tốn pin điện thoại, bảo mật 100% trong mạng LAN.
-  - Có sẵn tài liệu và video hướng dẫn cài đặt Docker chi tiết trong ứng dụng.
+YÊU CẦU HỆ THỐNG & KIỂM TRA TƯƠNG THÍCH
+LiveCaptionN tự động kiểm tra phần cứng thiết bị khi khởi động:
 
-QUYỀN HẠN YÊU CẦU
+• Yêu cầu Chế độ Trên Máy:
+- Tối thiểu: 2.5 GB RAM, vi xử lý 4 nhân, 350 MB bộ nhớ trống.
+- Đề xuất: 4 GB+ RAM, chip 64-bit đa nhân, 1.5 GB bộ nhớ trống (cho mô hình Lớn).
+- Cơ chế bảo vệ: Thiết bị dưới 2.5 GB RAM hoặc dưới 4 nhân sẽ tự động chuyển sang chế độ tự lưu trữ để tránh giật lag máy.
 
-• Android 9.0 (API 28) trở lên (Android 10+ cho ghi âm thanh hệ thống)
-• Quyền Micrô (cho chế độ mic)
-• Quyền "Hiển thị trên các ứng dụng khác" (cho cửa sổ phụ đề nổi)
-• Quyền Thông báo (cho thông báo cập nhật tùy chọn)
+• Yêu cầu Chế độ Tự Lưu Trữ Từ Xa:
+- Tối thiểu: 1.5 GB RAM, Android 9.0+ (API 28), chung mạng Wi-Fi nội bộ.
 
-Mã nguồn mở 100% và tôn trọng quyền riêng tư.
+MIỄN PHÍ VÀ GÓI NÂNG CẤP TÙY CHỌN
+Tất cả tính năng phụ đề và dịch cốt lõi đều miễn phí 100%:
+• Miễn phí: Phụ đề không giới hạn qua micro và âm thanh hệ thống, Vosk và ML Kit ngoại tuyến, cửa sổ nổi, xuất văn bản và chế độ tự lưu trữ.
+• Không Quảng Cáo (1,99 $/tháng): Loại bỏ mọi quảng cáo trong ứng dụng.
+• Pro (4,99 $/tháng): Không quảng cáo, mô hình Vosk độ chính xác cao cấp máy chủ, giao diện màu sắc cao cấp, từ điển thuật ngữ tùy chỉnh và gói ngôn ngữ mở rộng.
+
+QUYỀN HẠN & BẢO MẬT
+Quyền riêng tư của bạn là ưu tiên hàng đầu. Âm thanh không bao giờ tải lên máy chủ đám mây:
+• Micro: Ghi âm giọng nói để tạo phụ đề.
+• Hiển thị trên ứng dụng khác: Hiển thị cửa sổ phụ đề nổi.
+• Dịch vụ chạy nền: Giữ phụ đề hoạt động liên tục khi đa nhiệm.
+• Âm thanh hệ thống: Quyền tùy chọn để thu âm thanh từ các ứng dụng (Android 10+).

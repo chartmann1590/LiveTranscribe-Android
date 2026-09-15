@@ -1,31 +1,45 @@
-LiveCaptionN transforma seu celular Android em uma ferramenta de legendagem e tradução de voz em tempo real em uma janela flutuante sobre qualquer aplicativo.
+O LiveCaptionN transforma seu dispositivo Android em um assistente avançado de legendagem em tempo real e tradução instantânea em janela flutuante sobre qualquer aplicativo. Tenha legendas automáticas para vídeos, redes sociais, chamadas de voz e vídeo, podcasts, reuniões e conversas do dia a dia. Perfeito para assistir a conteúdos estrangeiros, praticar idiomas ou para acessibilidade auditiva.
 
-RECURSOS
+RECURSOS PRINCIPAIS
+• Janela Flutuante de Legendas: Janela redimensionável e arrastável sobre qualquer app; pause, minimize ou personalize a qualquer instante.
+• Captura Dupla de Áudio: Ouça pelo microfone do aparelho ou capture diretamente o áudio interno do sistema (Android 10+).
+• Transcrição em Tempo Real: Reconhecimento de fala contínuo e com baixa latência pelo motor Vosk.
+• Tradução Instantânea: Tradução ao vivo para mais de 59 idiomas com Google ML Kit ou LibreTranslate auto-hospedado.
+• Tradução Completa da Interface: Traduza toda a interface do aplicativo para 59 idiomas.
+• Histórico e Exportação: Pesquise, revise e exporte registros de legendas com marcação de tempo.
+• Personalização Completa: Ajuste tamanho da fonte, cores do texto, transparência do fundo e posicionamento.
 
-• Janela de legendas flutuante arrastável sobre qualquer app
-• Áudio do microfone ou áudio interno do sistema
-• Modelos de reconhecimento de voz offline Vosk (Small e Large)
-• Tradução offline integrada com Google ML Kit (~59 idiomas) ou LibreTranslate
-• Histórico de transcrição salvo no aparelho
-• Tutorial interativo com vídeo, narração e legendas
+IA NO DISPOSITIVO VS. MODO AUTO-HOSPEDADO
+O LiveCaptionN oferece flexibilidade total para escolher como seu áudio é processado:
 
-REQUISITOS DO SISTEMA & COMPATIBILIDADE
+• Modo 1: IA no Dispositivo (100% Offline e Privado)
+Processa tudo localmente em seu telefone sem necessitar de internet. Após baixar o modelo de voz Vosk e os pacotes de idiomas do ML Kit, seus áudios e transcrições jamais saem do celular. Sem necessidade de conta e com privacidade total.
 
-• Modo IA no Dispositivo (Vosk STT + Tradução ML Kit):
-  - Hardware Mínimo: 2.5 GB de RAM, processador de 4 núcleos, 350 MB de armazenamento livre.
-  - Hardware Recomendado: 4 GB+ de RAM, processador 64-bit (6+ núcleos), 1.5 GB+ de armazenamento livre.
-  - Verificação de Sistema: O app verifica seu hardware ao iniciar. Dispositivos com menos de 2.5 GB de RAM ou menos de 4 núcleos são automaticamente direcionados para o modo Remoto para evitar falhas.
-  - Dispositivos de entrada (2.5 a 3.8 GB de RAM ou 32-bit) recebem um aviso de desempenho com opção de prosseguir.
+• Modo 2: Remoto Auto-Hospedado (Ultra Preciso e Econômico)
+Conecte-se ao seu computador ou servidor doméstico executando OpenAI Whisper ASR e LibreTranslate (pronto para Docker).
+- Como usar: Inicie o contêiner Docker no seu PC e informe o endereço da sua rede local (ex.: http://192.168.1.50:9000) nas configurações do app.
+- Vantagens: Transfere o processamento pesado para o computador, poupando bateria e CPU com a máxima precisão do Whisper. Inclui tutorial interativo com vídeo e áudio.
 
-• Modo Remoto Auto-hospedado (Whisper ASR + LibreTranslate):
-  - Hardware Mínimo: 1.5 GB de RAM, Android 9.0+, rede Wi-Fi local compartilhada com o computador.
-  - Processa no seu PC via Docker, economizando bateria com 100% de privacidade na rede local.
+REQUISITOS DO SISTEMA E TESTE DE COMPATIBILIDADE
+O LiveCaptionN verifica seu hardware automaticamente ao iniciar para sugerir a melhor opção:
 
-PERMISSÕES
+• Modo no Dispositivo:
+- Mínimo: 2.5 GB de RAM, processador de 4 núcleos, 350 MB de armazenamento livre.
+- Recomendado: 4 GB+ de RAM, processador de 64 bits multi-core, 1.5 GB livres (para modelos Grandes).
+- Proteção de estabilidade: Dispositivos com menos de 2.5 GB de RAM ou menos de 4 núcleos são configurados automaticamente no modo remoto para evitar lentidão.
 
-• Android 9.0 (API 28) ou superior
-• Permissão de microfone
-• Permissão de sobreposição sobre outros apps
-• Permissão de notificações
+• Modo Remoto Auto-Hospedado:
+- Mínimo: 1.5 GB de RAM, Android 9.0+ (API 28), conectado à mesma rede Wi-Fi local.
 
-Código aberto e seguro.
+GRÁTIS VS. PLANOS OPCIONAIS
+Todos os recursos essenciais de legendagem e tradução são 100% gratuitos:
+• Grátis: Legendas ilimitadas por microfone e áudio interno, Vosk e ML Kit offline, janela flutuante e modo remoto.
+• Sem Anúncios (R$ 9,99/mês): Remove todos os banners e anúncios para visualização sem interrupções.
+• Pro (R$ 24,99/mês): Totalmente sem anúncios, modelos Vosk de alta precisão para servidores, temas de cores exclusivos, glossário personalizado de termos e pacotes offline ampliados.
+
+PRIVACIDADE E PERMISSÕES
+Sua privacidade é prioridade absoluta. O áudio nunca é enviado para servidores externos:
+• Microfone: Captura a voz para gerar as legendas.
+• Sobrepor a outros apps: Exibe a janela flutuante de legendas.
+• Serviço em primeiro plano: Mantém as legendas ativas durante a multitarefa.
+• Áudio do sistema: Permissão opcional para capturar som interno (Android 10+).

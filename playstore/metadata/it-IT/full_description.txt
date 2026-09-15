@@ -1,30 +1,45 @@
-LiveCaptionN trasforma il tuo dispositivo Android in uno strumento di sottotitolazione e traduzione vocale in tempo reale, visibile in una finestra mobile sopra qualsiasi altra app.
+LiveCaptionN trasforma il tuo smartphone Android in un potente assistente per sottotitoli in tempo reale e traduzione istantanea, visibile in sovrimpressione su qualsiasi app. Ottieni sottotitoli immediati per video, social network, chiamate vocali e video, podcast, riunioni e conversazioni quotidiane. Perfetto per guardare contenuti in lingua straniera, studiare lingue o per l'accessibilità uditiva.
 
-CARATTERISTICHE
+FUNZIONALITÀ PRINCIPALI
+• Finestra Sottotitoli Flottante: Finestra ridimensionabile e trascinabile sopra qualsiasi app; metti in pausa o riduci a icona in qualsiasi momento.
+• Acquisizione Audio Doppia: Ascolta dal microfono o cattura direttamente l'audio interno di sistema (Android 10+).
+• Trascrizione in Tempo Reale: Riconoscimento vocale a bassa latenza alimentato dal motore streaming Vosk.
+• Traduzione Istantanea: Traduzione live in oltre 59 lingue con Google ML Kit o LibreTranslate self-hosted.
+• Traduzione Completa dell'Interfaccia: Traduci l'intera interfaccia dell'applicazione in 59 lingue.
+• Cronologia ed Esportazione: Cerca, rivedi ed esporta le trascrizioni con data e ora.
+• Personalizzazione Totale: Modifica dimensioni del carattere, colori del testo, opacità dello sfondo e posizione.
 
-• Finestra mobile di sottotitoli ridimensionabile e trascinabile
-• Acquisizione da microfono o audio di sistema
-• Modelli di riconoscimento vocale offline Vosk (Small e Large)
-• Traduzione offline Google ML Kit (~59 lingue) o server LibreTranslate
-• Tutorial interattivo con video, voce narrante e sottotitoli
+IA SUL DISPOSITIVO VS. MODALITÀ SELF-HOSTED
+LiveCaptionN ti offre la massima flessibilità nell'elaborazione dell'audio:
+
+• Modalità 1: IA sul Dispositivo (100% Offline e Privata)
+Elabora tutto localmente sul telefono senza connessione a internet. Dopo aver scaricato il modello vocale Vosk e i pacchetti lingua ML Kit, l'audio e le trascrizioni non lasciano mai il dispositivo. Nessun account richiesto, nessun tracciamento.
+
+• Modalità 2: Remota Self-Hosted (Massima Precisione e Risparmio Batteria)
+Collegati al tuo computer o server domestico con OpenAI Whisper ASR e LibreTranslate (pronto per Docker).
+- Come usarlo: Avvia il container Docker sul tuo PC e inserisci l'indirizzo IP locale (es. http://192.168.1.50:9000) nelle impostazioni.
+- Vantaggi: Affida l'elaborazione pesante al PC, risparmiando batteria e CPU con la straordinaria precisione di Whisper. Include tutorial interattivo con video e voce guida.
 
 REQUISITI DI SISTEMA E COMPATIBILITÀ
+LiveCaptionN esegue un controllo hardware automatico all'avvio per consigliarti la modalità migliore:
 
-• Modalità IA sul dispositivo (Vosk STT + Google ML Kit):
-  - Requisiti minimi: 2.5 GB di RAM, processore 4 core, 350 MB di spazio libero.
-  - Requisiti consigliati: 4 GB+ di RAM, processador 64-bit (6+ core), 1.5 GB+ di spazio libero.
-  - Controllo automatico: I dispositivi con meno di 2.5 GB di RAM o meno di 4 core vengono automaticamente impostati sulla modalità remota per evitare crash.
-  - I dispositivi di fascia base (2.5 - 3.8 GB RAM o 32-bit) ricevono un avviso ma possono procedere.
+• Modalità sul Dispositivo:
+- Requisiti minimi: 2.5 GB di RAM, processore quad-core, 350 MB di memoria libera.
+- Consigliati: 4 GB+ di RAM, processore multi-core a 64 bit, 1.5 GB liberi (per modelli Grandi).
+- Protezione stabilità: I dispositivi con meno di 2.5 GB di RAM o meno di 4 core vengono instradati automaticamente alla modalità remota per garantire fluidità.
 
-• Modalità Remota Self-Hosted (Whisper ASR + LibreTranslate):
-  - Requisiti minimi: 1.5 GB di RAM, Android 9.0+, connessione Wi-Fi con il PC.
-  - Elabora l'audio sul tuo PC tramite Docker, risparmiando batteria e garantendo la privacy nella rete locale.
+• Modalità Remota Self-Hosted:
+- Requisiti minimi: 1.5 GB di RAM, Android 9.0+ (API 28), connesso alla rete Wi-Fi locale.
 
-PERMESSI
+GRATIS VS. AGGIORNAMENTI OPZIONALI
+Tutte le funzionalità di base sono gratuite al 100%:
+• Gratis: Sottotitoli illimitati da microfono e audio interno, Vosk e ML Kit offline, finestra flottante ed esportazione.
+• Senza Pubblicità (1,99 €/mese): Rimuove tutti i banner e gli annunci pubblicitari.
+• Pro (4,99 €/mese): Completamente senza pubblicità, modelli Vosk ad altissima precisione, temi di colore premium, glossario personalizzato di termini e pacchetti lingua ampliati.
 
-• Android 9.0 (API 28) o successivo
-• Permesso microfono
-• Permesso di visualizzazione sopra altre applicazioni
-• Permesso notifiche
-
-Open-source e attento alla privacy.
+PRIVACY E PERMESSI
+La tua privacy è fondamentale. I dati audio rimangono sempre sul dispositivo o sulla rete locale:
+• Microfono: Per acquisire la voce in tempo reale.
+• Visualizzazione su altre app: Per mostrare la finestra dei sottotitoli sopra le altre applicazioni.
+• Servizio in primo piano: Per garantire sottotitoli continui durante il multitasking.
+• Audio di sistema: Permesso facoltativo per acquisire l'audio interno (Android 10+).

@@ -1,41 +1,45 @@
-LiveCaptionN turns your Android phone into a real-time speech-to-text captioning and translation tool that floats on top of any app — live captions and subtitles for videos, calls, meetings, and everyday conversations. It listens via mic or app audio, transcribes word-by-word with low latency, translates into your chosen language, and renders a floating, draggable caption window.
+LiveCaptionN turns your Android device into a powerful live captioning and instant translation assistant that floats over any application. Enjoy real-time subtitles for videos, social media, voice and video calls, podcasts, meetings, lectures, and live conversations. Whether you are watching foreign content, learning a new language, or need hearing accessibility, LiveCaptionN delivers continuous word-by-word captions right when you need them.
 
-Perfect for watching foreign-language videos, following meetings, language learning, or hearing accessibility — subtitles that work across all apps.
+CORE FEATURES
+• Floating Caption Overlay: Resizable, draggable window that floats over any app; pause, minimize, or customize anytime.
+• Dual Audio Capture: Listen through your device microphone or capture internal system audio directly (Android 10+).
+• Real-Time Transcription: Instant, low-latency speech-to-text powered by streaming Vosk engine.
+• Instant Translation: Live translation into 59+ languages with Google ML Kit or self-hosted LibreTranslate.
+• Full UI Localization: Translate the entire app interface into 59 languages.
+• Transcript History & Export: Search, review, and export timestamped caption logs.
+• Complete Customization: Adjust font size, text colors, background opacity, and positioning.
 
-Both halves of the pipeline run on-device by default:
-• Streaming Vosk speech recognition — continuous low-latency transcription
-• Google ML Kit on-device translation — ~59 languages, offline after download
-No account required. Zero server dependency for on-device mode.
+ON-DEVICE AI VS. SELF-HOSTED (HOW IT WORKS)
+LiveCaptionN gives you the flexibility to choose how your speech is processed:
 
-FEATURES
-• Floating caption overlay on top of any app: drag, pinch-resize, pause, minimize
-• Mic or system audio capture (via MediaProjection)
-• Built-in downloader for on-device Vosk speech models
-• On-device translation via Google ML Kit, plus optional LibreTranslate backend
-• Interface translation: translate the entire app UI into 59 languages
-• Searchable transcript history, text export, and preset profiles
-• Automatic update notifications via GitHub Releases
+• Mode 1: On-Device AI (100% Offline & Private)
+Processes everything locally on your phone without internet access. After downloading your preferred Vosk speech model and ML Kit language packs, your audio and captions never leave your device. Zero account sign-up, zero tracking, and complete privacy.
 
-SYSTEM REQUIREMENTS & COMPATIBILITY CHECK
-LiveCaptionN includes an automatic hardware compatibility check at launch:
+• Mode 2: Remote Self-Hosted (Ultra-Accurate & Low Battery)
+Connect to your own computer or home server running OpenAI Whisper ASR and LibreTranslate (Docker-ready).
+- How to use: Run the Docker container on your PC/server and enter your local network address (e.g. http://192.168.1.50:9000) in the app settings.
+- Benefits: Offloads heavy AI computing from your phone to your PC, saving battery and CPU while delivering state-of-the-art Whisper accuracy. Includes an in-app interactive tutorial with video and audio guidance.
 
-• On-Device AI Mode (Streaming Vosk STT + ML Kit Translation):
-  - Minimum Requirements: 2.5 GB RAM, 4 CPU cores, 350 MB free storage.
-  - Recommended: 4 GB+ RAM, 64-bit multi-core CPU, 1.5 GB+ free storage (for Large models).
-  - Compatibility Guard: Devices below 2.5 GB RAM or 4 cores are automatically switched to Remote mode to protect device stability. Devices with 2.5–3.8 GB RAM receive a performance advisory with lightweight model options.
+HARDWARE REQUIREMENTS & COMPATIBILITY CHECK
+LiveCaptionN automatically checks your hardware at startup to recommend the optimal mode:
 
-• Remote Self-Hosted Mode (OpenAI Whisper ASR + LibreTranslate):
-  - Works on any Android 9.0+ device (1.5 GB+ RAM) connected via Wi-Fi to your local PC/server.
-  - Zero mobile CPU/battery drain, maximum transcription accuracy, and 100% LAN privacy.
-  - In-app interactive tutorial with dedicated video guide, TTS voice narration, synchronized captions, and complete web documentation.
+• On-Device Mode:
+- Minimum: 2.5 GB RAM, 4 CPU cores, 350 MB free storage.
+- Recommended: 4 GB+ RAM, 64-bit multi-core processor, 1.5 GB free storage (for Large speech models).
+- Compatibility Guard: Devices under 2.5 GB RAM or 4 cores are automatically routed to Self-Hosted mode to prevent memory lag and guarantee device stability. Devices with 2.5–3.8 GB RAM receive performance recommendations with lightweight models.
 
-FREE WITH OPTIONAL UPGRADES
-All core features are 100% free. Optional subscriptions:
-• Ad-Free ($1.99/mo) — removes ads
-• Pro ($4.99/mo) — ad-free, server-grade Vosk models, extra ML Kit languages, custom overlay themes, and glossary replacements.
+• Self-Hosted Remote Mode:
+- Minimum: 1.5 GB RAM, Android 9.0+ (API 28), connected to your home Wi-Fi/LAN. Runs smoothly even on budget or legacy devices.
+
+FREE VS. OPTIONAL UPGRADES
+All core captioning and translation features are 100% free:
+• Free: Unlimited live captions via mic and internal audio, on-device Vosk STT, ML Kit translation, customizable floating window, history export, and self-hosted mode.
+• Ad-Free ($1.99/mo): Removes all banner and interstitial ads for an uninterrupted viewing experience.
+• Pro ($4.99/mo): Completely ad-free, plus unlocks high-accuracy server-grade Vosk models, premium overlay color themes, custom vocabulary and glossary replacements, and extended offline language packs.
 
 PRIVACY & PERMISSIONS
-• Runs on-device: your audio and captions stay private on your phone or local network.
-• Android 9.0 (API 28) or newer (Android 10+ for system audio).
-• Requires Microphone and 'Display over other apps' permissions.
-• Open source: built transparently via GitHub Actions.
+Your privacy comes first. Audio streams and transcripts never leave your device or local network:
+• Microphone: Captures live speech for captioning.
+• Display Over Other Apps: Shows floating captions above other apps.
+• Foreground Service: Keeps captions streaming while multitasking.
+• System Audio: Optional permission to capture internal app playback (Android 10+).
