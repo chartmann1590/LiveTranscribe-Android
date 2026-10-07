@@ -26,6 +26,15 @@
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="${admobAppId}" />
 
+        <!-- Let the Mobile Ads SDK move its initialization and ad-loading work off the
+             main thread (Google's documented mitigation for SDK-related ANRs). -->
+        <meta-data
+            android:name="com.google.android.gms.ads.flag.OPTIMIZE_INITIALIZATION"
+            android:value="true" />
+        <meta-data
+            android:name="com.google.android.gms.ads.flag.OPTIMIZE_AD_LOADING"
+            android:value="true" />
+
         <!-- Resolve conflict between play-services-ads and play-services-measurement-api
              which both inject this property pointing to different XML file names. -->
         <property

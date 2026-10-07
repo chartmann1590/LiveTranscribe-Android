@@ -24,6 +24,9 @@ fun BannerAd(modifier: Modifier = Modifier) {
     val app = LocalContext.current.applicationContext as LiveCaptionApp
     val premium by app.container.premiumRepository.state.collectAsState(initial = PremiumState.EMPTY)
     if (premium.hasAdFree) return
+    // Don't touch the ads SDK on the main thread until it has finished initializing.
+    val adsReady by AdsInitState.ready.collectAsState()
+    if (!adsReady) return
 
     AndroidView(
         modifier = modifier.fillMaxWidth(),

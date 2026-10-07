@@ -2,6 +2,7 @@ package com.charles.livecaptionn.ui
 
 import android.Manifest
 import android.app.Application
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -303,7 +304,25 @@ class MainViewModel(
             Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
             Uri.parse("package:${context.packageName}")
         )
-        context.startActivity(intent)
+        // Some OEM builds / Android Go devices ship no activity for the per-app overlay
+        // screen (Crashlytics #154). Fall back to the generic overlay list, then to the
+        // app's details page, instead of crashing.
+        val fallbacks = listOf(
+            intent,
+            Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION),
+            Intent(
+                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.parse("package:${context.packageName}")
+            )
+        )
+        for (candidate in fallbacks) {
+            try {
+                context.startActivity(candidate)
+                return
+            } catch (_: ActivityNotFoundException) {
+                // try the next one
+            }
+        }
     }
 
     private fun hasMicPermission(): Boolean {
