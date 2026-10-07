@@ -12,6 +12,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,6 +44,9 @@ import com.google.android.gms.ads.nativead.NativeAdView
 @Composable
 fun NativeAdCard(modifier: Modifier = Modifier) {
     if (!AdUnits.ENABLED || AdUnits.NATIVE.isBlank()) return
+    // Don't touch the ads SDK on the main thread until it has finished initializing.
+    val adsReady by AdsInitState.ready.collectAsState()
+    if (!adsReady) return
 
     val context = LocalContext.current
     var nativeAd by remember { mutableStateOf<NativeAd?>(null) }
