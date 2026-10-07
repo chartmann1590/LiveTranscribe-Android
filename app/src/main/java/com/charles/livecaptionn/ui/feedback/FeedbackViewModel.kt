@@ -139,17 +139,19 @@ class FeedbackViewModel(
             try {
                 val api = GithubClient.api
 
-                val title = "[Feedback] ${s.reportTitle}"
+                // Reports become PUBLIC GitHub issues, so never publish the reporter's
+                // email address (and mask any address typed into the title/description).
+                val title = "[Feedback] ${redactEmails(s.reportTitle)}"
                 val bodyBuilder = StringBuilder()
                 bodyBuilder.appendLine("## Description")
                 bodyBuilder.appendLine()
-                bodyBuilder.appendLine(s.reportDescription)
+                bodyBuilder.appendLine(redactEmails(s.reportDescription))
 
                 bodyBuilder.appendLine()
                 bodyBuilder.appendLine("## Contact Info")
                 bodyBuilder.appendLine()
                 bodyBuilder.appendLine("- Name: ${s.reporterName.ifBlank { "Not provided" }}")
-                bodyBuilder.appendLine("- Email: ${s.reporterEmail.ifBlank { "Not provided" }}")
+                bodyBuilder.appendLine("- Email: ${if (s.reporterEmail.isBlank()) "Not provided" else "Provided (withheld from public issue)"}")
 
                 var uploadedUrl: String? = null
                 val attachmentUri = s.attachmentUri
@@ -331,7 +333,7 @@ class FeedbackViewModel(
                 val bodyBuilder = StringBuilder()
                 bodyBuilder.appendLine("## Reply")
                 bodyBuilder.appendLine()
-                bodyBuilder.appendLine(s.replyText.ifBlank { "No text provided." })
+                bodyBuilder.appendLine(redactEmails(s.replyText).ifBlank { "No text provided." })
                 if (uploadedUrl != null) {
                     bodyBuilder.appendLine()
                     bodyBuilder.appendLine("## Attachment")
@@ -380,6 +382,12 @@ class FeedbackViewModel(
 
     private fun randomHex(): String {
         return (1..6).map { "0123456789abcdef".random() }.joinToString("")
+    }
+
+    private fun redactEmails(text: String): String = EMAIL_REGEX.replace(text, "[email removed for privacy]")
+
+    private companion object {
+        val EMAIL_REGEX = Regex("[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}")
     }
 
     class Factory(
