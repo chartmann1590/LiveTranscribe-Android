@@ -96,6 +96,17 @@ async function proxyGithub(path: string, env: Env, init?: RequestInit): Promise<
   }
 }
 
+// Feedback issues and comments are created in a PUBLIC repository, so anything that
+// looks like an email address is stripped server-side before it reaches GitHub. This
+// also covers app versions already in the field that still put "- Email: ..." in the
+// issue body, or users who type their address into the title/description.
+const EMAIL_PATTERN = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
+const EMAIL_PLACEHOLDER = '[email removed for privacy]';
+
+function redactEmails(text: string): string {
+  return text.replace(EMAIL_PATTERN, EMAIL_PLACEHOLDER);
+}
+
 function validateCreateIssueRequest(body: unknown): CreateIssueRequest | null {
   if (typeof body !== 'object' || body === null) return null;
   const title = (body as { title?: unknown }).title;
@@ -104,14 +115,14 @@ function validateCreateIssueRequest(body: unknown): CreateIssueRequest | null {
   const trimmedTitle = title.trim();
   if (trimmedTitle.length === 0 || trimmedTitle.length > MAX_TITLE_LENGTH) return null;
   if (text.length === 0 || text.length > MAX_BODY_LENGTH) return null;
-  return { title: trimmedTitle, body: text };
+  return { title: redactEmails(trimmedTitle), body: redactEmails(text) };
 }
 
 function validatePostCommentRequest(body: unknown): PostCommentRequest | null {
   if (typeof body !== 'object' || body === null) return null;
   const text = (body as { body?: unknown }).body;
   if (typeof text !== 'string' || text.length === 0 || text.length > MAX_BODY_LENGTH) return null;
-  return { body: text };
+  return { body: redactEmails(text) };
 }
 
 function validateUploadImageRequest(body: unknown): UploadImageRequest | null {
