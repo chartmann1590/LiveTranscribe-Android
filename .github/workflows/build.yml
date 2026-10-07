@@ -38,7 +38,8 @@ jobs:
         run: chmod +x gradlew
 
       - name: Validate AdMob secrets
-        if: github.event_name == 'push'
+        # Same-repo PRs get repository secrets, so build them like pushes.
+        if: github.event_name == 'push' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')
         env:
           ADS_ENABLED: ${{ secrets.ADS_ENABLED }}
           ADMOB_APP_ID: ${{ secrets.ADMOB_APP_ID }}
@@ -67,15 +68,43 @@ jobs:
           fi
 
       - name: Generate app/google-services.json from secret
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')
         env:
           GOOGLE_SERVICES_JSON_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
         run: |
           mkdir -p app
           echo "$GOOGLE_SERVICES_JSON_B64" | base64 --decode > app/google-services.json
 
+      - name: Placeholder google-services.json (PRs without secrets)
+        # Dependabot and fork PRs get no repository secrets; the Google Services
+        # plugin only needs a syntactically valid file to compile and run tests.
+        if: github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || github.actor == 'dependabot[bot]')
+        run: |
+          mkdir -p app
+          cat > app/google-services.json <<'EOF'
+          {
+            "project_info": {
+              "project_number": "000000000000",
+              "project_id": "ci-placeholder",
+              "storage_bucket": "ci-placeholder.appspot.com"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:000000000000:android:0000000000000000",
+                  "android_client_info": { "package_name": "com.charles.livecaptionn" }
+                },
+                "oauth_client": [],
+                "api_key": [ { "current_key": "ci-placeholder" } ],
+                "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
+              }
+            ],
+            "configuration_version": "1"
+          }
+          EOF
+
       - name: Generate signing files from secrets
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')
         env:
           ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
           ANDROID_KEYSTORE_FILE: ${{ secrets.ANDROID_KEYSTORE_FILE }}
@@ -92,7 +121,7 @@ jobs:
           EOF
 
       - name: Generate CI local.properties (ads enabled)
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')
         env:
           ADS_ENABLED: ${{ secrets.ADS_ENABLED }}
           ADMOB_APP_ID: ${{ secrets.ADMOB_APP_ID }}
