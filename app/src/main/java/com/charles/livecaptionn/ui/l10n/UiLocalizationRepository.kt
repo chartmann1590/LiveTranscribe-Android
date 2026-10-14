@@ -81,7 +81,7 @@ class UiLocalizationRepository(
                 fromCache = true
             )
         } else {
-            // No cache, or one written by an older version with fewer strings:
+            // No cache, or one written from a different string catalog:
             // selectInternal shows whatever is cached and re-translates.
             select(saved)
         }

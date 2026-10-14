@@ -14,7 +14,11 @@ import com.google.android.gms.ads.FullScreenContentCallback
 import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.appopen.AppOpenAd
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.Date
 
 /**
@@ -61,10 +65,16 @@ class AppOpenAdManager(
         // Do not perform ad SDK loading in the lifecycle callback/main-thread
         // startup path. The next foreground opportunity will load it safely.
         appScope.launch {
+            // attach() runs from Application.onCreate, before MobileAds.initialize()
+            // has finished; touching the SDK in that window blocks on its init locks
+            // (the startup ANR). Wait for readiness, bounded so a completion callback
+            // that never fires (some OEM ROMs, an aborted init) can't strand this.
+            withTimeoutOrNull(ADS_INIT_DEADLINE_MS) { AdsInitState.ready.first { it } }
+                ?: return@launch
             // AppOpenAd.load must be called on the main thread. Dispatching it
             // asynchronously keeps it out of Application.onCreate while still
             // satisfying the Mobile Ads SDK contract.
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main.immediate) {
+            withContext(Dispatchers.Main.immediate) {
                 loadAd()
             }
         }
@@ -75,9 +85,10 @@ class AppOpenAdManager(
     override fun onStart(owner: LifecycleOwner) {
         // Only show on first start (cold start), not warm resumes.
         if (hasShownAd) return
+        // Don't use up the one cold-start ad when there is no activity to host it.
+        val activity = currentActivity ?: return
         hasShownAd = true
         if (hasAdFree) return
-        val activity = currentActivity ?: return
         showAdIfAvailable(activity)
     }
 
@@ -104,6 +115,8 @@ class AppOpenAdManager(
 
     private fun loadAd() {
         if (!AdUnits.ENABLED || AdUnits.APP_OPEN.isBlank()) return
+        // Never touch the SDK before its init callback (main-thread lock -> ANR).
+        if (!AdsInitState.ready.value) return
         if (isLoadingAd || isAdAvailable()) return
         isLoadingAd = true
         val request = AdRequest.Builder().build()
@@ -165,5 +178,7 @@ class AppOpenAdManager(
         private const val TAG = "AppOpenAdManager"
         // Google's SDK contract: app-open ads expire four hours after load.
         private const val AD_TTL_MS = 4 * 60 * 60 * 1000L
+        /** Upper bound on waiting for MobileAds.initialize()'s completion callback. */
+        private const val ADS_INIT_DEADLINE_MS = 15_000L
     }
 }

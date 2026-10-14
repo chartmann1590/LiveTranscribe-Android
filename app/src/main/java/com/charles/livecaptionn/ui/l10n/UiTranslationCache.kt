@@ -39,9 +39,10 @@ class UiTranslationCache(context: Context) {
             dir.mkdirs()
             val obj = JSONObject()
             translations.forEach { (key, value) -> obj.put(key, value) }
-            // Stamp the catalog size so a cache written by an older app version
-            // (fewer strings) is refreshed instead of showing new UI in English.
-            obj.put(CATALOG_SIZE_KEY, UiStringCatalog.ALL.size.toString())
+            // Stamp a fingerprint of the English catalog so a cache written from a
+            // different catalog (strings added, edited or removed) is refreshed
+            // instead of leaving new UI text in English.
+            obj.put(CATALOG_KEY, CATALOG_FINGERPRINT)
             file.writeText(obj.toString())
         } catch (_: Throwable) {
             // Cache is best-effort; a write failure just means a re-translate.
@@ -56,10 +57,18 @@ class UiTranslationCache(context: Context) {
         if (languageCode.isBlank()) null else File(dir, "ui_${languageCode.lowercase()}.json")
 
     companion object {
-        const val CATALOG_SIZE_KEY = "__catalog_size__"
+        const val CATALOG_KEY = "__catalog_fingerprint__"
+
+        /**
+         * Size plus content hash of the English catalog. String.hashCode() is
+         * defined by the language spec, so it is stable across devices and runs.
+         */
+        val CATALOG_FINGERPRINT: String by lazy {
+            "${UiStringCatalog.ALL.size}:${UiStringCatalog.ALL.joinToString("\u0001").hashCode()}"
+        }
 
         /** True when [cached] was produced from the catalog this build ships. */
         fun isCurrent(cached: Map<String, String>): Boolean =
-            cached[CATALOG_SIZE_KEY] == UiStringCatalog.ALL.size.toString()
+            cached[CATALOG_KEY] == CATALOG_FINGERPRINT
     }
 }
