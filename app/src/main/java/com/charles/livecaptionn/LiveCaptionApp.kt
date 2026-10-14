@@ -17,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 class LiveCaptionApp : Application() {
     lateinit var container: AppContainer
@@ -61,7 +62,10 @@ class LiveCaptionApp : Application() {
             // this coroutine (Crashlytics #138/#152/#157/#158). So: publish readiness from
             // the completion callback, and let every ad surface wait for it.
             MobileAds.initialize(this@LiveCaptionApp) { AdsInitState.markReady() }
-            AdsInitState.ready.first { it }
+            // Bounded: if the SDK's completion callback never fires (some OEM ROMs,
+            // an aborted init), the app-open manager still attaches after the
+            // deadline instead of being stranded for the life of the process.
+            withTimeoutOrNull(ADS_INIT_DEADLINE_MS) { AdsInitState.ready.first { it } }
             withContext(Dispatchers.Main) {
                 appOpenAdManager = AppOpenAdManager(
                     this@LiveCaptionApp,
@@ -70,5 +74,10 @@ class LiveCaptionApp : Application() {
                 ).also { it.attach() }
             }
         }
+    }
+
+    private companion object {
+        /** Upper bound on waiting for MobileAds.initialize()'s completion callback. */
+        const val ADS_INIT_DEADLINE_MS = 15_000L
     }
 }

@@ -42,6 +42,14 @@ class VoskModelRegistry(private val context: Context) {
     /** Last download error keyed by model name, for surfacing in the UI. */
     private val errorMap = ConcurrentHashMap<String, String>()
 
+    /**
+     * Same errors as a flow so the model sheet can render them. Before this the
+     * failure was recorded but never shown, so a failed download looked like a
+     * "Get" button that did nothing (Play review, Oct 2026).
+     */
+    private val errorFlow = MutableStateFlow<Map<String, String>>(emptyMap())
+    val downloadErrors: StateFlow<Map<String, String>> = errorFlow.asStateFlow()
+
     init {
         // Asset enumeration and recursive model-directory inspection can block
         // cold startup on devices with large app storage. Load the catalog off
@@ -121,22 +129,28 @@ class VoskModelRegistry(private val context: Context) {
     suspend fun downloadAndInstall(info: VoskModelInfo): Boolean = withContext(Dispatchers.IO) {
         val url = info.downloadUrl
         if (url.isNullOrBlank()) {
-            errorMap[info.modelName] = "No download URL"
+            setError(info.modelName, "No download URL")
             return@withContext false
         }
-        errorMap.remove(info.modelName)
+        clearError(info.modelName)
         reportProgress(info.modelName, 0f)
         try {
             val cacheDir = File(context.cacheDir, "vosk-downloads").apply { mkdirs() }
             val zipFile = File(cacheDir, "${info.modelName}.zip")
             httpClient().newCall(Request.Builder().url(url).build()).execute().use { resp ->
                 if (!resp.isSuccessful) {
-                    errorMap[info.modelName] = "HTTP ${resp.code}"
+                    Log.w("VoskModelRegistry", "Download of ${info.modelName} failed: HTTP ${resp.code} from $url")
+                    val reason = if (resp.code == 404) {
+                        "Download failed (HTTP 404): this model is no longer published"
+                    } else {
+                        "Download failed (HTTP ${resp.code})"
+                    }
+                    setError(info.modelName, reason)
                     reportProgress(info.modelName, null)
                     return@withContext false
                 }
                 val body = resp.body ?: run {
-                    errorMap[info.modelName] = "Empty response"
+                    setError(info.modelName, "Download failed: empty response")
                     reportProgress(info.modelName, null)
                     return@withContext false
                 }
@@ -165,10 +179,27 @@ class VoskModelRegistry(private val context: Context) {
             true
         } catch (t: Throwable) {
             Log.w("VoskModelRegistry", "Failed to install ${info.modelName}", t)
-            errorMap[info.modelName] = t.message ?: t::class.java.simpleName
+            setError(info.modelName, describeFailure(t))
             reportProgress(info.modelName, null)
             false
         }
+    }
+
+    private fun setError(modelName: String, message: String) {
+        errorMap[modelName] = message
+        errorFlow.value = errorMap.toMap()
+    }
+
+    private fun clearError(modelName: String) {
+        errorMap.remove(modelName)
+        errorFlow.value = errorMap.toMap()
+    }
+
+    private fun describeFailure(t: Throwable): String = when (t) {
+        is java.net.UnknownHostException -> "Download failed: no internet connection"
+        is java.net.SocketTimeoutException -> "Download failed: the connection timed out"
+        is java.io.IOException -> "Download failed: ${t.message ?: "network error"}"
+        else -> "Download failed: ${t.message ?: t::class.java.simpleName}"
     }
 
     /** Deletes a downloaded model from disk. Bundled models cannot be deleted. */

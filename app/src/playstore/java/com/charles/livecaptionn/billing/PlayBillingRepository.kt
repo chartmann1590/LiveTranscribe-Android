@@ -29,6 +29,8 @@ class PlayBillingRepository(
     private val adapter: BillingClientAdapter = RealBillingClientAdapter(context) { billingResult, purchases ->
         if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
             appScope.launch { processPurchases(purchases) }
+        } else if (billingResult.responseCode != BillingClient.BillingResponseCode.USER_CANCELED) {
+            Log.w(TAG, "Purchase flow ended: ${describe(billingResult.responseCode, billingResult.debugMessage)}")
         }
     }
 
@@ -52,14 +54,31 @@ class PlayBillingRepository(
 
     override suspend fun purchase(activity: Activity, product: PremiumProduct, email: String?): PurchaseFlowResult {
         val productId = product.playProductId()
-        val details = adapter.queryProductDetails(listOf(productId)).firstOrNull()
-            ?: return PurchaseFlowResult.Failed("Product unavailable")
+        val lookup = try {
+            adapter.lookupProductDetails(listOf(productId))
+        } catch (e: Exception) {
+            Log.w(TAG, "product lookup failed for $productId", e)
+            return PurchaseFlowResult.Failed(e.message ?: "Google Play Billing is unavailable")
+        }
+        val details = lookup.products.firstOrNull()
+        if (details == null) {
+            // Play answered but did not return the product: wrong country, Play
+            // Store signed out, product not active, etc. Say which, instead of
+            // the old bare "Product unavailable".
+            Log.w(TAG, "no product details for $productId: code=${lookup.responseCode} ${lookup.debugMessage}")
+            val reason = if (lookup.responseCode == BillingClient.BillingResponseCode.OK) {
+                describe(BillingClient.BillingResponseCode.ITEM_UNAVAILABLE, lookup.debugMessage)
+            } else {
+                describe(lookup.responseCode, lookup.debugMessage)
+            }
+            return PurchaseFlowResult.Failed(reason)
+        }
         val offerToken = details.subscriptionOfferDetails?.firstOrNull()?.offerToken
         val responseCode = adapter.launchBillingFlow(activity, details, offerToken)
         return if (responseCode == BillingClient.BillingResponseCode.OK) {
             PurchaseFlowResult.Started
         } else {
-            PurchaseFlowResult.Failed("Billing flow error code $responseCode")
+            PurchaseFlowResult.Failed(describe(responseCode))
         }
     }
 

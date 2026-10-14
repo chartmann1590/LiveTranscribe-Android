@@ -92,6 +92,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.charles.livecaptionn.ads.AdUnits
+import com.charles.livecaptionn.billing.PremiumProduct
 import com.charles.livecaptionn.ads.NativeAdCard
 import com.charles.livecaptionn.settings.AudioSource
 import com.charles.livecaptionn.settings.Language
@@ -112,6 +113,7 @@ import com.charles.livecaptionn.ui.l10n.LocalUiStrings
 import com.charles.livecaptionn.ui.l10n.UiLanguagePickerDialog
 import com.charles.livecaptionn.ui.l10n.UiLocalizationRepository.UiLocalizationStage
 import com.charles.livecaptionn.ui.premium.PremiumCard
+import com.charles.livecaptionn.ui.premium.PremiumUiState
 import com.charles.livecaptionn.ui.premium.PremiumViewModel
 import com.charles.livecaptionn.update.UpdateInfo
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -252,7 +254,13 @@ fun MainScreen(
                 }
             val permissionReady = ui.overlayPermissionGranted &&
                 (ui.settings.audioSource == AudioSource.SYSTEM || ui.micPermissionGranted)
-            CaptionControlCard(ui, onStart, onStop, canStart = modelReady && permissionReady)
+            CaptionControlCard(
+                ui, onStart, onStop,
+                canStart = modelReady && permissionReady,
+                modelMissing = !modelReady,
+                onDownloadModel = viewModel::downloadVoskModel,
+                onManageModels = { showVoskSheet = true }
+            )
             PermissionsCard(ui, onRequestAudioPermission, onOpenOverlaySettings)
             DeviceCompatibilityCard(
                 specs = ui.deviceSpecs,
@@ -342,11 +350,17 @@ fun MainScreen(
             VoskModelSheet(
                 models = ui.voskModels,
                 progress = ui.voskDownloadProgress,
+                errors = ui.voskDownloadErrors,
                 hasPro = premiumState.premium.hasPro,
                 onDismiss = { showVoskSheet = false },
                 onDownload = viewModel::downloadVoskModel,
                 onDelete = viewModel::deleteVoskModel,
-                onRequiresPro = { showVoskSheet = false }
+                onRequiresPro = {
+                    // Used to just close the sheet, which left the user with no
+                    // way to reach the purchase (Play review, Oct 2026).
+                    showVoskSheet = false
+                    showUpgradePrompt = true
+                }
             )
         }
 
@@ -362,15 +376,19 @@ fun MainScreen(
         }
 
         if (showUpgradePrompt) {
-            AlertDialog(
-                onDismissRequest = { showUpgradePrompt = false },
-                title = { Text(t["Pro feature"]) },
-                text = { Text(t["Upgrade to Pro to unlock this feature. The upgrade removes ads and adds high-accuracy models, more languages, profiles, and advanced caption tools."]) },
-                confirmButton = {
-                    TextButton(onClick = { showUpgradePrompt = false }) { Text(t["View upgrade options"]) }
+            ProUpgradeDialog(
+                state = premiumState,
+                onGoPro = {
+                    val act = activity
+                    if (act != null) premiumVm.purchase(act, PremiumProduct.PRO_MONTHLY)
                 },
-                dismissButton = { TextButton(onClick = { showUpgradePrompt = false }) { Text(t["Close"]) } }
+                onDismiss = { showUpgradePrompt = false }
             )
+            // Close the prompt once Pro is active so it does not linger after
+            // Google Play's purchase sheet returns.
+            LaunchedEffect(premiumState.premium.hasPro) {
+                if (premiumState.premium.hasPro) showUpgradePrompt = false
+            }
         }
 
         if (feedbackState.showReportDialog) {
@@ -418,7 +436,10 @@ private fun CaptionControlCard(
     ui: MainUiState,
     onStart: () -> Unit,
     onStop: () -> Unit,
-    canStart: Boolean
+    canStart: Boolean,
+    modelMissing: Boolean = false,
+    onDownloadModel: (VoskModelInfo) -> Unit = {},
+    onManageModels: () -> Unit = {}
 ) {
     val isRunning = ui.runtime.running
     val t = LocalUiStrings.current
@@ -519,6 +540,73 @@ private fun CaptionControlCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error
                 )
+            }
+            if (!isRunning && modelMissing) {
+                // A fresh install ships no speech model, so Start used to sit
+                // disabled with nothing to tap. Offer the download right here.
+                MissingModelPrompt(ui, onDownloadModel, onManageModels)
+            }
+        }
+    }
+}
+
+@Composable
+private fun MissingModelPrompt(
+    ui: MainUiState,
+    onDownloadModel: (VoskModelInfo) -> Unit,
+    onManageModels: () -> Unit
+) {
+    val t = LocalUiStrings.current
+    val source = ui.settings.sourceLanguageCode
+    val candidate = ui.voskModels
+        .filter { !it.installed && it.languageCode.equals(source, ignoreCase = true) }
+        .minByOrNull { if (it.quality == ModelQuality.SMALL) 0 else 1 }
+    Spacer(Modifier.height(8.dp))
+    when {
+        candidate == null -> {
+            val name = Language.FALLBACK.firstOrNull { it.code.equals(source, ignoreCase = true) }?.name ?: source.uppercase()
+            Text(
+                text = t.format(
+                    "There is no on-device speech model for %s. Switch the engine to “Android built-in” (uses your phone's Google speech recognizer for the microphone) or pick another language.",
+                    name
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        candidate.quality == ModelQuality.LARGE -> {
+            TextButton(onClick = onManageModels) { Text(t["Manage on-device models"]) }
+        }
+        else -> {
+            val progress = ui.voskDownloadProgress[candidate.modelName]
+            val error = ui.voskDownloadErrors[candidate.modelName]
+            if (progress != null) {
+                LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth())
+                Text(
+                    text = t.format("Downloading %s model…", candidate.languageName),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                FilledTonalButton(
+                    onClick = { onDownloadModel(candidate) },
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Filled.Download, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        if (error != null) t.format("Retry %s model download (~%d MB)", candidate.languageName, candidate.sizeMb)
+                        else t.format("Download %s model (~%d MB)", candidate.languageName, candidate.sizeMb)
+                    )
+                }
+                if (error != null) {
+                    Text(
+                        text = t[error],
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
             }
         }
     }
@@ -882,7 +970,7 @@ private fun LanguagePickerField(
 }
 
 @Composable
-private fun LanguagePickerDialog(
+internal fun LanguagePickerDialog(
     options: List<Language>,
     selectedCode: String,
     onDismiss: () -> Unit,
@@ -969,6 +1057,44 @@ private fun LanguagePickerDialog(
 
 // ── Vosk model management ──
 
+/**
+ * Shown from every Pro lock in the app (locked languages, large models, overlay
+ * themes/fonts, profiles, glossary). "View upgrade options" used to only dismiss
+ * this dialog, so a user who tapped a locked language had no path to the purchase
+ * at all (Play review, Oct 2026). The confirm button now opens Google Play's
+ * purchase sheet directly and any billing problem is shown right here.
+ */
+@Composable
+internal fun ProUpgradeDialog(
+    state: PremiumUiState,
+    onGoPro: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val t = LocalUiStrings.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(t["Pro feature"]) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(t["Upgrade to Pro to unlock this feature. The upgrade removes ads and adds high-accuracy models, more languages, profiles, and advanced caption tools."])
+                state.error?.let { error ->
+                    Text(
+                        text = error,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(enabled = !state.isBusy, onClick = onGoPro) {
+                Text(if (state.isBusy) t["Opening Google Play…"] else t["Go Pro"])
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(t["Not now"]) } }
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun VoskModelSheet(
@@ -978,7 +1104,8 @@ private fun VoskModelSheet(
     onDismiss: () -> Unit,
     onDownload: (VoskModelInfo) -> Unit,
     onDelete: (VoskModelInfo) -> Unit,
-    onRequiresPro: () -> Unit
+    onRequiresPro: () -> Unit,
+    errors: Map<String, String> = emptyMap()
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val t = LocalUiStrings.current
@@ -1010,6 +1137,7 @@ private fun VoskModelSheet(
                     VoskRow(
                         model = model,
                         progress = progress[model.modelName],
+                        error = errors[model.modelName],
                         locked = false,
                         onDownload = { onDownload(model) },
                         onDelete = { onDelete(model) },
@@ -1029,6 +1157,7 @@ private fun VoskModelSheet(
                     VoskRow(
                         model = model,
                         progress = progress[model.modelName],
+                        error = errors[model.modelName],
                         locked = !hasPro,
                         onDownload = { onDownload(model) },
                         onDelete = { onDelete(model) },
@@ -1048,6 +1177,7 @@ private fun VoskModelSheet(
                     VoskRow(
                         model = model,
                         progress = progress[model.modelName],
+                        error = errors[model.modelName],
                         locked = false,
                         onDownload = { onDownload(model) },
                         onDelete = { onDelete(model) },
@@ -1061,19 +1191,25 @@ private fun VoskModelSheet(
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            Text(
+                text = t["Languages without an on-device model here (for example Indonesian) can still be captioned from the microphone: set the engine to “Android built-in”, which uses your phone's Google speech recognizer."],
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             Spacer(Modifier.height(8.dp))
         }
     }
 }
 
 @Composable
-private fun VoskRow(
+internal fun VoskRow(
     model: VoskModelInfo,
     progress: Float?,
     locked: Boolean,
     onDownload: () -> Unit,
     onDelete: () -> Unit,
-    onRequiresPro: () -> Unit
+    onRequiresPro: () -> Unit,
+    error: String? = null
 ) {
     val t = LocalUiStrings.current
     Card(
@@ -1138,7 +1274,7 @@ private fun VoskRow(
                         FilledTonalButton(onClick = onDownload, shape = RoundedCornerShape(8.dp)) {
                             Icon(Icons.Filled.Download, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(4.dp))
-                            Text(t["Get"])
+                            Text(if (error != null) t["Retry"] else t["Get"])
                         }
                     }
                 }
@@ -1147,6 +1283,13 @@ private fun VoskRow(
                 LinearProgressIndicator(
                     progress = { progress },
                     modifier = Modifier.fillMaxWidth()
+                )
+            }
+            if (progress == null && error != null && !model.installed) {
+                Text(
+                    text = t[error],
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.error
                 )
             }
         }

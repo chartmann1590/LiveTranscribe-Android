@@ -74,13 +74,15 @@ class UiLocalizationRepository(
             return
         }
         val cached = cache.read(saved)
-        if (cached != null && cached.isNotEmpty()) {
+        if (cached != null && cached.isNotEmpty() && UiTranslationCache.isCurrent(cached)) {
             _state.value = State(
                 languageCode = saved,
                 strings = UiStrings(cached),
                 fromCache = true
             )
         } else {
+            // No cache, or one written by an older version with fewer strings:
+            // selectInternal shows whatever is cached and re-translates.
             select(saved)
         }
     }
@@ -113,10 +115,14 @@ class UiLocalizationRepository(
                 fromCache = true,
                 error = null
             )
-            return
+            if (UiTranslationCache.isCurrent(cached)) return
+            // Stale cache (app updated with new strings): keep showing it while
+            // the whole catalog is re-translated below.
+            Log.i(TAG, "UI cache for $lang predates this build's catalog; refreshing")
         }
         _state.value = State(
             languageCode = lang,
+            strings = _state.value.strings.takeIf { _state.value.languageCode == lang } ?: UiStrings.EMPTY,
             modelBusy = true,
             stage = UiLocalizationStage.DOWNLOADING,
             error = null

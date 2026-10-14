@@ -1,0 +1,53 @@
+name: Model links
+
+# Every Vosk model URL in VoskModelCatalog.kt must answer 200 with a zip.
+# Runs on changes to the catalog, weekly, and on demand; a scheduled failure
+# opens (or updates) an issue so a link that dies later is visible.
+
+on:
+  pull_request:
+    paths:
+      - 'app/src/main/java/com/charles/livecaptionn/speech/VoskModelCatalog.kt'
+      - 'tools/check_model_links.py'
+      - '.github/workflows/model-links.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'app/src/main/java/com/charles/livecaptionn/speech/VoskModelCatalog.kt'
+      - 'tools/check_model_links.py'
+      - '.github/workflows/model-links.yml'
+  schedule:
+    - cron: '0 9 * * 1'   # Mondays 09:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Check every model URL
+        id: check
+        run: python3 tools/check_model_links.py 2>&1 | tee model-links.log
+
+      - name: Open or update an issue when a scheduled check fails
+        if: failure() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="Dead Vosk model link(s) in VoskModelCatalog"
+          body="The weekly model-link check failed. Log:\n\n\`\`\`\n$(grep -E 'FAIL|broken' model-links.log)\n\`\`\`\n\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          number=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "$title in:title" --json number --jq '.[0].number')
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --repo "$GITHUB_REPOSITORY" --body "$(printf "$body")"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$(printf "$body")" --label bug
+          fi

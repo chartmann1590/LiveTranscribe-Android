@@ -53,7 +53,7 @@ object VoskModelCatalog {
         small("pt", "Portuguese",    "vosk-model-small-pt-0.3",      31),
         small("nl", "Dutch",         "vosk-model-small-nl-0.22",     39),
         small("ru", "Russian",       "vosk-model-small-ru-0.22",     45),
-        small("uk", "Ukrainian",     "vosk-model-small-uk-v3-small", 75),
+        small("uk", "Ukrainian",     "vosk-model-small-uk-v3-small", 144),
         small("pl", "Polish",        "vosk-model-small-pl-0.22",     50),
         small("cs", "Czech",         "vosk-model-small-cs-0.4-rhasspy", 44),
         small("tr", "Turkish",       "vosk-model-small-tr-0.3",      35),
@@ -62,28 +62,31 @@ object VoskModelCatalog {
         small("zh", "Chinese",       "vosk-model-small-cn-0.22",     42),
         small("ja", "Japanese",      "vosk-model-small-ja-0.22",     48),
         small("ko", "Korean",        "vosk-model-small-ko-0.22",     82),
-        small("id", "Indonesian",    "vosk-model-small-id-0.22",     30),
+        // No Indonesian entry: alphacephei.com publishes no Vosk model for
+        // Indonesian (vosk-model-small-id-0.22.zip answers 404), so listing one
+        // only produced a "Get" button that could never work. Indonesian is
+        // still available as a Pro translation language via ML Kit.
 
         // ── Medium / fallthrough (no small variant available) ────────────
-        // 318 MB — no small variant exists; listed separately so users
+        // 333 MB — no small variant exists; listed separately so users
         // aren't surprised by a 300+ MB "small" download.
-        large("ar", "Arabic",        "vosk-model-ar-mgb2-0.4",       318),
+        large("ar", "Arabic",        "vosk-model-ar-mgb2-0.4",       333),
 
         // ── Large / accurate (optional, for users with space to burn) ─────
         // Small variants stay listed above so users can pick the tier that
         // matches their phone. Large models run slower and use more RAM but
         // give meaningfully better WER on the same audio.
         large("vi", "Vietnamese",    "vosk-model-vn-0.4",            78),   // server-grade, still mobile-friendly
-        large("uk", "Ukrainian",     "vosk-model-uk-v3",             343),
-        large("en", "English",       "vosk-model-en-us-0.22",        1800), // 5.69 WER
-        large("es", "Spanish",       "vosk-model-es-0.42",           1400),
-        large("fr", "French",        "vosk-model-fr-0.22",           1400),
-        large("de", "German",        "vosk-model-de-0.21",           1900),
+        large("uk", "Ukrainian",     "vosk-model-uk-v3",             371),
+        large("en", "English",       "vosk-model-en-us-0.22",        1900), // 5.69 WER
+        large("es", "Spanish",       "vosk-model-es-0.42",           1500),
+        large("fr", "French",        "vosk-model-fr-0.22",           1500),
+        large("de", "German",        "vosk-model-de-0.21",           2000),
         large("it", "Italian",       "vosk-model-it-0.22",           1200),
-        large("pt", "Portuguese",    "vosk-model-pt-fb-v0.1.1-20220516_2113", 1600),
-        large("nl", "Dutch",         "vosk-model-nl-spraakherkenning-0.6",    860),
-        large("ru", "Russian",       "vosk-model-ru-0.42",           1800),
-        large("fa", "Persian",       "vosk-model-fa-0.42",           1600),
+        large("pt", "Portuguese",    "vosk-model-pt-fb-v0.1.1-20220516_2113", 1700),
+        large("nl", "Dutch",         "vosk-model-nl-spraakherkenning-0.6",    1000),
+        large("ru", "Russian",       "vosk-model-ru-0.42",           1900),
+        large("fa", "Persian",       "vosk-model-fa-0.42",           1700),
         large("hi", "Hindi",         "vosk-model-hi-0.22",           1500),
         large("zh", "Chinese",       "vosk-model-cn-0.22",           1300),
         large("ja", "Japanese",      "vosk-model-ja-0.22",           1000),

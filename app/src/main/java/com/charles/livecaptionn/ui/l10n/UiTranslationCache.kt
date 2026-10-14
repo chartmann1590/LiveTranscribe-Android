@@ -39,6 +39,9 @@ class UiTranslationCache(context: Context) {
             dir.mkdirs()
             val obj = JSONObject()
             translations.forEach { (key, value) -> obj.put(key, value) }
+            // Stamp the catalog size so a cache written by an older app version
+            // (fewer strings) is refreshed instead of showing new UI in English.
+            obj.put(CATALOG_SIZE_KEY, UiStringCatalog.ALL.size.toString())
             file.writeText(obj.toString())
         } catch (_: Throwable) {
             // Cache is best-effort; a write failure just means a re-translate.
@@ -51,4 +54,12 @@ class UiTranslationCache(context: Context) {
 
     private fun fileFor(languageCode: String): File? =
         if (languageCode.isBlank()) null else File(dir, "ui_${languageCode.lowercase()}.json")
+
+    companion object {
+        const val CATALOG_SIZE_KEY = "__catalog_size__"
+
+        /** True when [cached] was produced from the catalog this build ships. */
+        fun isCurrent(cached: Map<String, String>): Boolean =
+            cached[CATALOG_SIZE_KEY] == UiStringCatalog.ALL.size.toString()
+    }
 }

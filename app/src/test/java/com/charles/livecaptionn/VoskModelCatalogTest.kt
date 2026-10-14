@@ -73,6 +73,31 @@ class VoskModelCatalogTest {
     }
 
     @Test
+    fun catalog_hasNoDuplicateModelNames() {
+        val names = VoskModelCatalog.DOWNLOADABLE.map { it.modelName }
+        assertEquals(names.size, names.toSet().size)
+    }
+
+    @Test
+    fun downloadable_urlsPointAtTheirOwnModelZip() {
+        // A catalog row whose URL names a different (or non-existent) archive
+        // is a "Get" button that can never work.
+        for (model in VoskModelCatalog.DOWNLOADABLE) {
+            assertEquals(
+                "https://alphacephei.com/vosk/models/${model.modelName}.zip",
+                model.downloadUrl
+            )
+        }
+    }
+
+    @Test
+    fun indonesian_isNotListedAsADownloadableModel() {
+        // alphacephei.com publishes no Vosk model for Indonesian; the old
+        // vosk-model-small-id-0.22 entry answered HTTP 404 (Play review, Oct 2026).
+        assertNull(VoskModelCatalog.findByLanguage("id"))
+    }
+
+    @Test
     fun arabicModel_isLarge() {
         val model = VoskModelCatalog.findByLanguage("ar")
         assertNotNull(model)

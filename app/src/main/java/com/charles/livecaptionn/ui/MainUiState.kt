@@ -20,6 +20,8 @@ data class MainUiState(
     val libreError: String? = null,
     val voskModels: List<VoskModelInfo> = emptyList(),
     val voskDownloadProgress: Map<String, Float> = emptyMap(),
+    /** Last failed download per model name, shown in the model sheet. */
+    val voskDownloadErrors: Map<String, String> = emptyMap(),
     val availableUpdate: UpdateInfo? = null,
     /** True when the running APK was installed from the Google Play Store. Used
      *  to warn Play Store users before they grab a (potentially unstable)

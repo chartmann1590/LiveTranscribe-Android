@@ -5,6 +5,7 @@ import android.app.Application
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -112,6 +113,11 @@ class MainViewModel(
         viewModelScope.launch {
             container.voskRegistry.downloadProgress.collectLatest { progress ->
                 mutableState.value = mutableState.value.copy(voskDownloadProgress = progress)
+            }
+        }
+        viewModelScope.launch {
+            container.voskRegistry.downloadErrors.collectLatest { errors ->
+                mutableState.value = mutableState.value.copy(voskDownloadErrors = errors)
             }
         }
         if (BuildConfig.GITHUB_SELF_UPDATE_ENABLED) {
@@ -321,6 +327,11 @@ class MainViewModel(
                 return
             } catch (_: ActivityNotFoundException) {
                 // try the next one
+            } catch (e: RuntimeException) {
+                // Some OEM builds throw SecurityException / IllegalArgumentException
+                // for restricted settings screens instead; a missing settings
+                // page must never crash the app.
+                Log.w("MainViewModel", "Overlay settings intent rejected: $candidate", e)
             }
         }
     }
