@@ -24,10 +24,14 @@ jobs:
 
     steps:
       - name: Validate confirmation input
+        env:
+          # Inputs go through env, never straight into the script, so quotes or
+          # backticks typed into a field can't break (or inject into) the shell.
+          CONFIRM_PLAY_PUBLISH: ${{ github.event.inputs.confirm_play_publish }}
         run: |
-          if [ "${{ github.event.inputs.confirm_play_publish }}" != "publish" ]; then
+          if [ "$CONFIRM_PLAY_PUBLISH" != "publish" ]; then
             echo "::error::You must type 'publish' in the confirm_play_publish input to proceed."
-            echo "Provided: '${{ github.event.inputs.confirm_play_publish }}'"
+            echo "Provided: '$CONFIRM_PLAY_PUBLISH'"
             exit 1
           fi
           echo "Play publish confirmed."
@@ -116,12 +120,13 @@ jobs:
 
       - name: Prepare release notes
         id: notes
+        env:
+          RELEASE_NOTES: ${{ github.event.inputs.release_notes }}
         run: |
           mkdir -p distribution/whatsnew
           WHATSNEW_FILE="distribution/whatsnew/whatsnew-en-US"
-          RELEASE_NOTES="${{ github.event.inputs.release_notes }}"
           if [ -n "$RELEASE_NOTES" ]; then
-            echo "$RELEASE_NOTES" > "$WHATSNEW_FILE"
+            printf '%s\n' "$RELEASE_NOTES" > "$WHATSNEW_FILE"
           elif [ -f listing/whats_new.txt ]; then
             cp listing/whats_new.txt "$WHATSNEW_FILE"
           else
