@@ -183,7 +183,7 @@ fun OnboardingScreen(
                 Text(t["Before your first session"], fontWeight = FontWeight.SemiBold)
                 Text(t["1. Allow microphone access for microphone captions."], style = MaterialTheme.typography.bodySmall)
                 Text(t["2. Allow display over other apps so captions can float above video."], style = MaterialTheme.typography.bodySmall)
-                Text(t["3. The app includes English and Vietnamese offline speech models. More models can be downloaded later."], style = MaterialTheme.typography.bodySmall)
+                Text(t["3. Download a free offline speech model for your language from Manage on-device models (English, Vietnamese and many more)."], style = MaterialTheme.typography.bodySmall)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = onRequestAudioPermission, modifier = Modifier.weight(1f)) { Text(t["Microphone"]) }
                     OutlinedButton(onClick = onOpenOverlaySettings, modifier = Modifier.weight(1f)) { Text(t["Overlay"]) }

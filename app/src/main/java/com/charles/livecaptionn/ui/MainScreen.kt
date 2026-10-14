@@ -567,7 +567,7 @@ private fun MissingModelPrompt(
             val name = Language.FALLBACK.firstOrNull { it.code.equals(source, ignoreCase = true) }?.name ?: source.uppercase()
             Text(
                 text = t.format(
-                    "There is no on-device speech model for %s. Switch the engine to “Android built-in” (uses your phone's Google speech recognizer for the microphone) or pick another language.",
+                    "There is no on-device speech model for %s here. Try the “Android built-in” engine (uses your phone's speech service, microphone only, if it supports this language) or pick another language.",
                     name
                 ),
                 style = MaterialTheme.typography.bodySmall,
@@ -1192,7 +1192,7 @@ private fun VoskModelSheet(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                text = t["Languages without an on-device model here (for example Indonesian) can still be captioned from the microphone: set the engine to “Android built-in”, which uses your phone's Google speech recognizer."],
+                text = t["Languages without a model here (for example Indonesian) may still work from the microphone with the “Android built-in” engine, if your phone's speech service supports that language. Android may need to download the language first."],
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

@@ -328,7 +328,7 @@ class CaptionForegroundService : Service() {
                     }
                     AudioSource.MIC -> {
                         val engine = AndroidSpeechRecognizerManager(
-                            this@CaptionForegroundService, onSpeechResult
+                            this@CaptionForegroundService, onSpeechResult, onError = errorSink
                         )
                         engine.setLanguage(localeForSpeechRec)
                         speechEngine = engine
