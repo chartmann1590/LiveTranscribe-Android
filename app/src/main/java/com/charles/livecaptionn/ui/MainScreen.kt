@@ -257,10 +257,12 @@ fun MainScreen(
             // A Pro-only ML Kit language can stay selected after Pro lapses (or after a
             // restore). Starting then used to fail inside the service with the reason
             // hidden, so the Start button looked dead. Open the upgrade flow instead.
-            val startNeedsPro = !premiumState.premium.hasPro &&
-                ui.settings.translationBackend == TranslationBackend.ML_KIT &&
-                (MlKitLanguages.requiresPro(ui.settings.sourceLanguageCode) ||
-                    MlKitLanguages.requiresPro(ui.settings.targetLanguageCode))
+            val startNeedsPro = com.charles.livecaptionn.translation.ProStartGate.requiresPro(
+                backend = ui.settings.translationBackend,
+                sourceLanguageCode = ui.settings.sourceLanguageCode,
+                targetLanguageCode = ui.settings.targetLanguageCode,
+                hasPro = premiumState.premium.hasPro
+            )
             CaptionControlCard(
                 ui,
                 onStart = { if (startNeedsPro) showUpgradePrompt = true else onStart() },

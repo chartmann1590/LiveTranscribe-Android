@@ -2,7 +2,9 @@ package com.charles.livecaptionn
 
 import com.charles.livecaptionn.speech.ModelQuality
 import com.charles.livecaptionn.speech.VoskModelCatalog
+import com.charles.livecaptionn.settings.TranslationBackend
 import com.charles.livecaptionn.translation.MlKitLanguages
+import com.charles.livecaptionn.translation.ProStartGate
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -49,5 +51,27 @@ class ProGatingTest {
             if (model.languageCode == "ar") continue // Vosk publishes no small Arabic model
             assertTrue("${model.languageCode} has only a Pro model", model.languageCode in small)
         }
+    }
+
+    @Test
+    fun startWithProLanguage_withoutPro_needsPro() {
+        // The Start button opens the upgrade flow in this case instead of failing silently.
+        assertTrue(ProStartGate.requiresPro(TranslationBackend.ML_KIT, "en", "id", hasPro = false))
+        assertTrue(ProStartGate.requiresPro(TranslationBackend.ML_KIT, "id", "en", hasPro = false))
+    }
+
+    @Test
+    fun startWithProLanguage_withPro_starts() {
+        assertFalse(ProStartGate.requiresPro(TranslationBackend.ML_KIT, "en", "id", hasPro = true))
+    }
+
+    @Test
+    fun startWithFreeLanguages_starts() {
+        assertFalse(ProStartGate.requiresPro(TranslationBackend.ML_KIT, "en", "es", hasPro = false))
+    }
+
+    @Test
+    fun startWithLibreTranslate_isNotGatedByMlKitTiers() {
+        assertFalse(ProStartGate.requiresPro(TranslationBackend.LIBRE_TRANSLATE, "en", "id", hasPro = false))
     }
 }

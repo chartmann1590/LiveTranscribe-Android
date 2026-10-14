@@ -189,10 +189,12 @@ class CaptionForegroundService : Service() {
             val localeForSpeechRec = LocaleMap.bcp47(sttLanguageCode)
 
             val premium = app.container.premiumRepository.state.first()
-            if (settings.translationBackend == com.charles.livecaptionn.settings.TranslationBackend.ML_KIT &&
-                (com.charles.livecaptionn.translation.MlKitLanguages.requiresPro(settings.sourceLanguageCode) ||
-                    com.charles.livecaptionn.translation.MlKitLanguages.requiresPro(settings.targetLanguageCode)) &&
-                !premium.hasPro
+            if (com.charles.livecaptionn.translation.ProStartGate.requiresPro(
+                    backend = settings.translationBackend,
+                    sourceLanguageCode = settings.sourceLanguageCode,
+                    targetLanguageCode = settings.targetLanguageCode,
+                    hasPro = premium.hasPro
+                )
             ) {
                 failAndStop("This ML Kit language requires Pro. Choose a free language or upgrade.")
                 return@launch
