@@ -254,8 +254,17 @@ fun MainScreen(
                 }
             val permissionReady = ui.overlayPermissionGranted &&
                 (ui.settings.audioSource == AudioSource.SYSTEM || ui.micPermissionGranted)
+            // A Pro-only ML Kit language can stay selected after Pro lapses (or after a
+            // restore). Starting then used to fail inside the service with the reason
+            // hidden, so the Start button looked dead. Open the upgrade flow instead.
+            val startNeedsPro = !premiumState.premium.hasPro &&
+                ui.settings.translationBackend == TranslationBackend.ML_KIT &&
+                (MlKitLanguages.requiresPro(ui.settings.sourceLanguageCode) ||
+                    MlKitLanguages.requiresPro(ui.settings.targetLanguageCode))
             CaptionControlCard(
-                ui, onStart, onStop,
+                ui,
+                onStart = { if (startNeedsPro) showUpgradePrompt = true else onStart() },
+                onStop = onStop,
                 canStart = modelReady && permissionReady,
                 modelMissing = !modelReady,
                 onDownloadModel = viewModel::downloadVoskModel,
@@ -478,7 +487,8 @@ private fun CaptionControlCard(
                 )
             }
             val err = ui.runtime.lastError?.trim().orEmpty()
-            if (isRunning && err.isNotEmpty()) {
+            // Also show the reason when it stopped the session; that is when it matters.
+            if (err.isNotEmpty() && (isRunning || ui.runtime.status == RecognitionStatus.ERROR)) {
                 Spacer(Modifier.height(8.dp))
                 Text(
                     text = err,

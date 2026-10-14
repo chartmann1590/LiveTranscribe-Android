@@ -1,4 +1,5 @@
-• Fixed overlay layout: transcription and translation no longer overlap, featuring clean row separation and typography.
-• Hardware Compatibility Check: automatically recommends optimal on-device or remote AI mode based on device RAM and CPU.
-• Interactive Self-Hosted Tutorial: step-by-step video and voice guidance for Docker Whisper and LibreTranslate setup.
-• Performance & Stability: smoother overlay dragging, lower latency, and enhanced memory efficiency.
+• Fixed language model downloads: errors now show with a Retry button instead of a silent button. Removed the Indonesian speech model, which no longer exists upstream.
+• Pro locks and "View upgrade options" now open the Google Play purchase screen.
+• The Android built-in speech engine works again on newer Android and asks your phone to download missing speech languages.
+• Readable times in exported transcripts.
+• Fixed a startup freeze caused by ad loading.

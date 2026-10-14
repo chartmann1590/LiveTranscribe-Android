@@ -210,7 +210,8 @@ class CaptionForegroundService : Service() {
             }
 
             app.container.runtimeStore.update {
-                it.copy(running = true, paused = false, status = RecognitionStatus.LISTENING)
+                // Clear a reason left over from an earlier failed start.
+                it.copy(running = true, paused = false, status = RecognitionStatus.LISTENING, lastError = null)
             }
 
             // Prewarm the active translation backend so the first spoken
