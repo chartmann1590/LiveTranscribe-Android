@@ -1,0 +1,44 @@
+name: Assemble asset
+
+on:
+  workflow_dispatch:
+    inputs:
+      parts:
+        description: "Glob of the part files, in order (e.g. docs/assets/tutorial/walkthrough.mp4.part-*)"
+        required: true
+      path:
+        description: "Destination path (e.g. docs/assets/tutorial/walkthrough.mp4)"
+        required: true
+      sha256:
+        description: "Expected SHA-256 of the assembled file"
+        required: true
+      message:
+        description: "Commit message"
+        required: false
+        default: "Add asset"
+
+permissions:
+  contents: write
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Join the parts and verify
+        shell: bash
+        run: |
+          set -e
+          ls -1 ${{ inputs.parts }} | sort
+          cat $(ls -1 ${{ inputs.parts }} | sort) > "${{ inputs.path }}"
+          echo "${{ inputs.sha256 }}  ${{ inputs.path }}" | sha256sum -c -
+          git rm -q ${{ inputs.parts }}
+          ls -la "${{ inputs.path }}"
+      - name: Commit and push
+        shell: bash
+        run: |
+          git config user.name "chartmann1590"
+          git config user.email "chartmann1590@users.noreply.github.com"
+          git add "${{ inputs.path }}"
+          git commit -m "${{ inputs.message }}"
+          git push

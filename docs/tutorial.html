@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-7NGY5W0W0Q"></script>
+<script>window.dataLayer = window.dataLayer || [];function gtag(){dataLayer.push(arguments);}gtag('js', new Date());gtag('config', 'G-7NGY5W0W0Q');</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How to use LiveCaptionN — step-by-step tutorial with screenshots and video</title>
+<meta name="description" content="A plain-language walkthrough of LiveCaptionN for Android: permissions, audio source, speech models, languages, the floating caption window, translation and history — with real screenshots, a screen recording and a troubleshooting FAQ.">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://chartmann1590.github.io/LiveTranscribe-Android/tutorial.html">
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<meta name="theme-color" content="#0b0717">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="LiveCaptionN">
+<meta property="og:title" content="How to use LiveCaptionN — step-by-step tutorial">
+<meta property="og:description" content="Permissions, audio source, languages, the floating caption window, translation and history, explained with real screenshots and a screen recording.">
+<meta property="og:url" content="https://chartmann1590.github.io/LiveTranscribe-Android/tutorial.html">
+<meta property="og:image" content="https://chartmann1590.github.io/LiveTranscribe-Android/assets/tutorial/walkthrough-poster.jpg">
+<meta property="og:image:alt" content="LiveCaptionN captioning a video with English text and a Vietnamese translation">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="How to use LiveCaptionN — step-by-step tutorial">
+<meta name="twitter:image" content="https://chartmann1590.github.io/LiveTranscribe-Android/assets/tutorial/walkthrough-poster.jpg">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "HowTo", "name": "How to use LiveCaptionN", "description": "Set up LiveCaptionN on Android and get live captions with translation floating over any app.", "totalTime": "PT5M", "tool": [{"@type": "HowToTool", "name": "Android phone (Android 10 or newer)"}], "step": [{"@type": "HowToStep", "position": 1, "name": "Allow two permissions", "url": "https://chartmann1590.github.io/LiveTranscribe-Android/tutorial.html#step-1", "image": "https://chartmann1590.github.io/LiveTranscribe-Android/assets/tutorial/01-home.webp"}, {"@type": "HowToStep", "position": 2, "name": "Pick where the sound comes from", "url": "https://chartmann1590.github.io/LiveTranscribe-Android/tutorial.html#step-2", "image": "https://chartmann1590.github.io/LiveTranscribe-Android/assets/tutorial/02-audio-source.webp"}, {"@type": "HowToStep", "position": 3, "name": "Check the speech model (optional)", "url": "https://chartmann1590.github.io/LiveTranscribe-Android/tutorial.html#step-3", "image": "https://chartmann1590.github.io/LiveTranscribe-Android/assets/tutorial/03-models.webp"}, {"@type": "HowToStep", "position": 4, "name": "Set the two languages", "url": "https://chartmann1590.github.io/LiveTranscribe-Android/tutorial.html#step-4", "image": "https://chartmann1590.github.io/LiveTranscribe-Android/assets/tutorial/04-languages.webp"}, {"@type": "HowToStep", "position": 5, "name": "Use the searchable picker", "url": "https://chartmann1590.github.io/LiveTranscribe-Android/tutorial.html#step-5", "image": "https://chartmann1590.github.io/LiveTranscribe-Android/assets/tutorial/05-language-picker.webp"}, {"@type": "HowToStep", "position": 6, "name": "Make the caption window readable", "url": "https://chartmann1590.github.io/LiveTranscribe-Android/tutorial.html#step-6", "image": "https://chartmann1590.github.io/LiveTranscribe-Android/assets/tutorial/06-overlay-settings.webp"}, {"@type": "HowToStep", "position": 7, "name": "Translation engine (the default is fine)", "url": "https://chartmann1590.github.io/LiveTranscribe-Android/tutorial.html#step-7", "image": "https://chartmann1590.github.io/LiveTranscribe-Android/assets/tutorial/07-translation-engine.webp"}, {"@type": "HowToStep", "position": 8, "name": "Server URLs only for self-hosters", "url": "https://chartmann1590.github.io/LiveTranscribe-Android/tutorial.html#step-8", "image": "https://chartmann1590.github.io/LiveTranscribe-Android/assets/tutorial/08-libretranslate.webp"}, {"@type": "HowToStep", "position": 9, "name": "Tap Start", "url": "https://chartmann1590.github.io/LiveTranscribe-Android/tutorial.html#step-9", "image": "https://chartmann1590.github.io/LiveTranscribe-Android/assets/tutorial/09-listening.webp"}, {"@type": "HowToStep", "position": 10, "name": "Go anywhere – the window follows", "url": "https://chartmann1590.github.io/LiveTranscribe-Android/tutorial.html#step-10", "image": "https://chartmann1590.github.io/LiveTranscribe-Android/assets/tutorial/10-overlay-home.webp"}, {"@type": "HowToStep", "position": 11, "name": "Watch the captions arrive", "url": "https://chartmann1590.github.io/LiveTranscribe-Android/tutorial.html#step-11", "image": "https://chartmann1590.github.io/LiveTranscribe-Android/assets/tutorial/11-overlay-video.webp"}, {"@type": "HowToStep", "position": 12, "name": "Back in the app: live text and Stop", "url": "https://chartmann1590.github.io/LiveTranscribe-Android/tutorial.html#step-12", "image": "https://chartmann1590.github.io/LiveTranscribe-Android/assets/tutorial/12-running.webp"}, {"@type": "HowToStep", "position": 13, "name": "Everything is saved in History", "url": "https://chartmann1590.github.io/LiveTranscribe-Android/tutorial.html#step-13", "image": "https://chartmann1590.github.io/LiveTranscribe-Android/assets/tutorial/13-history.webp"}, {"@type": "HowToStep", "position": 14, "name": "Help inside the app", "url": "https://chartmann1590.github.io/LiveTranscribe-Android/tutorial.html#step-14", "image": "https://chartmann1590.github.io/LiveTranscribe-Android/assets/tutorial/14-in-app-guide.webp"}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "I installed it and I can’t figure out the configuration. What do I actually have to set?", "acceptedAnswer": {"@type": "Answer", "text": "Almost nothing. Grant the two permissions, leave Microphone + Local Vosk + On-device (ML Kit) as they are, make sure Source is the language being spoken and Target is the language you read, then tap Start. Every other card on the screen is optional tuning."}}, {"@type": "Question", "name": "The Start button is greyed out.", "acceptedAnswer": {"@type": "Answer", "text": "The app shows the reason under the button: “Grant overlay/audio permissions and install the selected speech model before starting.” Check that both rows in the Permissions card say Granted, then open Manage on-device models and make sure your Source language shows as Installed. On a fresh install English and Vietnamese are already there."}}, {"@type": "Question", "name": "I tapped Start but I don’t see any captions.", "acceptedAnswer": {"@type": "Answer", "text": "First check the status in the app says Listening. Then look for the window – it starts small near the top of the screen and can be dragged. Captions only appear when someone is speaking the Source language; in Microphone mode the phone has to hear the sound, so turn the speaker up or hold the phone closer. If you chose System Audio, the app you are listening to may block audio capture – switch to Microphone."}}, {"@type": "Question", "name": "Captions show up but the translation line is empty or wrong.", "acceptedAnswer": {"@type": "Answer", "text": "Make sure Target is the language you want to read and Show original text is on so you can see both lines. The first time a language pair is used, ML Kit downloads a ~30 MB model, so the phone needs internet for a minute; after that it is offline. If the Source language is wrong, the recognizer will produce nonsense – set it to the language actually being spoken."}}, {"@type": "Question", "name": "The app says my device is Unsupported or Limited.", "acceptedAnswer": {"@type": "Answer", "text": "On-device recognition and translation need roughly 2.5 GB of RAM and 4 CPU cores (4 GB and a 64-bit chip recommended). On smaller phones the app switches to Remote Whisper and LibreTranslate automatically; run those two on a computer at home with Docker and type their addresses into the app. The remote setup guide has the exact commands."}}, {"@type": "Question", "name": "Which languages are free?", "acceptedAnswer": {"@type": "Answer", "text": "English and Vietnamese speech models are built in. In the language picker, anything without a lock is included; languages marked with a lock and Pro, the large server-grade speech models, the extra overlay themes and fonts, presets and the glossary are part of the Pro subscription. Ad-Free only removes the ads."}}, {"@type": "Question", "name": "Does it work offline?", "acceptedAnswer": {"@type": "Answer", "text": "Yes, with the defaults: Local Vosk and ML Kit both run on the phone. You need internet only to download a speech model or a translation language the first time."}}, {"@type": "Question", "name": "Does the app send my audio anywhere?", "acceptedAnswer": {"@type": "Answer", "text": "Not with the defaults – speech and translation stay on the phone and transcripts are stored locally. If you point the app at a Whisper or LibreTranslate server, the audio or text goes to that server, which is normally one you run yourself."}}, {"@type": "Question", "name": "The window got stuck at the edge of the screen.", "acceptedAnswer": {"@type": "Answer", "text": "Tap Stop in the app, then Start again. If it is still stuck, restarting the phone clears it."}}]}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="assets/styles.css">
+<style>
+.tut-hero { padding: clamp(48px, 8vw, 96px) 0 24px; text-align: center; }
+.tut-hero h1 { background: linear-gradient(135deg, #fff, #c4b5fd); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.tut-hero p.lead { font-size: 1.15rem; max-width: 720px; margin: 0 auto 24px; }
+.tut-ctas { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.quick { background: linear-gradient(135deg, rgba(139,92,246,.16), rgba(99,102,241,.08)); border: 1px solid rgba(167,139,250,.35); border-radius: 24px; padding: clamp(24px, 4vw, 40px); max-width: 860px; margin: 0 auto; }
+.quick h2 { font-size: 1.6rem; margin-bottom: 8px; }
+.quick ol { margin: 0; padding-left: 1.3em; color: #e7e4f1; font-size: 1.05rem; }
+.quick ol li { margin: 10px 0; }
+.quick .note { margin: 18px 0 0; padding: 14px 18px; border-radius: 14px; background: rgba(255,255,255,.05); color: #fff; font-weight: 500; }
+.video-wrap { display: flex; gap: 32px; align-items: center; justify-content: center; flex-wrap: wrap; }
+.video-phone { width: min(360px, 90vw); border-radius: 36px; padding: 10px; background: #15102a; border: 1px solid rgba(255,255,255,.1); box-shadow: 0 30px 80px rgba(0,0,0,.5); }
+.video-phone video { width: 100%; display: block; border-radius: 28px; background: #000; }
+.video-side { max-width: 420px; }
+.video-side ol { padding-left: 1.2em; color: #c7c2d9; }
+.video-side li { margin: 8px 0; }
+.tsteps { display: grid; gap: 28px; max-width: 1040px; margin: 0 auto; }
+.tstep { display: grid; grid-template-columns: 300px 1fr; gap: 32px; align-items: start; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08); border-radius: 24px; padding: 24px; scroll-margin-top: 90px; }
+.tstep-img img { border-radius: 22px; border: 1px solid rgba(255,255,255,.1); box-shadow: 0 20px 50px rgba(0,0,0,.45); }
+.tnum { display: inline-block; font-size: .75rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #a78bfa; margin-bottom: 8px; }
+.tstep h3 { font-size: 1.35rem; color: #fff; }
+.tstep p, .tstep li { color: #c7c2d9; }
+.tstep ul { padding-left: 1.2em; }
+.tstep li { margin: 6px 0; }
+.tstep code { background: rgba(255,255,255,.08); padding: 2px 6px; border-radius: 6px; font-size: .9em; }
+.pick-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; max-width: 1040px; margin: 0 auto; }
+.pick { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08); border-radius: 18px; padding: 22px; }
+.pick h3 { font-size: 1.05rem; color: #fff; margin-bottom: 8px; }
+.pick p { font-size: .95rem; margin: 0; }
+.pick .tag { display: inline-block; font-size: .75rem; font-weight: 600; color: #a78bfa; margin-bottom: 10px; }
+@media (max-width: 720px) {
+  .tstep { grid-template-columns: 1fr; padding: 18px; }
+  .tstep-img { max-width: 260px; margin: 0 auto; }
+  .nav-links { display: none; }
+}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="container nav-inner">
+    <a href="index.html" class="brand"><svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="navg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#a78bfa"/><stop offset="100%" stop-color="#6d28d9"/></linearGradient></defs><rect width="64" height="64" rx="14" fill="url(#navg)"/><g fill="#fff"><rect x="12" y="22" width="40" height="4" rx="2"/><rect x="12" y="30" width="28" height="4" rx="2"/><rect x="12" y="38" width="34" height="4" rx="2"/><circle cx="48" cy="46" r="4"/></g></svg> LiveCaptionN</a>
+    <div class="nav-links">
+      <a href="#quick">Quick start</a>
+      <a href="#video">Video</a>
+      <a href="#steps">Step by step</a>
+      <a href="#which">Which setup</a>
+      <a href="#faq">Troubleshooting</a>
+      <a href="remote-setup.html" style="color: #a78bfa; font-weight: 600;">Remote Setup</a>
+    </div>
+    <a class="nav-cta" href="https://play.google.com/store/apps/details?id=com.charles.livecaptionn">Google Play</a>
+  </div>
+</nav>
+
+<header class="tut-hero container" id="top">
+  <span class="eyebrow">Tutorial</span>
+  <h1>How to use LiveCaptionN</h1>
+  <p class="lead">Everything the app can do, in the order you meet it: permissions, where the sound comes from, languages, the floating caption window, translation and history. Real screenshots and a real screen recording from a Pixel 8 Pro – nothing staged.</p>
+  <div class="tut-ctas">
+    <a class="btn btn-primary" href="#quick">Start in 60 seconds</a>
+    <a class="btn btn-ghost" href="#video">Watch the walkthrough</a>
+    <a class="btn btn-ghost" href="https://play.google.com/store/apps/details?id=com.charles.livecaptionn">Get it on Google Play</a>
+  </div>
+</header>
+
+<section id="quick" style="padding-top: 24px;">
+  <div class="container">
+    <div class="quick">
+      <span class="eyebrow">The 60-second version</span>
+      <h2>You do not have to configure anything to get captions</h2>
+      <p>The defaults are a complete setup. If the settings screen looks like a lot, this is all that matters:</p>
+      <ol>
+        <li>Open the app and tap <b>Grant</b> for <b>Microphone</b> and <b>Overlay</b>.</li>
+        <li>Leave <b>Microphone</b> and <b>Local Vosk</b> selected.</li>
+        <li>In <b>Languages</b>, set <b>Source</b> to the language being spoken and <b>Target</b> to the language you want to read.</li>
+        <li>Tap <b>Start</b>. A small caption window appears. Open any app – the captions float on top of it.</li>
+        <li>Come back and tap <b>Stop</b> when you are done. The transcript is in <b>History</b>.</li>
+      </ol>
+      <p class="note">Everything below the Start button – models, engines, server URLs, themes – is optional tuning. You can ignore all of it on day one.</p>
+    </div>
+  </div>
+</section>
+
+<section id="video" style="padding-top: 32px;">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">Screen recording</span>
+      <h2>The whole flow in 97 seconds</h2>
+      <p>Recorded on a Pixel 8 Pro with the default settings. English speech from a video, captioned live and translated into Vietnamese on the phone.</p>
+    </div>
+    <div class="video-wrap">
+      <div class="video-phone">
+        <video controls playsinline preload="metadata" poster="assets/tutorial/walkthrough-poster.jpg" width="720" height="1602">
+          <source src="assets/tutorial/walkthrough.mp4" type="video/mp4">
+          Your browser cannot play this video. <a href="assets/tutorial/walkthrough.mp4">Download the MP4</a> or <a href="assets/tutorial/walkthrough.gif">view the GIF</a>.
+        </video>
+      </div>
+      <div class="video-side">
+        <h3>What you are seeing</h3>
+        <ol>
+          <li><b>0:01</b> – Tap Start. The status switches to Listening.</li>
+          <li><b>0:08</b> – Home screen: the caption window is already floating.</li>
+          <li><b>0:14</b> – A video plays in Google Photos. The top line is what is being said, the line under it is the Vietnamese translation, arriving while the sentence is still being spoken.</li>
+          <li><b>1:22</b> – Back in LiveCaptionN: the latest line is on the status card. Stop ends the session.</li>
+          <li><b>1:30</b> – History holds every line from the session, with copy and delete.</li>
+        </ol>
+        <p>No audio in the recording – Android screen recordings do not include the microphone. The text on screen is the real output.</p>
+        <p><a href="assets/tutorial/walkthrough.gif">Short GIF of the captioning moment</a> · <a href="assets/tutorial/walkthrough.mp4">MP4</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="steps" style="padding-top: 32px;">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">Step by step</span>
+      <h2>Every card on the screen, explained</h2>
+      <p>The main screen is one long list of cards. Here is what each one does, in the order you scroll past them.</p>
+    </div>
+    <div class="tsteps">
+<article class="tstep" id="step-1"><div class="tstep-img"><img src="assets/tutorial/01-home.webp" alt="LiveCaptionN screenshot: Allow two permissions" loading="lazy" width="540" height="1076"></div><div class="tstep-text"><span class="tnum">Step 1</span><h3>Allow two permissions</h3><p>Open the app. In the <b>Permissions</b> card tap <b>Grant</b> next to <b>Microphone</b> and <b>Overlay</b> (Android calls it “Display over other apps”). The caption window cannot float above other apps without the overlay permission, and the mic cannot be heard without the microphone one.</p><p>The <b>Start</b> button stays grey until both are granted and a speech model for your source language is installed. English and Vietnamese models come built in, so on most phones Start lights up as soon as the permissions are given.</p><p>The <b>System Compatibility Check</b> card tells you whether your phone can run on-device recognition. “Fully Supported” means you can leave everything on the defaults.</p></div></article>
+<article class="tstep" id="step-2"><div class="tstep-img"><img src="assets/tutorial/02-audio-source.webp" alt="LiveCaptionN screenshot: Pick where the sound comes from" loading="lazy" width="540" height="1076"></div><div class="tstep-text"><span class="tnum">Step 2</span><h3>Pick where the sound comes from</h3><p><b>Audio Source</b> is the first real choice:</p><ul><li><b>Microphone</b> – listens to the room: a person talking next to you, a TV, a meeting, a lecture.</li><li><b>System Audio</b> – captures the sound of apps playing on the phone itself (a video, a podcast, a call-in app) without the microphone. When Android asks, choose <b>Share entire screen</b>. Some apps do not allow their audio to be captured; if the window stays empty, switch back to Microphone and play the sound out loud.</li></ul><p>Below it, <b>Transcription engine</b> is where speech is turned into text. <b>Local Vosk</b> is the default and runs entirely on the phone. With Microphone you can also pick <b>Android built-in</b> (the phone’s own recognizer); with System Audio you can pick <b>Remote Whisper</b> (a Whisper server you host, see the <a href="remote-setup.html">remote setup guide</a>). If you are not sure, keep Local Vosk.</p></div></article>
+<article class="tstep" id="step-3"><div class="tstep-img"><img src="assets/tutorial/03-models.webp" alt="LiveCaptionN screenshot: Check the speech model (optional)" loading="lazy" width="540" height="1076"></div><div class="tstep-text"><span class="tnum">Step 3</span><h3>Check the speech model (optional)</h3><p>Tap <b>Manage on-device models</b>. The <b>Installed</b> list shows the Vosk models already on the phone – English and Vietnamese are bundled, about 40 MB each. You only need a model for the language that is being <i>spoken</i>.</p><p><b>Small</b> models are quick to download and light on storage. <b>Large</b> server-grade models (80 MB to 2 GB) are noticeably more accurate and are part of <b>Pro</b>. Downloading is a one-time step; models stay on the phone and work offline, and you can uninstall any of them later to free space.</p></div></article>
+<article class="tstep" id="step-4"><div class="tstep-img"><img src="assets/tutorial/04-languages.webp" alt="LiveCaptionN screenshot: Set the two languages" loading="lazy" width="540" height="1076"></div><div class="tstep-text"><span class="tnum">Step 4</span><h3>Set the two languages</h3><p>In the <b>Languages</b> card:</p><ul><li><b>Source (spoken)</b> – the language people are speaking. With Local Vosk this list only shows languages whose model is installed; tap <b>Download more languages</b> to add one.</li><li><b>Target (translation)</b> – the language you want to read. Pick the same language as the source if you only want captions and no translation.</li></ul><p><b>Swap</b> flips the two. <b>Auto-detect source</b> lets the app guess the spoken language when you are not sure. The translation list comes from Google ML Kit (59 languages) or from your LibreTranslate server.</p></div></article>
+<article class="tstep" id="step-5"><div class="tstep-img"><img src="assets/tutorial/05-language-picker.webp" alt="LiveCaptionN screenshot: Use the searchable picker" loading="lazy" width="540" height="1076"></div><div class="tstep-text"><span class="tnum">Step 5</span><h3>Use the searchable picker</h3><p>Tapping either language opens a picker with a search box – type the first letters instead of scrolling. A lock with <b>Pro</b> next to a language means it is part of the Pro subscription; languages without the lock are included free.</p></div></article>
+<article class="tstep" id="step-6"><div class="tstep-img"><img src="assets/tutorial/06-overlay-settings.webp" alt="LiveCaptionN screenshot: Make the caption window readable" loading="lazy" width="540" height="1076"></div><div class="tstep-text"><span class="tnum">Step 6</span><h3>Make the caption window readable</h3><p>The <b>Overlay</b> card controls how the floating window looks:</p><ul><li><b>Text size</b> and <b>Opacity</b> sliders.</li><li><b>Show original text</b> – on: the window shows two lines, what was said and the translation. Off: translation only.</li><li><b>Overlay theme</b> and <b>Overlay font</b> are Pro extras (Midnight Blue, Sunset, High Contrast; Rounded, Monospace, Serif).</li></ul><p>You can change these while captioning is running; the window updates live.</p></div></article>
+<article class="tstep" id="step-7"><div class="tstep-img"><img src="assets/tutorial/07-translation-engine.webp" alt="LiveCaptionN screenshot: Translation engine (the default is fine)" loading="lazy" width="540" height="1076"></div><div class="tstep-text"><span class="tnum">Step 7</span><h3>Translation engine (the default is fine)</h3><p>Further down, <b>Translation engine</b> decides who translates the text:</p><ul><li><b>On-device (ML Kit)</b> – the default. Google ML Kit translates on the phone. The first time you use a language pair it downloads a ~30 MB model (you need internet once), then it works offline.</li><li><b>LibreTranslate</b> – point the app at your own LibreTranslate server for wider language coverage.</li></ul><p>You never need to touch this for everyday use.</p></div></article>
+<article class="tstep" id="step-8"><div class="tstep-img"><img src="assets/tutorial/08-libretranslate.webp" alt="LiveCaptionN screenshot: Server URLs only for self-hosters" loading="lazy" width="540" height="1076"></div><div class="tstep-text"><span class="tnum">Step 8</span><h3>Server URLs only for self-hosters</h3><p>If you choose LibreTranslate, a <b>LibreTranslate URL</b> field appears (example: <code>http://&lt;your-pc-ip&gt;:5000</code>). The app fetches <code>/languages</code> from it to fill the language lists; a red “Language fetch error” means the phone cannot reach that address – check the IP, the port and that both devices are on the same Wi-Fi. Remote Whisper has a matching <b>Speech-to-Text URL</b> field. The full Docker walkthrough is on the <a href="remote-setup.html">remote setup page</a>.</p></div></article>
+<article class="tstep" id="step-9"><div class="tstep-img"><img src="assets/tutorial/09-listening.webp" alt="LiveCaptionN screenshot: Tap Start" loading="lazy" width="540" height="1076"></div><div class="tstep-text"><span class="tnum">Step 9</span><h3>Tap Start</h3><p>Scroll back to the top and tap <b>Start</b>. The status changes to <b>Listening</b>, a persistent notification appears (Android requires one while the mic is in use) and the caption window shows up on screen.</p></div></article>
+<article class="tstep" id="step-10"><div class="tstep-img"><img src="assets/tutorial/10-overlay-home.webp" alt="LiveCaptionN screenshot: Go anywhere – the window follows" loading="lazy" width="540" height="1076"></div><div class="tstep-text"><span class="tnum">Step 10</span><h3>Go anywhere – the window follows</h3><p>Press Home, open YouTube, a meeting app, a browser – the caption window floats on top of all of them. Drag it by its bar to move it. The three buttons on it are <b>Pause</b>, <b>Minimize</b> and <b>Close</b>; the app remembers where you left it.</p></div></article>
+<article class="tstep" id="step-11"><div class="tstep-img"><img src="assets/tutorial/11-overlay-video.webp" alt="LiveCaptionN screenshot: Watch the captions arrive" loading="lazy" width="540" height="1076"></div><div class="tstep-text"><span class="tnum">Step 11</span><h3>Watch the captions arrive</h3><p>Words appear while they are being spoken, not after a pause. With <i>Show original text</i> on you get the spoken line on top and the translation underneath – here English speech translated into Vietnamese over a video playing in Google Photos. Partial lines update as the sentence completes.</p></div></article>
+<article class="tstep" id="step-12"><div class="tstep-img"><img src="assets/tutorial/12-running.webp" alt="LiveCaptionN screenshot: Back in the app: live text and Stop" loading="lazy" width="540" height="1076"></div><div class="tstep-text"><span class="tnum">Step 12</span><h3>Back in the app: live text and Stop</h3><p>Return to LiveCaptionN at any time: the top card shows the current status and the latest line. Tap <b>Stop</b> when you are done; the window and the notification go away.</p></div></article>
+<article class="tstep" id="step-13"><div class="tstep-img"><img src="assets/tutorial/13-history.webp" alt="LiveCaptionN screenshot: Everything is saved in History" loading="lazy" width="540" height="1076"></div><div class="tstep-text"><span class="tnum">Step 13</span><h3>Everything is saved in History</h3><p>The clock icon in the top bar opens <b>Transcript History</b>. Every session is stored on the phone with its language pair and time. Search it, <b>Copy</b> a line or <b>Delete</b> entries. Nothing is uploaded anywhere.</p></div></article>
+<article class="tstep" id="step-14"><div class="tstep-img"><img src="assets/tutorial/14-in-app-guide.webp" alt="LiveCaptionN screenshot: Help inside the app" loading="lazy" width="540" height="1076"></div><div class="tstep-text"><span class="tnum">Step 14</span><h3>Help inside the app</h3><p>The question-mark icon opens the built-in <b>Tutorial &amp; Guide</b> with a narrated setup video, the hardware requirements and the self-hosted server steps. <b>Report a Problem</b> (bottom of the main screen) files a bug report on the app’s public GitHub issue tracker.</p></div></article>
+    </div>
+  </div>
+</section>
+
+<section id="which" style="padding-top: 32px;">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">Which setup is for me?</span>
+      <h2>Four common situations</h2>
+    </div>
+    <div class="pick-grid">
+      <div class="pick"><span class="tag">Just want captions now</span><h3>Keep the defaults</h3><p>Microphone, Local Vosk, On-device (ML Kit). Set Source and Target, tap Start. Works offline.</p></div>
+      <div class="pick"><span class="tag">Watching a video on this phone</span><h3>Try System Audio</h3><p>Captures the app’s sound directly, no mic needed. If the app blocks capture, go back to Microphone and turn the speaker up.</p></div>
+      <div class="pick"><span class="tag">Older or small phone</span><h3>Remote Whisper + LibreTranslate</h3><p>Run both on a computer at home with Docker and type the two URLs into the app. The phone only displays the result. <a href="remote-setup.html">Remote setup guide</a>.</p></div>
+      <div class="pick"><span class="tag">Best possible accuracy</span><h3>Pro large model</h3><p>Install the LARGE server-grade Vosk model for your language from Manage on-device models (80 MB – 2 GB, one-time download, fully offline).</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="faq" style="padding-top: 32px;">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">Troubleshooting</span>
+      <h2>When something does not look right</h2>
+    </div>
+    <div class="faq">
+<details open><summary>I installed it and I can’t figure out the configuration. What do I actually have to set?</summary><p>Almost nothing. Grant the two permissions, leave Microphone + Local Vosk + On-device (ML Kit) as they are, make sure Source is the language being spoken and Target is the language you read, then tap Start. Every other card on the screen is optional tuning.</p></details>
+<details><summary>The Start button is greyed out.</summary><p>The app shows the reason under the button: “Grant overlay/audio permissions and install the selected speech model before starting.” Check that both rows in the Permissions card say Granted, then open Manage on-device models and make sure your Source language shows as Installed. On a fresh install English and Vietnamese are already there.</p></details>
+<details><summary>I tapped Start but I don’t see any captions.</summary><p>First check the status in the app says Listening. Then look for the window – it starts small near the top of the screen and can be dragged. Captions only appear when someone is speaking the Source language; in Microphone mode the phone has to hear the sound, so turn the speaker up or hold the phone closer. If you chose System Audio, the app you are listening to may block audio capture – switch to Microphone.</p></details>
+<details><summary>Captions show up but the translation line is empty or wrong.</summary><p>Make sure Target is the language you want to read and Show original text is on so you can see both lines. The first time a language pair is used, ML Kit downloads a ~30 MB model, so the phone needs internet for a minute; after that it is offline. If the Source language is wrong, the recognizer will produce nonsense – set it to the language actually being spoken.</p></details>
+<details><summary>The app says my device is Unsupported or Limited.</summary><p>On-device recognition and translation need roughly 2.5 GB of RAM and 4 CPU cores (4 GB and a 64-bit chip recommended). On smaller phones the app switches to Remote Whisper and LibreTranslate automatically; run those two on a computer at home with Docker and type their addresses into the app. The remote setup guide has the exact commands.</p></details>
+<details><summary>Which languages are free?</summary><p>English and Vietnamese speech models are built in. In the language picker, anything without a lock is included; languages marked with a lock and Pro, the large server-grade speech models, the extra overlay themes and fonts, presets and the glossary are part of the Pro subscription. Ad-Free only removes the ads.</p></details>
+<details><summary>Does it work offline?</summary><p>Yes, with the defaults: Local Vosk and ML Kit both run on the phone. You need internet only to download a speech model or a translation language the first time.</p></details>
+<details><summary>Does the app send my audio anywhere?</summary><p>Not with the defaults – speech and translation stay on the phone and transcripts are stored locally. If you point the app at a Whisper or LibreTranslate server, the audio or text goes to that server, which is normally one you run yourself.</p></details>
+<details><summary>The window got stuck at the edge of the screen.</summary><p>Tap Stop in the app, then Start again. If it is still stuck, restarting the phone clears it.</p></details>
+    </div>
+    <p style="text-align:center; margin-top: 28px;">Still stuck? Use <b>Report a Problem</b> at the bottom of the app’s main screen, or <a href="https://github.com/chartmann1590/LiveTranscribe-Android/issues">open an issue on GitHub</a> – say which phone you have and what the status card shows.</p>
+  </div>
+</section>
+
+<section style="padding-top: 0;">
+  <div class="container">
+    <div class="cta-band">
+      <h2>Ready to try it?</h2>
+      <p>Free on Google Play. Permissions, Start, done.</p>
+      <div class="hero-ctas" style="justify-content:center;">
+        <a class="btn btn-primary" href="https://play.google.com/store/apps/details?id=com.charles.livecaptionn">Get LiveCaptionN on Google Play</a>
+        <a class="btn btn-ghost" href="index.html">Back to the overview</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <div class="brand"><svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="navg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#a78bfa"/><stop offset="100%" stop-color="#6d28d9"/></linearGradient></defs><rect width="64" height="64" rx="14" fill="url(#navg)"/><g fill="#fff"><rect x="12" y="22" width="40" height="4" rx="2"/><rect x="12" y="30" width="28" height="4" rx="2"/><rect x="12" y="38" width="34" height="4" rx="2"/><circle cx="48" cy="46" r="4"/></g></svg> LiveCaptionN</div>
+    <p>
+      <a href="https://play.google.com/store/apps/details?id=com.charles.livecaptionn">Google Play</a> ·
+      <a href="https://github.com/chartmann1590/LiveTranscribe-Android">GitHub</a> ·
+      <a href="https://github.com/chartmann1590/LiveTranscribe-Android/releases">Releases</a> ·
+      <a href="https://github.com/chartmann1590/LiveTranscribe-Android/issues">Report an issue</a> ·
+      <a href="privacy.html">Privacy policy</a>
+    </p>
+    <p>© 2026 chartmann1590. Open source under the MIT license.</p>
+  </div>
+</footer>
+</body>
+</html>
