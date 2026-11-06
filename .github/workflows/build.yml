@@ -224,7 +224,8 @@ jobs:
         with:
           tag_name: ${{ steps.tag.outputs.name }}
           name: LiveCaptionN ${{ steps.tag.outputs.name }}
-          draft: false
+          # Branch builds (e.g. direct-stripe) make a DRAFT release; only main publishes.
+          draft: ${{ github.ref != 'refs/heads/main' }}
           prerelease: false
           generate_release_notes: true
           fail_on_unmatched_files: true

@@ -123,11 +123,11 @@ android {
             // Cloudflare Worker (Stripe billing backend) config. Not committed —
             // sourced from local.properties, same pattern as translate.url/stt.url.
             buildConfigField("String", "PREMIUM_WORKER_BASE_URL",
-                "\"${localProps.getProperty("premium.worker.url", "")}\"")
+                "\"${localProps.getProperty("premium.worker.url", "").ifBlank { "https://livecaptionn-premium.charles-h-hartmann1.workers.dev" }}\"")
             buildConfigField("String", "STRIPE_PRICE_AD_FREE",
-                "\"${localProps.getProperty("premium.stripe.price.ad_free", "")}\"")
+                "\"${localProps.getProperty("premium.stripe.price.ad_free", "").ifBlank { "price_1TqepgE8fEIoUiQzwhKC8OPD" }}\"")
             buildConfigField("String", "STRIPE_PRICE_PRO",
-                "\"${localProps.getProperty("premium.stripe.price.pro", "")}\"")
+                "\"${localProps.getProperty("premium.stripe.price.pro", "").ifBlank { "price_1TqephE8fEIoUiQzzJVMWtUw" }}\"")
             // Owner-only free-access key. Blank in public/CI builds; only ever set
             // in the developer's own local.properties. Must match the Worker's
             // OWNER_ACCESS_KEY secret for the OWNER_ALLOWLIST bypass to apply —
