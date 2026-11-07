@@ -1,9 +1,13 @@
 launch
 wait 15
 shot 01-launch
+swipeup
+swipeup
 taploop (?i)^(next|next step|continue|get started|skip|allow|ok|accept|agree|got it|start|i agree|not now|later|maybe later|no thanks|done|finish tutorial|english)$
 wait 3
 shot 02-after-onboarding
+swipeup
+swipeup
 taploop (?i)^(next|next step|continue|get started|skip|allow|ok|accept|agree|got it|start|i agree|not now|later|maybe later|no thanks|done|finish tutorial|english)$
 shot 03-main
 swipeup
