@@ -28,6 +28,8 @@ while IFS= read -r -u 3 line || [ -n "$line" ]; do
     shot) shot "$arg";;
     tap) tapre "$arg" || true; sleep 2;;
     taploop) for i in 1 2 3 4 5 6 7 8; do tapre "$arg" || break; sleep 2; done;;
+    adclose) for i in 1 2 3 4; do dump; if grep -qiE 'Test Ad|AdActivity|interstitial|com.google.android.gms.ads' "$OUT/ui.xml" || adb shell dumpsys activity activities | grep -m1 -E 'topResumedActivity|mResumedActivity' | grep -qi 'AdActivity'; then log "ad on screen (try $i)"; sleep 8; tapre "(?i)^(close|close ad|skip ad|skip video|dismiss|interstitial close button)$" || adb shell input tap $((WM_W*96/100)) $((WM_H*3/100)); sleep 3; else break; fi; done;;
+    scrollto) found=0; for i in 1 2 3 4 5 6 7 8 9 10 11 12; do if tapre "$arg"; then found=1; break; fi; adb shell input swipe $X50 $Y85 $X50 $Y30 400; sleep 1; done; [ $found = 0 ] && log "scrollto: never found /$arg/"; sleep 2;;
     tapxy) set -- $arg; adb shell input tap $((WM_W*$1/1000)) $((WM_H*$2/1000)); log "tapxy permille $arg"; sleep 2;;
     type) adb shell input text "$arg"; log "type"; sleep 1;;
     back) adb shell input keyevent 4; log "back"; sleep 2;;
