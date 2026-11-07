@@ -1,0 +1,18 @@
+{
+  "ad_free_monthly_1m": {
+    "itemType": "SUBSCRIPTION",
+    "price": 1.99,
+    "title": "LiveCaptionN Ad-Free",
+    "description": "Removes all ads, monthly",
+    "subscriptionParent": "ad_free_monthly",
+    "term": "Monthly"
+  },
+  "pro_monthly_1m": {
+    "itemType": "SUBSCRIPTION",
+    "price": 4.99,
+    "title": "LiveCaptionN Pro",
+    "description": "Pro features + no ads, monthly",
+    "subscriptionParent": "pro_monthly",
+    "term": "Monthly"
+  }
+}

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Amazon-flavor-only manifest overlay: the Appstore SDK's IAP ResponseReceiver (the Appstore
+     and App Tester deliver every IAP answer as a broadcast) and the package-visibility entries
+     Android 11+ needs to reach them. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <queries>
+        <package android:name="com.amazon.sdktestclient" />
+        <package android:name="com.amazon.venezia" />
+    </queries>
+    <application>
+        <receiver
+            android:name="com.amazon.device.iap.ResponseReceiver"
+            android:exported="true"
+            android:permission="com.amazon.inapp.purchasing.Permission.NOTIFY">
+            <intent-filter>
+                <action android:name="com.amazon.inapp.purchasing.NOTIFY" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

@@ -1100,7 +1100,7 @@ internal fun ProUpgradeDialog(
         },
         confirmButton = {
             TextButton(enabled = !state.isBusy, onClick = onGoPro) {
-                Text(if (state.isBusy) t["Opening Google Play…"] else t["Go Pro"])
+                Text(if (state.isBusy) (if (com.charles.livecaptionn.BuildConfig.FLAVOR == "amazon") t["Opening Amazon Appstore…"] else t["Opening Google Play…"]) else t["Go Pro"])
             }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(t["Not now"]) } }

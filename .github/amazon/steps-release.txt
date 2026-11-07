@@ -1,0 +1,13 @@
+launch
+wait 15
+shot 01-launch
+taploop (?i)^(next|next step|continue|get started|skip|allow|ok|accept|agree|got it|start|i agree|not now|later|maybe later|no thanks|done|finish tutorial|english)$
+wait 3
+shot 02-main
+swipeup
+swipeup
+shot 03-scrolled
+stop
+launch
+wait 8
+shot 04-relaunch

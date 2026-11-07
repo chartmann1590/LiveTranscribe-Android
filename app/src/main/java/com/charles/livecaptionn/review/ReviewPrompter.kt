@@ -18,8 +18,8 @@ object ReviewPrompter {
     private const val SESSIONS_BEFORE_PROMPT = 3
 
     fun onCaptioningSessionCompleted(activity: Activity) {
-        // Direct-download (github) builds aren't installed from Google Play, so Play's review flow doesn't apply.
-        if (com.charles.livecaptionn.BuildConfig.FLAVOR == "github") return
+        // Only Play installs get Play's review flow (github = direct download, amazon = Amazon Appstore).
+        if (com.charles.livecaptionn.BuildConfig.FLAVOR != "playstore") return
         val prefs = activity.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         if (prefs.getBoolean(KEY_ALREADY_PROMPTED, false)) return
 

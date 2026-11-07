@@ -143,6 +143,12 @@ android {
             buildConfigField("String", "PLAY_PRODUCT_AD_FREE", "\"ad_free_monthly\"")
             buildConfigField("String", "PLAY_PRODUCT_PRO", "\"pro_monthly\"")
         }
+        create("amazon") {
+            dimension = "distribution"
+            // Amazon Appstore (Fire): Amazon In-App Purchasing (Appstore SDK), no Play, no Stripe,
+            // no GitHub self-update (Amazon updates the app). Same package id as playstore.
+            buildConfigField("boolean", "GITHUB_SELF_UPDATE_ENABLED", "false")
+        }
     }
 
     signingConfigs {
@@ -254,6 +260,8 @@ dependencies {
     // Customer Portal URLs in-browser. No Stripe SDK, keys, or card UI is ever
     // compiled into this app; Stripe code lives entirely in the Cloudflare Worker.
     "githubImplementation"("androidx.browser:browser:1.8.0")
+    // Amazon flavor: Amazon Appstore SDK (In-App Purchasing). A plain jar on Maven Central.
+    "amazonImplementation"("com.amazon.device:amazon-appstore-sdk:3.0.9")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")

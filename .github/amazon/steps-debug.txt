@@ -1,0 +1,25 @@
+launch
+wait 15
+shot 01-launch
+taploop (?i)^(next|next step|continue|get started|skip|allow|ok|accept|agree|got it|start|i agree|not now|later|maybe later|no thanks|done|finish tutorial|english)$
+wait 3
+shot 02-after-onboarding
+taploop (?i)^(next|next step|continue|get started|skip|allow|ok|accept|agree|got it|start|i agree|not now|later|maybe later|no thanks|done|finish tutorial|english)$
+shot 03-main
+swipeup
+swipeup
+shot 04-scrolled
+swipeup
+swipeup
+shot 05-upgrade-card
+tap (?i)^go ad-free$
+wait 8
+shot 06-iap-adfree
+back
+wait 2
+tap (?i)^go pro$
+wait 8
+shot 07-iap-pro
+back
+wait 2
+shot 08-after

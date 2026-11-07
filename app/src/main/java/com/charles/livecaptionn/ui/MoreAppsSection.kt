@@ -80,7 +80,10 @@ fun MoreAppsSection() {
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable {
-                        val url = "https://play.google.com/store/apps/details?id=${app.packageName}"
+                        // Amazon Appstore build: never link to Google Play (Amazon policy).
+                        val url = if (com.charles.livecaptionn.BuildConfig.FLAVOR == "amazon")
+                            "https://www.amazon.com/gp/mas/dl/android?p=${app.packageName}"
+                        else "https://play.google.com/store/apps/details?id=${app.packageName}"
                         try {
                             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
                         } catch (_: ActivityNotFoundException) {}
