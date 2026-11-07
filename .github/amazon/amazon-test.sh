@@ -3,6 +3,7 @@
 # usage: amazon-test.sh <apk> <package> <steps-file> <label>
 # Writes screenshots, UI dumps and logcat to $OUT and uploads them to Tab's private test drop.
 set -u
+exec </dev/null  # adb shell reads stdin; the steps file is on fd 3
 APK="$1"; PKG="$2"; STEPS="$3"; LABEL="$4"
 OUT="${OUT:-/tmp/amz-out}"; mkdir -p "$OUT"
 log(){ echo "[$(date +%H:%M:%S)] $*" | tee -a "$OUT/steps.log"; }
@@ -13,7 +14,9 @@ shot(){ adb exec-out screencap -p > "$OUT/$LABEL-$1.png"; dump; cp "$OUT/ui.xml"
 adb logcat -c || true
 log "install $APK"
 adb install -r -g "$APK" 2>&1 | tee -a "$OUT/steps.log"
-while IFS= read -r line || [ -n "$line" ]; do
+adb shell settings put global window_animation_scale 0 </dev/null >/dev/null 2>&1 || true
+sleep 15  # let the freshly booted emulator settle
+while IFS= read -r -u 3 line || [ -n "$line" ]; do
   line="${line%%#*}"; line="$(echo "$line" | sed -e 's/[[:space:]]*$//')"; [ -z "$line" ] && continue
   cmd="${line%% *}"; arg="${line#* }"; [ "$cmd" = "$line" ] && arg=""
   case "$cmd" in
@@ -34,7 +37,7 @@ while IFS= read -r line || [ -n "$line" ]; do
     sh) adb shell "$arg" 2>&1 | tee -a "$OUT/steps.log";;
     *) log "unknown step: $line";;
   esac
-done < "$STEPS"
+done 3< "$STEPS"
 adb logcat -d > "$OUT/$LABEL-logcat.txt" 2>/dev/null || true
 adb logcat -d -b crash > "$OUT/$LABEL-crash.txt" 2>/dev/null || true
 PID_NOTE=$(adb shell pidof "$PKG" || true); log "pidof $PKG: ${PID_NOTE:-not running}"
