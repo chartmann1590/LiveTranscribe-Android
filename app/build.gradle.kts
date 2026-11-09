@@ -120,6 +120,7 @@ android {
             dimension = "distribution"
             isDefault = true
             buildConfigField("boolean", "GITHUB_SELF_UPDATE_ENABLED", "true")
+            buildConfigField("boolean", "IAP_ENABLED", "true")
             // Cloudflare Worker (Stripe billing backend) config. Not committed —
             // sourced from local.properties, same pattern as translate.url/stt.url.
             buildConfigField("String", "PREMIUM_WORKER_BASE_URL",
@@ -138,6 +139,7 @@ android {
         create("playstore") {
             dimension = "distribution"
             buildConfigField("boolean", "GITHUB_SELF_UPDATE_ENABLED", "false")
+            buildConfigField("boolean", "IAP_ENABLED", "true")
             // Play Billing subscription product IDs, configured once in Play Console.
             // Not secrets, so hardcoded here rather than sourced from local.properties.
             buildConfigField("String", "PLAY_PRODUCT_AD_FREE", "\"ad_free_monthly\"")
@@ -148,6 +150,10 @@ android {
             // Amazon Appstore (Fire): Amazon In-App Purchasing (Appstore SDK), no Play, no Stripe,
             // no GitHub self-update (Amazon updates the app). Same package id as playstore.
             buildConfigField("boolean", "GITHUB_SELF_UPDATE_ENABLED", "false")
+            // Amazon IAP stays off until the Amazon account's non-US tax details are filled in
+            // (Amazon refuses to publish paid items before that: VENDOR_NO_ROYALTY_TAX_INFO_NON_US).
+            // Off = no Go Pro / Go Ad-Free buttons on Fire, so no purchase can fail. (Tab, Nov 9 2026)
+            buildConfigField("boolean", "IAP_ENABLED", "false")
         }
     }
 

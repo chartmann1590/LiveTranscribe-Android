@@ -313,7 +313,7 @@ fun MainScreen(
                 translatedTotal = ui.uiLocalizationTotal,
                 onSelect = viewModel::updateUiLanguage
             )
-            PremiumCard(
+            if (com.charles.livecaptionn.BuildConfig.IAP_ENABLED) PremiumCard(
                 state = premiumState,
                 onPurchase = { product -> activity?.let { premiumVm.purchase(it, product) } },
                 onManageSubscription = { activity?.let { premiumVm.manageSubscription(it) } },
@@ -1088,7 +1088,8 @@ internal fun ProUpgradeDialog(
         title = { Text(t["Pro feature"]) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(t["Upgrade to Pro to unlock this feature. The upgrade removes ads and adds high-accuracy models, more languages, profiles, and advanced caption tools."])
+                if (com.charles.livecaptionn.BuildConfig.IAP_ENABLED) Text(t["Upgrade to Pro to unlock this feature. The upgrade removes ads and adds high-accuracy models, more languages, profiles, and advanced caption tools."])
+                else Text("This is a Pro feature. Pro isn't available in this version of the app yet.")
                 state.error?.let { error ->
                     Text(
                         text = error,
@@ -1099,11 +1100,11 @@ internal fun ProUpgradeDialog(
             }
         },
         confirmButton = {
-            TextButton(enabled = !state.isBusy, onClick = onGoPro) {
+            if (com.charles.livecaptionn.BuildConfig.IAP_ENABLED) TextButton(enabled = !state.isBusy, onClick = onGoPro) {
                 Text(if (state.isBusy) (if (com.charles.livecaptionn.BuildConfig.FLAVOR == "amazon") t["Opening Amazon Appstore…"] else t["Opening Google Play…"]) else t["Go Pro"])
-            }
+            } else TextButton(onClick = onDismiss) { Text("OK") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(t["Not now"]) } }
+        dismissButton = { if (com.charles.livecaptionn.BuildConfig.IAP_ENABLED) TextButton(onClick = onDismiss) { Text(t["Not now"]) } }
     )
 }
 

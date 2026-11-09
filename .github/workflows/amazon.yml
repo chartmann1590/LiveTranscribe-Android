@@ -113,7 +113,10 @@ jobs:
       if: always()
       env:
         DROP_KEY: ${{ secrets.DROP_KEY }}
-      run: bash .github/amazon/amazon-upload.sh /tmp/amz-out amz_LiveCaptionN_r${{ github.run_number }}
+      run: |
+        # the tested release APK rides along so it can be staged for the Appstore upload (Tab, Nov 9 2026)
+        mkdir -p /tmp/amz-out && cp amz-apk/*release*.apk /tmp/amz-out/ 2>/dev/null || true
+        bash .github/amazon/amazon-upload.sh /tmp/amz-out amz_LiveCaptionN_r${{ github.run_number }}
     - name: Draft release with the amazon APKs (not published)
       if: success()
       uses: softprops/action-gh-release@v2
