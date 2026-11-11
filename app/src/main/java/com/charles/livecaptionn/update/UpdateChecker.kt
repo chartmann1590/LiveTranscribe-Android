@@ -81,7 +81,7 @@ class UpdateChecker {
         return try {
             val obj = JSONObject(json)
             val tag = obj.optString("tag_name").takeIf { it.isNotBlank() } ?: return null
-            val buildNumber = parseBuildNumber(tag) ?: return null
+            val buildNumber = comparableBuildNumber(tag) ?: return null
             val name = obj.optString("name").ifBlank { "LiveCaptionN $tag" }
             val notes = obj.optString("body").trim()
             val htmlUrl = obj.optString("html_url")
@@ -133,6 +133,21 @@ class UpdateChecker {
             val minor = match.groupValues[2].toIntOrNull() ?: return null
             val patch = match.groupValues[3].toIntOrNull() ?: return null
             return major * 1_000_000 + minor * 1_000 + patch
+        }
+
+        /**
+         * Number to compare against [BuildConfig.VERSION_CODE]. CI builds tag
+         * `v1.0.<run>` / `direct-v1.0.<run>` and use `<run>` as versionCode, so for
+         * 1.0.x tags the patch number IS the comparable build number (the old
+         * major*1_000_000 value made every build think an update was available).
+         */
+        internal fun comparableBuildNumber(tag: String): Int? {
+            val t = tag.trim().removePrefix("direct-")
+            val match = TAG_REGEX.matchEntire(t) ?: return null
+            val major = match.groupValues[1].toIntOrNull() ?: return null
+            val minor = match.groupValues[2].toIntOrNull() ?: return null
+            val patch = match.groupValues[3].toIntOrNull() ?: return null
+            return if (major == 1 && minor == 0) patch else parseBuildNumber(t)
         }
 
         private val TAG_REGEX = Regex("""v?(\d+)\.(\d+)\.(\d+)(?:[.\-].*)?""")

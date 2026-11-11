@@ -120,6 +120,14 @@ android {
             dimension = "distribution"
             isDefault = true
             buildConfigField("boolean", "GITHUB_SELF_UPDATE_ENABLED", "true")
+            // Direct (GitHub) builds use their OWN AdMob app ("LiveCaptionN (direct)",
+            // not linked to any store). The Play-linked AdMob app is restricted while the
+            // Play listing is down (Nov 2026); Play/Amazon builds keep the IDs from local.properties.
+            buildConfigField("String", "ADMOB_APP_ID", "\"ca-app-pub-8382831211800454~1744520915\"")
+            buildConfigField("String", "ADMOB_APP_OPEN_ID_RELEASE", "\"ca-app-pub-8382831211800454/7922916452\"")
+            buildConfigField("String", "ADMOB_BANNER_ID_RELEASE", "\"ca-app-pub-8382831211800454/1673862013\"")
+            buildConfigField("String", "ADMOB_NATIVE_ID_RELEASE", "\"ca-app-pub-8382831211800454/3628448228\"")
+            manifestPlaceholders["admobAppId"] = "ca-app-pub-8382831211800454~1744520915"
             // Cloudflare Worker (Stripe billing backend) config. Not committed —
             // sourced from local.properties, same pattern as translate.url/stt.url.
             buildConfigField("String", "PREMIUM_WORKER_BASE_URL",

@@ -66,4 +66,11 @@ class UpdateCheckerTest {
     fun parseBuildNumber_dotSuffix_parsesBaseVersion() {
         assertEquals(1_000_042, UpdateChecker.parseBuildNumber("v1.0.42.hotfix"))
     }
+
+    @Test
+    fun comparableBuildNumber_ciTags_usePatchAsVersionCode() {
+        assertEquals(118, UpdateChecker.comparableBuildNumber("direct-v1.0.118"))
+        assertEquals(111, UpdateChecker.comparableBuildNumber("v1.0.111"))
+        assertEquals(2_003_000, UpdateChecker.comparableBuildNumber("v2.3.0"))
+    }
 }
