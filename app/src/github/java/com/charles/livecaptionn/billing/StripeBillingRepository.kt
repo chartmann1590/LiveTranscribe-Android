@@ -58,7 +58,7 @@ class StripeBillingRepository(
             val response = api.checkout(CheckoutRequest(email = normalizedEmail, product = productKey))
             val checkoutUrl = response.body()?.checkoutUrl
             if (!response.isSuccessful || checkoutUrl.isNullOrBlank()) {
-                return PurchaseFlowResult.Failed("Could not start checkout (${response.code()})")
+                return PurchaseFlowResult.Failed(planLimitNotice(response) ?: "Could not start checkout (${response.code()})")
             }
             CustomTabsIntent.Builder().build().launchUrl(activity, Uri.parse(checkoutUrl))
             PurchaseFlowResult.Started
@@ -103,7 +103,7 @@ class StripeBillingRepository(
         val response = api.entitlement(request)
         val body = response.body()
         if (!response.isSuccessful || body == null) {
-            throw IllegalStateException("Entitlement lookup failed (${response.code()})")
+            throw IllegalStateException(planLimitNotice(response) ?: "Entitlement lookup failed (${response.code()})")
         }
         val nowMillis = System.currentTimeMillis()
         val state = PremiumState(
@@ -116,6 +116,12 @@ class StripeBillingRepository(
         localStore.save(state)
         return state
     }
+
+    /** The server's own sentence when it answers code "plan_limit" (its daily plan limit is hit); shown on Buy and Restore. */
+    private fun planLimitNotice(response: retrofit2.Response<*>): String? = runCatching {
+        val o = org.json.JSONObject(response.errorBody()?.string().orEmpty())
+        if (o.optString("code") == "plan_limit") o.optString("error").takeIf { it.isNotBlank() } else null
+    }.getOrNull()
 
     private suspend fun readCachedEmail(): String? = localStore.stateFlow.first().sourceEmail
 
