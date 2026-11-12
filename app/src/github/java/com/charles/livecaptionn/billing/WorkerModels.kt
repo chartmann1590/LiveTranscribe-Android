@@ -29,3 +29,15 @@ data class PortalResponse(val portalUrl: String)
 
 @JsonClass(generateAdapter = true)
 data class WorkerErrorResponse(val error: String?)
+
+/** Shared Hartmann Studios billing v2 (/v2/checkout): product is a catalog key (AD_FREE, PRO, PRO_YEARLY, PRO_LIFETIME). */
+@JsonClass(generateAdapter = true)
+data class V2CheckoutRequest(val app: String, val product: String, val email: String)
+
+@JsonClass(generateAdapter = true)
+data class V2EntitlementRequest(
+    val app: String,
+    val sessionId: String? = null,
+    val email: String? = null,
+    val ownerKey: String? = null
+)

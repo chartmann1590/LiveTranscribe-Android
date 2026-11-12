@@ -109,7 +109,33 @@ fun PremiumCard(
                 shape = RoundedCornerShape(8.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(if (state.premium.hasPro) t["Pro active"] else t["Go Pro"])
+                Text(
+                    when {
+                        state.premium.hasPro -> t["Pro active"]
+                        state.supportsEmailRestore -> t["Try Pro free for 14 days · then $4.99/month"]
+                        else -> t["Go Pro"]
+                    }
+                )
+            }
+
+            // github/Stripe flavor: yearly (also 14 days free) and lifetime Pro.
+            if (state.supportsEmailRestore && !state.premium.hasPro) {
+                OutlinedButton(
+                    onClick = { onPurchase(PremiumProduct.PRO_YEARLY) },
+                    enabled = !state.isBusy,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(t["Pro yearly $29.99 (save 50%) · 14 days free"])
+                }
+                OutlinedButton(
+                    onClick = { onPurchase(PremiumProduct.PRO_LIFETIME) },
+                    enabled = !state.isBusy,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(t["Pro lifetime $49.99 · pay once"])
+                }
             }
 
             if (state.premium.hasAdFree || state.premium.hasPro) {

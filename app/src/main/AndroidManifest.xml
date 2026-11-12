@@ -66,6 +66,8 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="livecaptionn" android:host="premium-return" />
+                <!-- billing v2 return page bounces to livecaptionn://billing-return -->
+                <data android:scheme="livecaptionn" android:host="billing-return" />
             </intent-filter>
         </activity>
 

@@ -33,15 +33,11 @@ class StripeBillingRepository(
             return Result.success(PremiumState.EMPTY)
         }
         return runCatching {
-            val request = if (sessionId != null) {
-                EntitlementRequest(sessionId = sessionId)
+            if (sessionId != null) {
+                fetchAndCacheEntitlement(api, sessionId = sessionId, email = null)
             } else {
-                EntitlementRequest(
-                    email = cachedEmail,
-                    ownerKey = BuildConfig.OWNER_ACCESS_KEY.ifBlank { null }
-                )
+                fetchAndCacheEntitlement(api, sessionId = null, email = cachedEmail)
             }
-            fetchAndCacheEntitlement(api, request)
         }.recoverCatching { error ->
             applyOfflineGracePeriod(error)
         }
@@ -53,9 +49,11 @@ class StripeBillingRepository(
         if (normalizedEmail.isBlank()) {
             return PurchaseFlowResult.Failed("Enter your email above first")
         }
-        val productKey = if (product == PremiumProduct.PRO_MONTHLY) "PRO" else "AD_FREE"
+        val productKey = product.v2Key()
         return try {
-            val response = api.checkout(CheckoutRequest(email = normalizedEmail, product = productKey))
+            // Shared billing v2 catalog "livecaptionn": Pro monthly + yearly carry a 14-day
+            // free trial server-side (one per email per plan); lifetime is a one-time payment.
+            val response = api.checkoutV2(V2CheckoutRequest(app = V2_APP, product = productKey, email = normalizedEmail))
             val checkoutUrl = response.body()?.checkoutUrl
             if (!response.isSuccessful || checkoutUrl.isNullOrBlank()) {
                 return PurchaseFlowResult.Failed(planLimitNotice(response) ?: "Could not start checkout (${response.code()})")
@@ -74,13 +72,7 @@ class StripeBillingRepository(
             return Result.failure(IllegalArgumentException("Email is required"))
         }
         return runCatching {
-            fetchAndCacheEntitlement(
-                api,
-                EntitlementRequest(
-                    email = normalizedEmail,
-                    ownerKey = BuildConfig.OWNER_ACCESS_KEY.ifBlank { null }
-                )
-            )
+            fetchAndCacheEntitlement(api, sessionId = null, email = normalizedEmail)
         }
     }
 
@@ -99,15 +91,37 @@ class StripeBillingRepository(
         }
     }
 
-    private suspend fun fetchAndCacheEntitlement(api: WorkerApi, request: EntitlementRequest): PremiumState {
-        val response = api.entitlement(request)
-        val body = response.body()
-        if (!response.isSuccessful || body == null) {
-            throw IllegalStateException(planLimitNotice(response) ?: "Entitlement lookup failed (${response.code()})")
+    /**
+     * Looks the buyer up on billing v2 (catalog "livecaptionn": AD_FREE, PRO, PRO_YEARLY,
+     * PRO_LIFETIME; the server expands PRO_* to PRO + AD_FREE). For email lookups the
+     * legacy LiveCaptionN routes are asked too, so anyone who bought before the v2 move
+     * keeps their purchase. Either answer is enough; both failing throws the v2 error.
+     */
+    private suspend fun fetchAndCacheEntitlement(api: WorkerApi, sessionId: String?, email: String?): PremiumState {
+        val ownerKey = BuildConfig.OWNER_ACCESS_KEY.ifBlank { null }
+        var firstError: String? = null
+        val answers = mutableListOf<EntitlementResponse>()
+        try {
+            val r = api.entitlementV2(V2EntitlementRequest(app = V2_APP, sessionId = sessionId, email = if (sessionId == null) email else null, ownerKey = ownerKey))
+            val b = r.body()
+            if (r.isSuccessful && b != null) answers += b
+            else firstError = planLimitNotice(r) ?: "Entitlement lookup failed (${r.code()})"
+        } catch (e: Exception) {
+            firstError = e.message ?: "Entitlement lookup failed"
         }
+        if (sessionId == null && email != null) {
+            try {
+                val r = api.entitlement(EntitlementRequest(email = email, ownerKey = ownerKey))
+                val b = r.body()
+                if (r.isSuccessful && b != null) answers += b
+                else if (firstError == null) firstError = planLimitNotice(r)
+            } catch (_: Exception) { /* legacy lookup is best-effort */ }
+        }
+        if (answers.isEmpty()) throw IllegalStateException(firstError ?: "Entitlement lookup failed")
+        val body = answers.first()
         val nowMillis = System.currentTimeMillis()
         val state = PremiumState(
-            entitlements = body.entitlements.mapNotNull { runCatching { Entitlement.valueOf(it) }.getOrNull() }.toSet(),
+            entitlements = answers.flatMap { it.entitlements }.mapNotNull { runCatching { Entitlement.valueOf(it) }.getOrNull() }.toSet(),
             sourceEmail = body.email,
             licenseToken = body.licenseToken,
             lastVerifiedAtMillis = nowMillis,
@@ -122,6 +136,17 @@ class StripeBillingRepository(
         val o = org.json.JSONObject(response.errorBody()?.string().orEmpty())
         if (o.optString("code") == "plan_limit") o.optString("error").takeIf { it.isNotBlank() } else null
     }.getOrNull()
+
+    private fun PremiumProduct.v2Key(): String = when (this) {
+        PremiumProduct.AD_FREE_MONTHLY -> "AD_FREE"
+        PremiumProduct.PRO_MONTHLY -> "PRO"
+        PremiumProduct.PRO_YEARLY -> "PRO_YEARLY"
+        PremiumProduct.PRO_LIFETIME -> "PRO_LIFETIME"
+    }
+
+    private companion object {
+        const val V2_APP = "livecaptionn"
+    }
 
     private suspend fun readCachedEmail(): String? = localStore.stateFlow.first().sourceEmail
 

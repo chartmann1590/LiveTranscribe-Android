@@ -12,6 +12,12 @@ interface WorkerApi {
     @POST("entitlement")
     suspend fun entitlement(@Body request: EntitlementRequest): Response<EntitlementResponse>
 
+    @POST("v2/checkout")
+    suspend fun checkoutV2(@Body request: V2CheckoutRequest): Response<CheckoutResponse>
+
+    @POST("v2/entitlement")
+    suspend fun entitlementV2(@Body request: V2EntitlementRequest): Response<EntitlementResponse>
+
     @GET("portal")
     suspend fun portal(): Response<PortalResponse>
 }

@@ -1,5 +1,6 @@
 package com.charles.livecaptionn.ui
 
+import com.charles.livecaptionn.ui.premium.ProTrigger
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -51,7 +52,8 @@ fun FeatureToolsCard(
     onApplyProfile: (CaptionProfile) -> Unit,
     onSaveHistoryChange: (Boolean) -> Unit,
     onRequiresPro: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onRequiresProFor: (ProTrigger) -> Unit = { onRequiresPro() }
 ) {
     val t = LocalUiStrings.current
     var profileItems by remember { mutableStateOf<List<CaptionProfile>>(emptyList()) }
@@ -109,7 +111,7 @@ fun FeatureToolsCard(
                         )
                         scope.launch { profiles.save(profile) }
                         profileItems = profileItems.filterNot { it.name == profile.name } + profile
-                    } else onRequiresPro()
+                    } else onRequiresProFor(ProTrigger.PROFILE)
                 }) { Text(t["Save Pro preset"]) }
             }
             if (profileItems.isNotEmpty()) {
@@ -117,7 +119,7 @@ fun FeatureToolsCard(
                     items(profileItems, key = { it.id }) { profile ->
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Text(profile.name, Modifier.weight(1f))
-                            TextButton(onClick = { if (!profile.proOnly || hasPro) onApplyProfile(profile) else onRequiresPro() }) { Text(t["Use"]) }
+                            TextButton(onClick = { if (!profile.proOnly || hasPro) onApplyProfile(profile) else onRequiresProFor(ProTrigger.PROFILE) }) { Text(t["Use"]) }
                             IconButton(onClick = {
                                 scope.launch { profiles.delete(profile.id) }
                                 profileItems = profileItems.filterNot { it.id == profile.id }
@@ -128,7 +130,7 @@ fun FeatureToolsCard(
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(t["Glossary and phrase replacements"], Modifier.weight(1f))
-                TextButton(onClick = { if (hasPro) showGlossaryDialog = true else onRequiresPro() }) {
+                TextButton(onClick = { if (hasPro) showGlossaryDialog = true else onRequiresProFor(ProTrigger.GLOSSARY) }) {
                     Icon(Icons.Filled.Add, contentDescription = null)
                     Text(t["Add Pro"])
                 }

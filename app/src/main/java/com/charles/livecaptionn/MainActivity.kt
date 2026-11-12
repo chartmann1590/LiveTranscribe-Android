@@ -145,7 +145,7 @@ class MainActivity : ComponentActivity() {
 
     private fun extractCheckoutSessionId(intent: Intent?): String? {
         val data = intent?.data ?: return null
-        if (data.scheme != "livecaptionn" || data.host != "premium-return") return null
+        if (data.scheme != "livecaptionn" || (data.host != "premium-return" && data.host != "billing-return")) return null
         return data.getQueryParameter("session_id")
     }
 

@@ -115,6 +115,7 @@ import com.charles.livecaptionn.ui.l10n.UiLocalizationRepository.UiLocalizationS
 import com.charles.livecaptionn.ui.premium.PremiumCard
 import com.charles.livecaptionn.ui.premium.PremiumUiState
 import com.charles.livecaptionn.ui.premium.PremiumViewModel
+import com.charles.livecaptionn.ui.premium.ProTrigger
 import com.charles.livecaptionn.update.UpdateInfo
 import androidx.lifecycle.viewmodel.compose.viewModel
 
@@ -137,6 +138,7 @@ fun MainScreen(
     var sttUrlDraft by remember(ui.settings.sttBaseUrl) { mutableStateOf(ui.settings.sttBaseUrl) }
     var showVoskSheet by remember { mutableStateOf(false) }
     var showUpgradePrompt by remember { mutableStateOf(false) }
+    var upgradeTrigger by remember { mutableStateOf(ProTrigger.GENERIC) }
     LaunchedEffect(Unit) { viewModel.refreshPermissionState() }
 
     val feedbackCtx = LocalContext.current
@@ -265,7 +267,7 @@ fun MainScreen(
             )
             CaptionControlCard(
                 ui,
-                onStart = { if (startNeedsPro) showUpgradePrompt = true else onStart() },
+                onStart = { if (startNeedsPro) { upgradeTrigger = ProTrigger.LANGUAGE; showUpgradePrompt = true } else onStart() },
                 onStop = onStop,
                 canStart = modelReady && permissionReady,
                 modelMissing = !modelReady,
@@ -284,13 +286,13 @@ fun MainScreen(
                 viewModel = viewModel,
                 onManageModels = { showVoskSheet = true },
                 hasPro = premiumState.premium.hasPro,
-                onRequiresPro = { showUpgradePrompt = true }
+                onRequiresPro = { upgradeTrigger = ProTrigger.LANGUAGE; showUpgradePrompt = true }
             )
             OverlaySettingsCard(
                 ui = ui,
                 viewModel = viewModel,
                 hasPro = premiumState.premium.hasPro,
-                onRequiresPro = { showUpgradePrompt = true }
+                onRequiresPro = { upgradeTrigger = ProTrigger.THEME; showUpgradePrompt = true }
             )
             FeatureToolsCard(
                 settings = ui.settings,
@@ -302,7 +304,8 @@ fun MainScreen(
                 voskModels = ui.voskModels,
                 onApplyProfile = viewModel::applyProfile,
                 onSaveHistoryChange = viewModel::updateSaveHistory,
-                onRequiresPro = { showUpgradePrompt = true }
+                onRequiresPro = { upgradeTrigger = ProTrigger.GENERIC; showUpgradePrompt = true },
+                onRequiresProFor = { upgradeTrigger = it; showUpgradePrompt = true }
             )
             UiLanguageCard(
                 languageCode = ui.uiLanguageCode,
@@ -370,6 +373,7 @@ fun MainScreen(
                     // Used to just close the sheet, which left the user with no
                     // way to reach the purchase (Play review, Oct 2026).
                     showVoskSheet = false
+                    upgradeTrigger = ProTrigger.SERVER_MODEL
                     showUpgradePrompt = true
                 }
             )
@@ -393,7 +397,10 @@ fun MainScreen(
                     val act = activity
                     if (act != null) premiumVm.purchase(act, PremiumProduct.PRO_MONTHLY)
                 },
-                onDismiss = { showUpgradePrompt = false }
+                onDismiss = { showUpgradePrompt = false },
+                trigger = upgradeTrigger,
+                onPurchase = { product -> activity?.let { premiumVm.purchase(it, product) } },
+                onEmailChange = { premiumVm.updateRestoreEmail(it) }
             )
             // Close the prompt once Pro is active so it does not linger after
             // Google Play's purchase sheet returns.
@@ -1080,15 +1087,80 @@ internal fun LanguagePickerDialog(
 internal fun ProUpgradeDialog(
     state: PremiumUiState,
     onGoPro: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    trigger: ProTrigger = ProTrigger.GENERIC,
+    onPurchase: ((PremiumProduct) -> Unit)? = null,
+    onEmailChange: (String) -> Unit = {}
 ) {
     val t = LocalUiStrings.current
+    // github/Stripe flavor: the shared billing server sells Pro monthly and yearly with a
+    // 14-day free trial, plus lifetime. Play keeps its single "Go Pro" sheet.
+    val directPlans = state.supportsEmailRestore && onPurchase != null
+    val title = when (trigger) {
+        ProTrigger.SERVER_MODEL -> t["Server-grade accuracy is Pro"]
+        ProTrigger.LANGUAGE -> t["This translation language is Pro"]
+        ProTrigger.GLOSSARY -> t["The glossary is Pro"]
+        ProTrigger.PROFILE -> t["Pro presets"]
+        ProTrigger.THEME -> t["Pro overlay styles"]
+        ProTrigger.GENERIC -> t["Pro feature"]
+    }
+    val why = when (trigger) {
+        ProTrigger.SERVER_MODEL -> t["Large server-grade speech models give the lowest error rates, fully offline on this phone."]
+        ProTrigger.LANGUAGE -> t["Pro unlocks every on-device translation language, including this one."]
+        ProTrigger.GLOSSARY -> t["Teach captions your names, places and terms so they come out right every time."]
+        ProTrigger.PROFILE -> t["Save and reuse your favorite caption setups with Pro presets."]
+        ProTrigger.THEME -> t["Pro unlocks every overlay theme and font."]
+        ProTrigger.GENERIC -> t["Upgrade to Pro to unlock this feature. The upgrade removes ads and adds high-accuracy models, more languages, profiles, and advanced caption tools."]
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(t["Pro feature"]) },
+        title = { Text(title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(t["Upgrade to Pro to unlock this feature. The upgrade removes ads and adds high-accuracy models, more languages, profiles, and advanced caption tools."])
+                Text(why)
+                if (directPlans) {
+                    Text(
+                        text = t["Try Pro free for 14 days. Cancel before the trial ends and you pay nothing. Pro also removes all ads."],
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = state.restoreEmail,
+                        onValueChange = onEmailChange,
+                        label = { Text(t["Email for your receipt"]) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Button(
+                        enabled = !state.isBusy,
+                        onClick = { onPurchase?.invoke(PremiumProduct.PRO_MONTHLY) },
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(if (state.isBusy) t["Opening checkout…"] else t["Start 14-day free trial"])
+                    }
+                    Text(
+                        text = t["then $4.99/month"],
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedButton(
+                        enabled = !state.isBusy,
+                        onClick = { onPurchase?.invoke(PremiumProduct.PRO_YEARLY) },
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(t["Yearly $29.99 (save 50%) · 14 days free"])
+                    }
+                    OutlinedButton(
+                        enabled = !state.isBusy,
+                        onClick = { onPurchase?.invoke(PremiumProduct.PRO_LIFETIME) },
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(t["Lifetime $49.99 · pay once"])
+                    }
+                }
                 state.error?.let { error ->
                     Text(
                         text = error,
@@ -1099,11 +1171,17 @@ internal fun ProUpgradeDialog(
             }
         },
         confirmButton = {
-            TextButton(enabled = !state.isBusy, onClick = onGoPro) {
-                Text(if (state.isBusy) t["Opening Google Play…"] else t["Go Pro"])
+            if (directPlans) {
+                TextButton(onClick = onDismiss) { Text(t["Not now"]) }
+            } else {
+                TextButton(enabled = !state.isBusy, onClick = onGoPro) {
+                    Text(if (state.isBusy) t["Opening Google Play…"] else t["Go Pro"])
+                }
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(t["Not now"]) } }
+        dismissButton = {
+            if (!directPlans) TextButton(onClick = onDismiss) { Text(t["Not now"]) }
+        }
     )
 }
 
