@@ -29,6 +29,36 @@ jobs:
           const timeout=()=>AbortSignal.timeout(15000);
           const encode=x=>Buffer.from(JSON.stringify(x)).toString('base64url');
           const fetchSafe=(url, options, transport)=>transport(url,{...options,redirect:'error',signal:timeout()});
+          const EXPECTED_US = new Map([['ad_free_monthly',[1,990000000]],['pro_monthly',[4,990000000]]]);
+          function basePlanShape(product, b) {
+            if (!/^[a-z0-9][a-z0-9-]{0,62}$/.test(b?.basePlanId ?? '') || !['ACTIVE','INACTIVE','DRAFT','STATE_UNSPECIFIED'].includes(b?.state) || !Array.isArray(b.regionalConfigs)) throw Error('unexpected_base_plan_shape');
+            const regions = b.regionalConfigs;
+            const US = regions.filter(x => x?.regionCode === 'US');
+            if (US.length>1) throw Error('duplicate_region');
+            const usd = US[0]?.price;
+            const [u,n] = EXPECTED_US.get(product);
+            return {
+              path_id: b.basePlanId,
+              active: b.state === 'ACTIVE',
+              auto_renew_monthly: b.autoRenewingBasePlanType?.billingPeriodDuration === 'P1M',
+              us_available_for_new_subscribers: US[0]?.newSubscriberAvailability === true,
+              us_base_price_matches_historical: usd?.currencyCode === 'USD' && (usd.units===String(u) || usd.units===u) && usd.nanos === n,
+              enabled_region_count: regions.filter(x=>x?.newSubscriberAvailability===true).length
+            };
+          }
+          async function pagedList(u, key, token, transport) {
+            const rows=[]; const seen=new Set(); let p='';
+            do {
+              const url=new URL(u); url.searchParams.set('pageSize','100'); if(p) url.searchParams.set('pageToken',p);
+              const r=await fetchSafe(url,{method:'GET',headers:{Authorization:'Bearer '+token}},transport);
+              if(!r.ok) throw Error('publisher_'+key+'_http_'+r.status);
+              const d=await r.json();
+              if(!d || typeof d!=='object' || Array.isArray(d) || (d[key]!==undefined && !Array.isArray(d[key]))) throw Error('publisher_unexpected_'+key);
+              rows.push(...(d[key]??[]));
+              p=d.nextPageToken??''; if(typeof p!=='string'||(p&&seen.has(p))||seen.size>=15) throw Error('publisher_page_not_complete'); if(p) seen.add(p);
+            } while(p);
+            return rows;
+          }
           export async function releaseRead(config, transport=fetch, epoch=Math.floor(Date.now()/1000)) {
             if (config?.type!=='service_account' || !/^[^@]+@[^@]+\.iam\.gserviceaccount\.com$/.test(config?.client_email??'') || typeof config.private_key!=='string') throw Error('invalid_service_account_configuration');
             const claims=encode({iss:config.client_email,scope:'https://www.googleapis.com/auth/androidpublisher',aud:TOKEN,iat:epoch,exp:epoch+300});
@@ -38,22 +68,27 @@ jobs:
             if (!result.ok) throw Error('publisher_auth_http_'+result.status);
             const token=(await result.json()).access_token;
             if(typeof token!=='string'||!token) throw Error('publisher_no_token');
-            const products=[]; const seen=new Set(); let page='';
-            do {
-              const url=new URL(READ);url.searchParams.set('pageSize','100');if(page)url.searchParams.set('pageToken',page);
-              result=await fetchSafe(url,{method:'GET',headers:{Authorization:'Bearer '+token}},transport);
-              if(!result.ok) throw Error('publisher_read_http_'+result.status);
-              const data=await result.json();
-              if(!data|| typeof data!=='object'||Array.isArray(data) || (data.subscriptions!==undefined && !Array.isArray(data.subscriptions))) throw Error('unexpected_subscription_response');
-              for(const s of data.subscriptions??[]) {
-                if(!s || s.packageName!==PACKAGE || typeof s.productId!=='string') throw Error('unexpected_subscription_identity');
-                products.push(s.productId);
+            const subs=await pagedList(READ,'subscriptions',token,transport);
+            const observed = new Set(); const resultRows={};
+            for (const s of subs) {
+              if(!s || s.packageName!==PACKAGE || typeof s.productId!=='string' || observed.has(s.productId)) throw Error('unexpected_subscription_identity');
+              observed.add(s.productId);
+              if (!EXPECTED_US.has(s.productId)) continue;
+              if (!Array.isArray(s.basePlans)) throw Error('missing_base_plans');
+              const all=s.basePlans.map(b=>basePlanShape(s.productId,b));
+              if (new Set(all.map(b=>b.path_id)).size!==all.length) throw Error('duplicate_base_plan');
+              const plans=[];
+              for(const b of all) {
+                if (!b.active) continue;
+                const url=READ+'/'+encodeURIComponent(s.productId)+'/basePlans/'+encodeURIComponent(b.path_id)+'/offers';
+                const offers=await pagedList(url,'subscriptionOffers',token,transport);
+                if(offers.some(o=>!o || o.productId!==s.productId || o.packageName!==PACKAGE || o.basePlanId!==b.path_id || !['ACTIVE','INACTIVE','DRAFT','STATE_UNSPECIFIED'].includes(o.state))) throw Error('unexpected_offer_identity');
+                const {path_id,...summary}=b;
+                plans.push({...summary,active_offer_count:offers.filter(o=>o.state==='ACTIVE').length});
               }
-              page=data.nextPageToken??'';
-              if(typeof page!=='string'||(page&&seen.has(page))||seen.size>=20)throw Error('subscription_pagination_incomplete');
-              if(page)seen.add(page);
-            } while(page);
-            return {publisher_catalog_read:true,product_count:products.length,ad_free_seen:products.includes('ad_free_monthly'),pro_seen:products.includes('pro_monthly')};
+              resultRows[s.productId]={total_base_plan_count:all.length,active_plans:plans};
+            }
+            return {publisher_catalog_read:true,product_count:subs.length,ad_free_seen:observed.has('ad_free_monthly'),pro_seen:observed.has('pro_monthly'),terms_schema:1,terms:resultRows};
           }
           export function signingFingerprint(env=process.env) {
             if (!env.ANDROID_KEYSTORE_B64 || !env.ANDROID_KEYSTORE_PASSWORD || !env.ANDROID_KEY_ALIAS) throw Error('signing_configuration_missing');
