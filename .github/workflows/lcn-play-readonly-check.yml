@@ -31,8 +31,9 @@ jobs:
           const fetchSafe=(url, options, transport)=>transport(url,{...options,redirect:'error',signal:timeout()});
           const EXPECTED_US = new Map([['ad_free_monthly',[1,990000000]],['pro_monthly',[4,990000000]]]);
           function basePlanShape(product, b) {
-            if (!/^[a-z0-9][a-z0-9-]{0,62}$/.test(b?.basePlanId ?? '') || !['ACTIVE','INACTIVE','DRAFT','STATE_UNSPECIFIED'].includes(b?.state) || !Array.isArray(b.regionalConfigs)) throw Error('unexpected_base_plan_shape');
-            const regions = b.regionalConfigs;
+            if (!/^[a-z0-9][a-z0-9-]{0,62}$/.test(b?.basePlanId ?? '') || !['ACTIVE','INACTIVE','DRAFT','STATE_UNSPECIFIED'].includes(b?.state)) throw Error('unexpected_base_plan_identity');
+            const regions = b.regionalConfigs ?? [];
+            if (!Array.isArray(regions)) throw Error('unexpected_base_plan_regions');
             const US = regions.filter(x => x?.regionCode === 'US');
             if (US.length>1) throw Error('duplicate_region');
             const usd = US[0]?.price;
@@ -81,10 +82,15 @@ jobs:
               for(const b of all) {
                 if (!b.active) continue;
                 const url=READ+'/'+encodeURIComponent(s.productId)+'/basePlans/'+encodeURIComponent(b.path_id)+'/offers';
-                const offers=await pagedList(url,'subscriptionOffers',token,transport);
-                if(offers.some(o=>!o || o.productId!==s.productId || o.packageName!==PACKAGE || o.basePlanId!==b.path_id || !['ACTIVE','INACTIVE','DRAFT','STATE_UNSPECIFIED'].includes(o.state))) throw Error('unexpected_offer_identity');
                 const {path_id,...summary}=b;
-                plans.push({...summary,active_offer_count:offers.filter(o=>o.state==='ACTIVE').length});
+                try {
+                  const offers=await pagedList(url,'subscriptionOffers',token,transport);
+                  if(offers.some(o=>!o || o.productId!==s.productId || o.packageName!==PACKAGE || o.basePlanId!==b.path_id || !['ACTIVE','INACTIVE','DRAFT','STATE_UNSPECIFIED'].includes(o.state))) throw Error('unexpected_offer_identity');
+                  plans.push({...summary,active_offer_count:offers.filter(o=>o.state==='ACTIVE').length});
+                } catch (e) {
+                  const m=/^publisher_subscriptionOffers_http_(\d{3})$/.exec(e?.message??'');
+                  plans.push({...summary,active_offer_count:null,offers_reason:m ? 'http_'+m[1] : (e?.message==='unexpected_offer_identity' ? 'identity' : 'unreadable')});
+                }
               }
               resultRows[s.productId]={total_base_plan_count:all.length,active_plans:plans};
             }
@@ -106,7 +112,7 @@ jobs:
             const summary={app:PACKAGE,external_edit_created:false,uploaded:false,console_cert_verified:false}; let ok=true;
             try{summary.signing_fingerprint_sha256=signingFingerprint();}catch{summary.signing_fingerprint_sha256=null;ok=false;}
             try{Object.assign(summary,await releaseRead(JSON.parse(process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON||'')));}
-            catch(e){summary.publisher_catalog_read=false;summary.publisher_reason=/^publisher_(read|auth)_http_\d{3}$/.test(e.message)?e.message:'publisher_preflight_failed';ok=false;}
+            catch(e){summary.publisher_catalog_read=false;summary.publisher_reason=/^publisher_(subscriptions|auth)_http_\d{3}$/.test(e.message) || ['unexpected_base_plan_identity','unexpected_base_plan_regions','duplicate_region','unexpected_subscription_identity','duplicate_base_plan','missing_base_plans','publisher_unexpected_subscriptions','publisher_page_not_complete'].includes(e.message) ? e.message : 'publisher_preflight_failed';ok=false;}
             console.log(JSON.stringify(summary)); if(!ok)process.exitCode=1;
           }
           await main();
