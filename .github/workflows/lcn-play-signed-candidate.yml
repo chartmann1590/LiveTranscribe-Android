@@ -1,0 +1,190 @@
+name: Build signed original LiveCaptionN bundle (encrypted output only)
+permissions:
+  contents: read
+concurrency:
+  group: lcn-play-signed-bundle-preflight
+  cancel-in-progress: false
+jobs:
+  candidate:
+    if: github.repository == 'chartmann1590/LiveTranscribe-Android' && github.ref == 'refs/heads/play-recovery/lcn-october-2ed71507' && github.actor == 'chartmann1590'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    defaults:
+      run:
+        shell: bash
+    steps:
+    - name: Check out the reviewed application base only
+      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      with:
+        ref: 8c47ba88941fc184dacfa146b3a80eb134bed56f
+        persist-credentials: false
+        fetch-depth: 1
+    - name: Prepare the exact October checkout and set only the release version
+      run: |
+        test "$(git rev-parse HEAD)" = '8c47ba88941fc184dacfa146b3a80eb134bed56f'
+        test -n "$JAVA_HOME_17_X64" && test -x "$JAVA_HOME_17_X64/bin/java"
+        printf 'JAVA_HOME=%s\n' "$JAVA_HOME_17_X64" >> "$GITHUB_ENV"
+        printf '%s\n' "$JAVA_HOME_17_X64/bin" >> "$GITHUB_PATH"
+        printf 'ANDROID_VERSION_CODE=%s\nANDROID_VERSION_NAME=%s\n' '263242328' '1.0.20261120.2328' >> "$GITHUB_ENV"
+        test -f "$ANDROID_HOME/platforms/android-36/android.jar" || "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-36' >/dev/null
+        test -z "$(git status --porcelain --untracked-files=no)"
+    - name: Verify configuration, sign and inspect; never upload
+      env:
+        GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        ADMOB_APP_ID: ${{ secrets.ADMOB_APP_ID }}
+        ADMOB_BANNER_ID_RELEASE: ${{ secrets.ADMOB_BANNER_ID_RELEASE }}
+        ADMOB_NATIVE_ID_RELEASE: ${{ secrets.ADMOB_NATIVE_ID_RELEASE }}
+        ADMOB_APP_OPEN_ID_RELEASE: ${{ secrets.ADMOB_APP_OPEN_ID_RELEASE }}
+      run: |
+        set -euo pipefail
+        umask 077
+        trap 'rm -f -- app/google-services.json local.properties keystore.properties app/build/outputs/bundle/playstoreRelease/app-playstore-release.aab "$RUNNER_TEMP/lcn-production-signing.jks" "$RUNNER_TEMP/lcn-unit.log" "$RUNNER_TEMP/lcn-build.log"' EXIT
+        python3 - <<'PY'
+        import os,json,pathlib,re,base64
+        P=pathlib.Path; e=os.environ; secret_path=P(e['RUNNER_TEMP'])/'lcn-production-signing.jks'
+        expected={'ADMOB_APP_ID': 'ca-app-pub-8382831211800454~6962874109', 'ADMOB_BANNER_ID_RELEASE': 'ca-app-pub-8382831211800454/2231636617', 'ADMOB_NATIVE_ID_RELEASE': 'ca-app-pub-8382831211800454/3327966560', 'ADMOB_APP_OPEN_ID_RELEASE': 'ca-app-pub-8382831211800454/6447868787'}
+        for k,v in expected.items():
+            if e.get(k)!=v:raise SystemExit('production ad configuration does not match the existing Play AdMob record')
+        try:
+            cfg=json.loads(e['GOOGLE_SERVICES_JSON']); pkg='com.charles.livecaptionn'
+            clients=[c for c in cfg.get('client',[]) if c.get('client_info',{}).get('android_client_info',{}).get('package_name')==pkg]
+            assert len(clients)==1 and clients[0]['client_info']['mobilesdk_app_id'] and any(re.fullmatch(r'AIza[0-9A-Za-z_\-]{35}',k.get('current_key','')) for k in clients[0]['api_key'])
+            P('app/google-services.json').write_text(e['GOOGLE_SERVICES_JSON'])
+            signing=[str(secret_path),e['ANDROID_KEYSTORE_PASSWORD'],e['ANDROID_KEY_ALIAS'],e['ANDROID_KEY_PASSWORD']]
+            assert all(s and not any(c in s for c in '\r\n\x00') for s in signing)
+            # Escape Java properties values, including leading/trailing spaces and non-ASCII.
+            def prop(s):
+                utf=s.encode('utf-16-be'); return ''.join(chr(v) if 33<=v<127 and v!=92 else ('\\u%04x' % v) for v in (int.from_bytes(utf[i:i+2],'big') for i in range(0,len(utf),2)))
+            keystore=base64.b64decode(''.join(e['ANDROID_KEYSTORE_B64'].split()),validate=True); assert keystore
+            secret_path.write_bytes(keystore)
+            P('keystore.properties').write_text(''.join(k+'='+prop(v)+'\n' for k,v in zip(('storeFile','storePassword','keyAlias','keyPassword'),signing)))
+        except Exception: raise SystemExit('verified signing or Firebase configuration unavailable')
+        P('local.properties').write_text('translate.url=http://localhost:3006\nstt.url=http://localhost:9000/asr?output=json\nads.enabled=true\n'+''.join('ads.'+k.lower().replace('_','.')+'='+e[k]+'\n' for k in expected))
+        PY
+        unset GOOGLE_SERVICES_JSON ANDROID_KEYSTORE_B64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD ADMOB_APP_ID ADMOB_APP_OPEN_ID_RELEASE ADMOB_BANNER_ID_RELEASE ADMOB_NATIVE_ID_RELEASE
+        lcn_safe_diagnostic() {
+          python3 - "$@" <<'LCN_SAFE_DIAGNOSTIC'
+        import pathlib,re,sys,xml.etree.ElementTree as ET
+        mode=sys.argv[1]
+        assert mode in ('TEST','RELEASE')
+        p=pathlib.Path(sys.argv[2]); content=''
+        if p.is_file():
+            with p.open('rb') as f:
+                f.seek(max(0,p.stat().st_size-512*1024)); content=f.read(512*1024).decode('utf-8','replace')
+        keys={
+            'TEST_TASK_FAILED':r'(?im)> Task :app:testPlaystoreDebugUnitTest FAILED|\bThere were failing tests\b',
+            'DEPENDENCY_RESOLUTION':r'(?i)could not resolve all (?:files|artifacts|dependencies)|could not find (?:com\.|org\.)|could not resolve (?:com\.|org\.)',
+            'NETWORK_OR_REPOSITORY':r'(?i)connect timed out|read timed out|unknownhostexception|could not (?:get|head) resource|http response code\s*[: ]\s*(?:401|403|404|429|5\d\d)|(?:received|status code) (?:429|50[0-9])',
+            'GRADLE_DISTRIBUTION':r'(?i)could not install gradle distribution|download of gradle distribution failed|gradle-wrapper\.jar could not',
+            'ANDROID_SDK_SETUP':r'(?i)SDK location not found|failed to find target with hash string|licenses have not been accepted|failed to install the following Android SDK packages',
+            'JAVA_SETUP':r'(?i)invalid JAVA_HOME|requires Java \d+ to run|unsupported class file major version',
+            'KOTLIN_OR_JAVA_COMPILE':r'(?im)> Task :app:compilePlaystore(?:Debug|Release)(?:Kotlin|JavaWithJavac) FAILED|unresolved reference:',
+            'GRADLE_DAEMON_LOST':r'(?i)gradle build daemon disappeared unexpectedly|daemon has disappeared',
+            'RESOURCE_LIMIT':r'(?i)no space left on device|java\.lang\.OutOfMemoryError|unable to create native thread',
+            'SIGNING_CONFIG':r'(?i)failed to read key|keystore file .{0,220} not found for signing config|Keystore was tampered with, or password was incorrect',
+        }
+        flags=[k for k,v in keys.items() if re.search(v,content)]
+        paths=list(pathlib.Path('app/build/test-results/testPlaystoreDebugUnitTest').glob('TEST-*.xml'))[:512] if mode=='TEST' else []
+        classes=[]; count=failures=0
+        for v in paths:
+            if not v.is_file() or v.stat().st_size>4_000_000:continue
+            try:
+                node=ET.parse(v).getroot(); count+=max(0,min(10000,int(node.get('tests','0'))))
+                bad=[x for x in node.findall('testcase') if x.find('failure') is not None or x.find('error') is not None]; failures+=len(bad)
+                for x in bad:
+                    c=x.get('classname','');
+                    if re.fullmatch(r'com\.charles\.livecaptionn\.(?:[a-z]{1,30}\.){0,7}[A-Z][A-Za-z0-9]{1,58}Test',c):classes.append(c)
+            except (OSError,ValueError,ET.ParseError):pass
+        print('LCN_OCTOBER_SAFE_DIAGNOSTIC stage='+mode+' flags='+(','.join(flags) or 'UNCLASSIFIED')+' tests='+str(count)+' failed='+str(failures)+' checked_suites='+str(len(paths)))
+        # Echo only the approved package-shaped test class labels. No method names, URLs,
+        # exception text, configuration, test stdout, raw logs or Gradle --info/debug.
+        for c in sorted(set(classes))[:6]: print('LCN_OCTOBER_SAFE_FAILING_SUITE '+c)
+        LCN_SAFE_DIAGNOSTIC
+        }
+        if ! bash ./gradlew --no-daemon --max-workers=2 :app:testPlaystoreDebugUnitTest > "$RUNNER_TEMP/lcn-unit.log" 2>&1; then
+          lcn_safe_diagnostic TEST "$RUNNER_TEMP/lcn-unit.log" || true
+          echo 'Play unit tests failed (log withheld to avoid credential exposure).'; exit 1
+        fi
+        if ! bash ./gradlew --no-daemon --max-workers=2 :app:bundlePlaystoreRelease > "$RUNNER_TEMP/lcn-build.log" 2>&1; then
+          lcn_safe_diagnostic RELEASE "$RUNNER_TEMP/lcn-build.log" || true
+          echo 'Signed Play build failed (log withheld to avoid credential exposure).'; exit 1
+        fi
+        aab='app/build/outputs/bundle/playstoreRelease/app-playstore-release.aab'
+        test -s "$aab"
+        jarsigner -verify "$aab" > "$RUNNER_TEMP/lcn-jarsigner.log" 2>&1
+        grep -q '^jar verified\.' "$RUNNER_TEMP/lcn-jarsigner.log"
+        keytool -printcert -jarfile "$aab" > "$RUNNER_TEMP/lcn-signer.txt"
+        grep -Fq 'AE:C5:97:B7:66:56:5E:A4:34:80:22:3C:BD:8A:A1:6C:DB:FF:43:B1:7A:11:0C:21:95:72:FF:1D:AC:81:3C:EC' "$RUNNER_TEMP/lcn-signer.txt"
+        curl -fsSL --proto '=https' --proto-redir '=https' --max-time 45 -o "$RUNNER_TEMP/lcn-bundletool.jar" https://github.com/google/bundletool/releases/download/1.18.3/bundletool-all-1.18.3.jar
+        printf 'a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29  %s\n' "$RUNNER_TEMP/lcn-bundletool.jar" | sha256sum -c --status
+        java -jar "$RUNNER_TEMP/lcn-bundletool.jar" validate --bundle="$aab" > /dev/null
+        java -jar "$RUNNER_TEMP/lcn-bundletool.jar" dump manifest --bundle="$aab" > "$RUNNER_TEMP/lcn-manifest.xml"
+        java -jar "$RUNNER_TEMP/lcn-bundletool.jar" dump config --bundle="$aab" > "$RUNNER_TEMP/lcn-bundleconfig.txt"
+        python3 - <<'PY'
+        import hashlib,json,re,pathlib,os,xml.etree.ElementTree as ET,zipfile
+        P=pathlib.Path; t=P(os.environ['RUNNER_TEMP']); aab=P('app/build/outputs/bundle/playstoreRelease/app-playstore-release.aab'); ns='{http://schemas.android.com/apk/res/android}'; m=ET.parse(t/'lcn-manifest.xml').getroot()
+        assert m.attrib.get('package')=='com.charles.livecaptionn'
+        app=m.find('application')
+        assert app.attrib.get(ns+'allowBackup')=='true'
+        assert m.attrib.get(ns+'versionCode')==os.environ['ANDROID_VERSION_CODE']
+        assert m.attrib.get(ns+'versionName')==os.environ['ANDROID_VERSION_NAME']
+        assert m.find('uses-sdk').attrib[ns+'targetSdkVersion']=='36'
+        md=[n.get(ns+'value') for n in m.findall('./application/meta-data') if n.get(ns+'name')=='com.google.android.gms.ads.APPLICATION_ID']
+        assert md==['ca-app-pub-8382831211800454~6962874109']
+        assert not any(p.get(ns+'name')=='android.permission.REQUEST_INSTALL_PACKAGES' for p in m.findall('uses-permission'))
+        assert 'PAGE_ALIGNMENT_16K' in (t/'lcn-bundleconfig.txt').read_text()
+        with zipfile.ZipFile(aab) as z:
+           bill=[z.read(p) for p in z.namelist() if p.endswith('/billing.properties')]
+           assert any(re.search(rb'(?m)^version=9\.1\.0\s*$', b) for b in bill), 'expected Play Billing version absent'
+           dex=[z.read(n) for n in z.namelist() if re.fullmatch(r'base/dex/classes\d*\.dex',n)]
+           for x in ['ca-app-pub-8382831211800454/2231636617', 'ca-app-pub-8382831211800454/3327966560', 'ca-app-pub-8382831211800454/6447868787']:
+               assert any(x.encode() in one for one in dex),'configured AdMob unit missing from release bytes'
+           assert not any(b'ca-app-pub-8382831211800454~1744520915' in d for d in dex)
+        count=sum(int(ET.parse(v).getroot().get('tests',0)) for v in P('app/build/test-results/testPlaystoreDebugUnitTest').glob('TEST-*.xml'))
+        assert count>0
+        r=[ET.parse(v).getroot() for v in P('app/build/test-results/testPlaystoreDebugUnitTest').glob('TEST-*.xml')]
+        assert all(int(n.get('failures',0))==int(n.get('errors',0))==0 for n in r)
+        with aab.open('rb') as f: dg=hashlib.file_digest(f,'sha256').hexdigest()
+        print('LCN_OCTOBER_VERSION_ONLY_OK sha256='+dg+' versionCode='+os.environ['ANDROID_VERSION_CODE']+' unitTests='+str(count)+' productionAdIdsVerified=true uploaded=false')
+        PY
+        node --input-type=module <<'LCN_ENCRYPT'
+        import {open,stat,rename} from 'node:fs/promises';
+        import {createReadStream} from 'node:fs';
+        import {join} from 'node:path';
+        import {createHash,createCipheriv,randomBytes,publicEncrypt,constants} from 'node:crypto';
+        const src='app/build/outputs/bundle/playstoreRelease/app-playstore-release.aab';
+        const d=await stat(src);
+        if(!d.isFile()||d.size<500000||d.size>250*1024*1024)throw Error('bundle_size_not_expected');
+        const tag=Buffer.from('LCNAAB1\n');
+        const pub=Buffer.from('LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUF6VUxzaHUvYU56OGRKYzc3QlhiUQprVUw4UTJTK1RlSzdIWUQ3SnY3Vmd6bDJZQ2laSFQrcGFqUVdrMnB6eEFXalhvV0paNHFQeHdBeTlLdGZXZlk4ClZ3NzBFL1BUOTltMGRSYUl1Ym1NcmFyM0RNenMrTGdwMEcvOEVOMllsc1BNR2Vjc1g0anFPT05TblJSejdvT0kKK1hNZTROLzJaT0diUEZXaU01aUtlU3o1em15YmNIRlVhdnhpMS9YYU9JdDVKZWp2dWxTa21NSGRYZ0F6ay94Sgp5ejBQYXZ3UDV6b05VTHlXa05ENEVobndQYVh5UCtJZGYrelFPK0d0YjFTYkg2dXZNVmJDTFVXZkdWWmNuV1pjCitLSThVUTNFQVhPLzZvSGRmb0gvM1RGbkVQUURqdmVLOVliWUd4OFBSNy9pUm1MNEhnZTNpTndRRUY0OFJMSHcKaHdJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==','base64');
+        const key=randomBytes(32), iv=randomBytes(12);
+        const wrapped=publicEncrypt({key:pub,padding:constants.RSA_PKCS1_OAEP_PADDING,oaepHash:'sha256'},key);
+        const cipher=createCipheriv('aes-256-gcm',key,iv);
+        cipher.setAAD(tag);key.fill(0);
+        const dst=join(process.env.RUNNER_TEMP,'lcn-signed-october-2ed71507.aab.encrypted');
+        const f=await open(dst+'.tmp','wx',0o600);
+        async function add(b){for(let off=0;off<b.length;){const q=await f.write(b,off,b.length-off,null); if(q.bytesWritten===0) throw Error('write_interrupted');off+=q.bytesWritten;}}
+        const h=createHash('sha256');
+        try {await add(Buffer.concat([tag,wrapped,iv]));
+         for await(const b of createReadStream(src)){h.update(b);await add(cipher.update(b));}
+         await add(cipher.final());await add(cipher.getAuthTag());await f.sync();
+        } finally {await f.close();}
+        await rename(dst+'.tmp',dst);
+        const sz=(await stat(dst)).size;
+        if(sz!==d.size+292||!/^[0-9]{8,10}$/.test(process.env.ANDROID_VERSION_CODE))throw Error('invalid_envelope');
+        console.log('::notice title=LCN_OCTOBER_SIGNED_BUNDLE_V1::version_code='+process.env.ANDROID_VERSION_CODE+' size='+d.size+' sha256='+h.digest('hex')+' HISTORICAL_UPLOAD_SIGNER_VERIFIED true GOOGLE_UPLOAD false');
+        LCN_ENCRYPT
+    - name: Retain only encrypted signed bundle; do not send to Play
+      uses: actions/upload-artifact@v4
+      with:
+        name: lcn-signed-october-2ed71507-sealed
+        path: ${{ runner.temp }}/lcn-signed-october-2ed71507.aab.encrypted
+        if-no-files-found: error
+        compression-level: 0
+        retention-days: 5
+'on':
+  workflow_dispatch: null
