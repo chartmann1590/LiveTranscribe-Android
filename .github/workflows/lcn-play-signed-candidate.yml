@@ -6,7 +6,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   candidate:
-    if: github.repository == 'chartmann1590/LiveTranscribe-Android' && github.ref == 'refs/heads/play-recovery/lcn-r2-retained-bundle-20261120' && github.actor == 'chartmann1590'
+    if: github.repository == 'chartmann1590/LiveTranscribe-Android' && github.ref == 'refs/heads/play-recovery/lcn-original-review-faf6098d' && github.actor == 'chartmann1590'
     runs-on: ubuntu-24.04
     timeout-minutes: 18
     defaults:
@@ -135,7 +135,7 @@ jobs:
         const d=await stat(src);
         if(!d.isFile()||d.size<500000||d.size>250*1024*1024)throw Error('bundle_size_not_expected');
         const tag=Buffer.from('LCNAAB1\n');
-        const pub=Buffer.from('LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUF1cS9PcE85TE50bVN4Qjh1SEorOQovY3Z3U1djVVo5dmZralp3SFNzSTlscjhPYmFPS3ovMWpza3daMkxBd3dhRFlISjA5bjNpRnQ2NW42VmdPRWR4CkdSL25CMW10Mk5jZ2JGMGxiNzJXTDlJdjFUdHp1UUZjaFp0dXZFcUpEWFhtbE9Ka3dNcjA1WG9HTFgwNXZzNjAKdjlzTzJxb01RcGRlR3lSZTd0RXd3UnVzL3pVMkh2emtNS0gyc2tNbmRPdnlKOUNRc05EOFQ1eFJHMTJPVERCdgpkNVQ2RGg0NkQzUVVuVE9UK1ZKdGgyZEVwbEdrbExlWDllaUUxSmo4YUVackZXZXI0aVJ5NXliR01hZmZGaXN6Clp6OEtvT0ZNNTlONFZpd3VIU2dVMFRRdkZEYXMySXRybXNRKzlPYkJKWWsvb043RlVLekJweVJZRytxK1psQXAKNVFJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0t','base64');
+        const pub=Buffer.from('LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUFuL01WUTZORm5mTkVOcm10NXBmRApqdFVDcUhHZjU3MldGdm16Sy9wT1FXWEt1M2lITlBFVUNRSThuVkhQcE8xcUROckFQeU1UaXdFVHNiRFN3RU9yCmwwVkRMdGZFSXlSbGxwMFFuMEttd1ZOc0NwTTBwd0tnNjhEeU1KWHNIdDVtQ3Q4aGxiVkZ4NHR0UjU3ZnF4aE8KdlhHcXFDMlpDSWZYSEhDRjBaSlc1MDQzTmIxekVaTU1EZlVDdjlPV2dsM3FzVjhmMkRaSjBFV2ZaOGJzTnMrTwpkRHpYdXRQbzhGejJIT0NQMHJ4RmdtWlZjbWVndHFGQ0xobGdjVmtGTUpGOTNXdWpWZTUrVFNxSmRUT0NnSGpHClhLK0ZJM3laaGxYUmJWR24reC9tUFo4NmVCTVRIZDAzN1A3dFJpRmdtMXhWS0tGODUwWFd1cjBKYkZxVFRSQjEKelFJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==','base64');
         const key=randomBytes(32), iv=randomBytes(12);
         const wrapped=publicEncrypt({key:pub,padding:constants.RSA_PKCS1_OAEP_PADDING,oaepHash:'sha256'},key);
         const cipher=createCipheriv('aes-256-gcm',key,iv);
