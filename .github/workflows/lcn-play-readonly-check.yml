@@ -1,129 +1,18 @@
-name: LiveCaptionN original Play listing readback (no edits)
+name: LiveCaptionN original Play terms and track checks (GET only)
+'on':
+  workflow_dispatch: null
 permissions: {}
 jobs:
   inspect:
-    if: github.ref == 'refs/heads/play-recovery/lcn-google-readback-20261120' && github.repository == 'chartmann1590/LiveTranscribe-Android' && github.actor == 'chartmann1590'
+    if: github.ref == 'refs/heads/play-recovery/lcn-policy-terms-gates-20261120' && github.repository == 'chartmann1590/LiveTranscribe-Android' && github.actor == 'chartmann1590'
     runs-on: ubuntu-24.04
-    timeout-minutes: 4
+    timeout-minutes: 3
     steps:
-    - name: Read Play release state and existing subscriptions only
+    - name: Read existing original Play tracks and billing only
       env:
         GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
       shell: bash
-      run: |
-        node --input-type=module <<'LCN_READ_ONLY'
-        import {sign,createCipheriv,randomBytes,publicEncrypt,constants} from 'node:crypto';
-
-        export const PACKAGE = 'com.charles.livecaptionn';
-        const TOKEN='https://oauth2.googleapis.com/token';
-        const READ='https://androidpublisher.googleapis.com/androidpublisher/v3/applications/'+PACKAGE+'/subscriptions';
-        const timeout=()=>AbortSignal.timeout(15000);
-        const encode=x=>Buffer.from(JSON.stringify(x)).toString('base64url');
-        const fetchSafe=(url, options, transport)=>transport(url,{...options,redirect:'error',signal:timeout()});
-        const EXPECTED_US = new Map([['ad_free_monthly',[1,990000000]],['pro_monthly',[4,990000000]]]);
-        function basePlanShape(product, b) {
-          if (!/^[a-z0-9][a-z0-9-]{0,62}$/.test(b?.basePlanId ?? '') || !['ACTIVE','INACTIVE','DRAFT','STATE_UNSPECIFIED'].includes(b?.state)) throw Error('unexpected_base_plan_identity');
-          const regions = b.regionalConfigs ?? [];
-          if (!Array.isArray(regions)) throw Error('unexpected_base_plan_regions');
-          const US = regions.filter(x => x?.regionCode === 'US');
-          if (US.length>1) throw Error('duplicate_region');
-          const usd = US[0]?.price;
-          const [u,n] = EXPECTED_US.get(product);
-          return {
-            path_id: b.basePlanId,
-            active: b.state === 'ACTIVE',
-            auto_renew_monthly: b.autoRenewingBasePlanType?.billingPeriodDuration === 'P1M',
-            us_available_for_new_subscribers: US[0]?.newSubscriberAvailability === true,
-            us_base_price_matches_historical: usd?.currencyCode === 'USD' && (usd.units===String(u) || usd.units===u) && usd.nanos === n,
-            enabled_region_count: regions.filter(x=>x?.newSubscriberAvailability===true).length
-          };
-        }
-        async function pagedList(u, key, token, transport) {
-          const rows=[]; const seen=new Set(); let p='';
-          do {
-            const url=new URL(u); url.searchParams.set('pageSize','100'); if(p) url.searchParams.set('pageToken',p);
-            const r=await fetchSafe(url,{method:'GET',headers:{Authorization:'Bearer '+token}},transport);
-            if(!r.ok) throw Error('publisher_'+key+'_http_'+r.status);
-            const d=await r.json();
-            if(!d || typeof d!=='object' || Array.isArray(d) || (d[key]!==undefined && !Array.isArray(d[key]))) throw Error('publisher_unexpected_'+key);
-            rows.push(...(d[key]??[]));
-            p=d.nextPageToken??''; if(typeof p!=='string'||(p&&seen.has(p))||seen.size>=15) throw Error('publisher_page_not_complete'); if(p) seen.add(p);
-          } while(p);
-          return rows;
-        }
-        async function readTracks(token, transport) {
-          const base='https://androidpublisher.googleapis.com/androidpublisher/v3/applications/'+PACKAGE+'/tracks/';
-          const tracks=['production','internal','beta','alpha'];
-          const allowed=new Set(['UNSPECIFIED','DRAFT','NOT_SENT_FOR_REVIEW','IN_REVIEW','APPROVED_NOT_PUBLISHED','NOT_APPROVED','PUBLISHED'].map(x=>'RELEASE_LIFECYCLE_STATE_'+x));
-          return Object.fromEntries(await Promise.all(tracks.map(async track=>{
-            try {
-              const r=await fetchSafe(base+track+'/releases',{method:'GET',headers:{Authorization:'Bearer '+token,Accept:'application/json'}},transport);
-              if (!r.ok) return [track,{read:false,http:r.status}];
-              const j=await r.json();
-              const rows=j?.releases??[];
-              if (!Array.isArray(rows)||rows.length>20||rows.some(s=>s.track!==track||!allowed.has(s.releaseLifecycleState)||!Array.isArray(s.activeArtifacts??[])||s.activeArtifacts?.length>100)) return [track,{read:false,status:'unexpected_shape'}];
-              const seen=rows.map(s=>({state:s.releaseLifecycleState.slice('RELEASE_LIFECYCLE_STATE_'.length),version_codes:(s.activeArtifacts??[]).map(v=>String(v.versionCode))}));
-              if (seen.some(s=>s.version_codes.some(v=>!/^\d{1,10}$/.test(v)))) return [track,{read:false,status:'unexpected_artifact'}];
-              return [track,{read:true,maximum_20_releases:true,obsolete_excluded:true,releases:seen}];
-            } catch {return [track,{read:false,status:'request_failed'}]}
-          })));
-        }
-
-        export async function releaseRead(config, transport=fetch, epoch=Math.floor(Date.now()/1000)) {
-          if (config?.type!=='service_account' || !/^[^@]+@[^@]+\.iam\.gserviceaccount\.com$/.test(config?.client_email??'') || typeof config.private_key!=='string') throw Error('invalid_service_account_configuration');
-          const claims=encode({iss:config.client_email,scope:'https://www.googleapis.com/auth/androidpublisher',aud:TOKEN,iat:epoch,exp:epoch+300});
-          const input=encode({alg:'RS256',typ:'JWT'})+'.'+claims;
-          const assertion=input+'.'+sign('RSA-SHA256',Buffer.from(input),config.private_key).toString('base64url');
-          let result=await fetchSafe(TOKEN,{method:'POST',body:new URLSearchParams({grant_type:'urn:ietf:params:oauth:grant-type:jwt-bearer',assertion})},transport);
-          if (!result.ok) throw Error('publisher_auth_http_'+result.status);
-          const token=(await result.json()).access_token;
-          if(typeof token!=='string'||!token) throw Error('publisher_no_token');
-          const tracksPending = readTracks(token,transport);
-          const subs=await pagedList(READ,'subscriptions',token,transport);
-          const observed = new Set(); const resultRows={};
-          for (const s of subs) {
-            if(!s || s.packageName!==PACKAGE || typeof s.productId!=='string' || observed.has(s.productId)) throw Error('unexpected_subscription_identity');
-            observed.add(s.productId);
-            if (!EXPECTED_US.has(s.productId)) continue;
-            if (!Array.isArray(s.basePlans)) throw Error('missing_base_plans');
-            const all=s.basePlans.map(b=>basePlanShape(s.productId,b));
-            if (new Set(all.map(b=>b.path_id)).size!==all.length) throw Error('duplicate_base_plan');
-            const plans=[];
-            for(const b of all) {
-              if (!b.active) continue;
-              const url=READ+'/'+encodeURIComponent(s.productId)+'/basePlans/'+encodeURIComponent(b.path_id)+'/offers';
-              const {path_id,...summary}=b;
-              try {
-                const offers=await pagedList(url,'subscriptionOffers',token,transport);
-                if(offers.some(o=>!o || o.productId!==s.productId || o.packageName!==PACKAGE || o.basePlanId!==b.path_id || !['ACTIVE','INACTIVE','DRAFT','STATE_UNSPECIFIED'].includes(o.state))) throw Error('unexpected_offer_identity');
-                plans.push({...summary,active_offer_count:offers.filter(o=>o.state==='ACTIVE').length});
-              } catch (e) {
-                const m=/^publisher_subscriptionOffers_http_(\d{3})$/.exec(e?.message??'');
-                plans.push({...summary,active_offer_count:null,offers_reason:m ? 'http_'+m[1] : (e?.message==='unexpected_offer_identity' ? 'identity' : 'unreadable')});
-              }
-            }
-            resultRows[s.productId]={total_base_plan_count:all.length,active_plans:plans};
-          }
-          return {track_releases:await tracksPending, publisher_catalog_read:true,product_count:subs.length,ad_free_seen:observed.has('ad_free_monthly'),pro_seen:observed.has('pro_monthly'),terms_schema:1,terms:resultRows};
-        }
-        const PUBLIC_B64="LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUF1cS9PcE85TE50bVN4Qjh1SEorOQovY3Z3U1djVVo5dmZralp3SFNzSTlscjhPYmFPS3ovMWpza3daMkxBd3dhRFlISjA5bjNpRnQ2NW42VmdPRWR4CkdSL25CMW10Mk5jZ2JGMGxiNzJXTDlJdjFUdHp1UUZjaFp0dXZFcUpEWFhtbE9Ka3dNcjA1WG9HTFgwNXZzNjAKdjlzTzJxb01RcGRlR3lSZTd0RXd3UnVzL3pVMkh2emtNS0gyc2tNbmRPdnlKOUNRc05EOFQ1eFJHMTJPVERCdgpkNVQ2RGg0NkQzUVVuVE9UK1ZKdGgyZEVwbEdrbExlWDllaUUxSmo4YUVackZXZXI0aVJ5NXliR01hZmZGaXN6Clp6OEtvT0ZNNTlONFZpd3VIU2dVMFRRdkZEYXMySXRybXNRKzlPYkJKWWsvb043RlVLekJweVJZRytxK1psQXAKNVFJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0t";
-        function record(data) {
-          const pub=Buffer.from(PUBLIC_B64,'base64');
-          const key=randomBytes(32), iv=randomBytes(12);
-          const cipher=createCipheriv('aes-256-gcm',key,iv); cipher.setAAD(Buffer.from('LCN_PLAY_READBACK_V1'));
-          const body=Buffer.concat([cipher.update(JSON.stringify(data),'utf8'),cipher.final()]);
-          const wk=publicEncrypt({key:pub,padding:constants.RSA_PKCS1_OAEP_PADDING,oaepHash:'sha256'},key); key.fill(0);
-          const sealed=Buffer.concat([wk,iv,cipher.getAuthTag(),body]).toString('base64');
-          if (sealed.length>16384) throw Error('readback_large');
-          console.log('::notice title=LCN_PLAY_READBACK_V1::'+sealed);
-        }
-        async function main() {
-          let summary={app:PACKAGE,external_edit_created:false,uploaded:false};
-          try{Object.assign(summary,await releaseRead(JSON.parse(process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON||'')));}
-          catch {summary.status='authenticated_read_incomplete';}
-          try {record(summary)} catch {console.error('Could not seal release readback');process.exitCode=1;}
-        }
-        await main();
-        LCN_READ_ONLY
-'on':
-  workflow_dispatch: null
+      run: "node --input-type=module <<'PLAY_READ_ONLY'\nimport {sign,createCipheriv,randomBytes,publicEncrypt,constants} from 'node:crypto';\nconst PKG='com.charles.livecaptionn', ROOT='https://androidpublisher.googleapis.com/androidpublisher/v3/applications/'+PKG, TOKEN='https://oauth2.googleapis.com/token';\nconst trackNames=['production','internal','alpha','beta'];\nconst chosen=['ad_free_monthly','pro_monthly'];\nconst statusClass=e=>['AbortError','TimeoutError','SyntaxError','TypeError'].includes(e?.name)?e.name:'Error';\nfunction getQuery(endpoint,p={}){let u=new URL(endpoint);for(const [k,v] of Object.entries(p))u.searchParams.set(k,v);return u;}\nasync function get(url,bearer,tx){\n if(url.origin!=='https://androidpublisher.googleapis.com'||!url.pathname.startsWith('/androidpublisher/v3/applications/'+PKG+'/'))throw Error('wrong_target');\n try{const r=await tx(url,{method:'GET',redirect:'manual',signal:AbortSignal.timeout(20000),headers:{Authorization:'Bearer '+bearer,Accept:'application/json'}});let j={};try{j=await r.json()}catch{};\n  const status=j?.error?.status;\n  return {ok:r.ok,http:r.status,errorState:/^[A-Z0-9_]{1,60}$/.test(status??'')?status:null,j};\n }catch(e){return {ok:false,error:statusClass(e),j:{}};}\n}\nconst identity=v=>typeof v==='string'&&/^[a-z0-9_][a-z0-9_.-]{0,62}$/.test(v);\nconst vcode=v=>/^\\d{1,10}$/.test(String(v));\nconst safeTrack=r=>({lifecycle:((r?.releaseLifecycleState??'').match(/^RELEASE_LIFECYCLE_STATE_([A-Z_]+)$/)||[])[1]??null,review:((r?.reviewState??'').match(/^[A-Z_]{1,95}$/)||[])[0]??null,versions:(Array.isArray(r?.activeArtifacts)?r.activeArtifacts:[]).map(a=>a.versionCode).filter(vcode).map(String)});\nconst info=({ok,http,errorState,error})=>({ok,http,errorState,error});\nconst price=(p)=> p?.currencyCode==='USD'&&Number.isFinite(Number(p.units??'0'))&&Number.isInteger(p.nanos??0)? Math.round(Number(p.units??0)*100+(p.nanos??0)/1e7):null;\nasync function offered(bearer,tx,product,plan){\n let p='', pages=0; const\
+        \ out=[]; const seen=new Set();\n do {\n const opts={pageSize:'50',fields:'nextPageToken,subscriptionOffers(packageName,productId,basePlanId,offerId,state,phases,regionalConfigs(regionCode,newSubscriberAvailability))'}; if(p)opts.pageToken=p;\n const res=await get(getQuery(ROOT+'/subscriptions/'+product+'/basePlans/'+plan+'/offers',opts),bearer,tx); if(!res.ok)return {complete:false,...info(res)};\n const rows=res.j.subscriptionOffers??[]; if(!Array.isArray(rows)||rows.some(x=>x.packageName!==PKG||x.productId!==product||x.basePlanId!==plan||!identity(x.offerId)))return {complete:false,problem:'unexpected_offer_identity'};\n for(const o of rows){if(seen.has(o.offerId))return {complete:false,problem:'duplicate_offer_id'};seen.add(o.offerId); const phases=o.phases??[]; out.push({state:o.state??null,usEnabled:!!o.regionalConfigs?.find(x=>x.regionCode==='US'&&x.newSubscriberAvailability===true),phaseTerms:phases.map(ph=>({duration:ph.duration??null,recurrenceCount:ph.recurrenceCount??null,usPhasePrice:price(ph.regionalConfigs?.find(r=>r.regionCode==='US')?.price),usFree:ph.regionalConfigs?.some(r=>r.regionCode==='US'&&r.free!==undefined)??false}))});}\n const next=res.j.nextPageToken??'';if(typeof next!=='string'||(next&&next===p)||++pages>8)return {complete:false,problem:'pagination_incomplete'}; p=next;\n }while(p);\n return {complete:true,offers:out};\n}\nexport async function readVerified(config,tx=fetch){\n if(config?.type!=='service_account'||!config?.client_email?.endsWith('.iam.gserviceaccount.com')||!config?.private_key)throw Error('config');\n const enc=x=>Buffer.from(JSON.stringify(x)).toString('base64url'), at=Math.floor(Date.now()/1000);\n const input=enc({alg:'RS256',typ:'JWT'})+'.'+enc({iss:config.client_email,aud:TOKEN,scope:'https://www.googleapis.com/auth/androidpublisher',iat:at,exp:at+300}); const assertion=input+'.'+sign('RSA-SHA256',Buffer.from(input),config.private_key).toString('base64url');\n const auth=await tx(TOKEN,{method:'POST',redirect:'error',headers:{'content-type':'application/x-www-form-urlencoded'},body:new\
+        \ URLSearchParams({grant_type:'urn:ietf:params:oauth:grant-type:jwt-bearer',assertion}),signal:AbortSignal.timeout(15000)}); if(!auth.ok)return {oauth_status:auth.status}; const bearer=(await auth.json()).access_token; if(typeof bearer!=='string'||!bearer)throw Error('token');\n const tracks=Promise.all(trackNames.map(async t=>{const r=await get(getQuery(ROOT+'/tracks/'+t+'/releases'),bearer,tx);const rows=r.j?.releases??[];return [t,{...info(r),body_has_releases:'releases'in r.j,rows:r.ok&&Array.isArray(rows)?rows.filter(x=>x?.track===t).slice(0,20).map(safeTrack):null,mismatched_track_rows:Array.isArray(rows)?rows.filter(x=>x?.track!==t).length:null}]}));\n const terms=Promise.all(chosen.map(async product=>{\n  const r=await get(getQuery(ROOT+'/subscriptions/'+product),bearer,tx); if(!r.ok||r.j.packageName!==PKG||r.j.productId!==product)return [product,{...info(r),matched:false}];\n  const plans=(Array.isArray(r.j.basePlans)?r.j.basePlans:[]); if(plans.length>12||plans.some(b=>!identity(b.basePlanId)))return [product,{matched:true,complete:false,problem:'plan_identity'}];\n  const m=await Promise.all(plans.map(async b=>{const us=b.regionalConfigs?.find(v=>v.regionCode==='US');return {state:b.state??null,autoPeriod:b.autoRenewingBasePlanType?.billingPeriodDuration??null,usPriceCents:price(us?.price),usNew:!!us?.newSubscriberAvailability,enabledRegions:(b.regionalConfigs??[]).filter(x=>x.newSubscriberAvailability===true).length,offers:await offered(bearer,tx,product,b.basePlanId)};})); return [product,{matched:true,plans:m}];\n }));\n return {package:PKG,publisherAppliedChanges:false,tracks:Object.fromEntries(await tracks),terms:Object.fromEntries(await terms)};\n}\nconst PUBLIC_B64=\"LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUF3UTdCWGUrV1Zrd2V2RFpnQzk2Rgo3cmVqdzc1M0JGNlFyc2dYRFUzcWZiaGhiVHJISnRMRitYcHJtdnRYZEhGN3JaQVAybDAvQnZ1Y3FJTzcvdFdMCmE0VjY0RktraGdkWS9sYjBuMkRRSXdjRXhNQXZ1VUFsME1tQzRDeEo3bWNDMWZzSWlOZU0vVncrcFQyV0FGSi8KSnRUTjZJVU1VbEJNbjdHblQ2RS9Ea1dnRWo1UGRwMmxNWkpjODQ3Sy9pTUN1R2lsSGs1QkxOTGVYK0Y1ZHkrUwp5bEluVVpNbE1QaFVSdGJ0MHlpTXhiUDhsTkh2aVJTU24zOXpnYTJKdDRzMy9iOVp6KzlES084Z3R3aWN5M0plCkZ2N0wydWRndTFLRzUwSFNYTitqcWlieFN3VlN1QWZicWpMRjNhTjU1SGE2N0tpbStXSkRuRUpmZzB5TzFlWDkKT1FJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==\"\
+        ;\nfunction record(data) {\n  const pub=Buffer.from(PUBLIC_B64,'base64');\n  const key=randomBytes(32), iv=randomBytes(12);\n  const cipher=createCipheriv('aes-256-gcm',key,iv); cipher.setAAD(Buffer.from('LCN_PLAY_READBACK_V2'));\n  const body=Buffer.concat([cipher.update(JSON.stringify(data),'utf8'),cipher.final()]);\n  const wk=publicEncrypt({key:pub,padding:constants.RSA_PKCS1_OAEP_PADDING,oaepHash:'sha256'},key); key.fill(0);\n  const sealed=Buffer.concat([wk,iv,cipher.getAuthTag(),body]).toString('base64');\n  if (sealed.length>16384) throw Error('readback_large');\n  console.log('::notice title=LCN_PLAY_READBACK_V2::'+sealed);\n}\n\nasync function main(){try{record(await readVerified(JSON.parse(process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON||'')));}catch(e){record({package:PKG,error:statusClass(e),publisherAppliedChanges:false});process.exitCode=1;}}\nawait main();\nPLAY_READ_ONLY\n"
