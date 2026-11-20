@@ -79,10 +79,51 @@ jobs:
         P('local.properties').write_text('ads.enabled=true\n'+''.join('ads.'+k.lower().replace('_','.')+'='+e[k]+'\n' for k in expected))
         PY
         unset GOOGLE_SERVICES_JSON ANDROID_KEYSTORE_B64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD ADMOB_APP_ID ADMOB_APP_OPEN_ID_RELEASE ADMOB_BANNER_ID_RELEASE ADMOB_NATIVE_ID_RELEASE
+        lcn_safe_diagnostic() {
+          python3 - "$@" <<'LCN_SAFE_DIAGNOSTIC'
+        import pathlib,re,sys,xml.etree.ElementTree as ET
+        mode=sys.argv[1]
+        assert mode in ('TEST','RELEASE')
+        p=pathlib.Path(sys.argv[2]); content=''
+        if p.is_file():
+            with p.open('rb') as f:
+                f.seek(max(0,p.stat().st_size-512*1024)); content=f.read(512*1024).decode('utf-8','replace')
+        keys={
+            'TEST_TASK_FAILED':r'(?im)> Task :app:testPlaystoreDebugUnitTest FAILED|\bThere were failing tests\b',
+            'DEPENDENCY_RESOLUTION':r'(?i)could not resolve all (?:files|artifacts|dependencies)|could not find (?:com\.|org\.)|could not resolve (?:com\.|org\.)',
+            'NETWORK_OR_REPOSITORY':r'(?i)connect timed out|read timed out|unknownhostexception|could not (?:get|head) resource|http response code\s*[: ]\s*(?:401|403|404|429|5\d\d)|(?:received|status code) (?:429|50[0-9])',
+            'GRADLE_DISTRIBUTION':r'(?i)could not install gradle distribution|download of gradle distribution failed|gradle-wrapper\.jar could not',
+            'ANDROID_SDK_SETUP':r'(?i)SDK location not found|failed to find target with hash string|licenses have not been accepted|failed to install the following Android SDK packages',
+            'JAVA_SETUP':r'(?i)invalid JAVA_HOME|requires Java \d+ to run|unsupported class file major version',
+            'KOTLIN_OR_JAVA_COMPILE':r'(?im)> Task :app:compilePlaystore(?:Debug|Release)(?:Kotlin|JavaWithJavac) FAILED|unresolved reference:',
+            'GRADLE_DAEMON_LOST':r'(?i)gradle build daemon disappeared unexpectedly|daemon has disappeared',
+            'RESOURCE_LIMIT':r'(?i)no space left on device|java\.lang\.OutOfMemoryError|unable to create native thread',
+            'SIGNING_CONFIG':r'(?i)failed to read key|keystore file .{0,220} not found for signing config|Keystore was tampered with, or password was incorrect',
+        }
+        flags=[k for k,v in keys.items() if re.search(v,content)]
+        paths=list(pathlib.Path('app/build/test-results/testPlaystoreDebugUnitTest').glob('TEST-*.xml'))[:512] if mode=='TEST' else []
+        classes=[]; count=failures=0
+        for v in paths:
+            if not v.is_file() or v.stat().st_size>4_000_000:continue
+            try:
+                node=ET.parse(v).getroot(); count+=max(0,min(10000,int(node.get('tests','0'))))
+                bad=[x for x in node.findall('testcase') if x.find('failure') is not None or x.find('error') is not None]; failures+=len(bad)
+                for x in bad:
+                    c=x.get('classname','');
+                    if re.fullmatch(r'com\.charles\.livecaptionn\.(?:[a-z]{1,30}\.){0,7}[A-Z][A-Za-z0-9]{1,58}Test',c):classes.append(c)
+            except (OSError,ValueError,ET.ParseError):pass
+        print('LCN_R2_SAFE_DIAGNOSTIC stage='+mode+' flags='+(','.join(flags) or 'UNCLASSIFIED')+' tests='+str(count)+' failed='+str(failures)+' checked_suites='+str(len(paths)))
+        # Echo only the approved package-shaped test class labels. No method names, URLs,
+        # exception text, configuration, test stdout, raw logs or Gradle --info/debug.
+        for c in sorted(set(classes))[:6]: print('LCN_R2_SAFE_FAILING_SUITE '+c)
+        LCN_SAFE_DIAGNOSTIC
+        }
         if ! bash ./gradlew --no-daemon --max-workers=2 :app:testPlaystoreDebugUnitTest > "$RUNNER_TEMP/lcn-unit.log" 2>&1; then
+          lcn_safe_diagnostic TEST "$RUNNER_TEMP/lcn-unit.log" || true
           echo 'Play unit tests failed (log withheld to avoid credential exposure).'; exit 1
         fi
         if ! bash ./gradlew --no-daemon --max-workers=2 :app:bundlePlaystoreRelease > "$RUNNER_TEMP/lcn-build.log" 2>&1; then
+          lcn_safe_diagnostic RELEASE "$RUNNER_TEMP/lcn-build.log" || true
           echo 'Signed Play build failed (log withheld to avoid credential exposure).'; exit 1
         fi
         aab='app/build/outputs/bundle/playstoreRelease/app-playstore-release.aab'
@@ -135,7 +176,7 @@ jobs:
         const d=await stat(src);
         if(!d.isFile()||d.size<500000||d.size>250*1024*1024)throw Error('bundle_size_not_expected');
         const tag=Buffer.from('LCNAAB1\n');
-        const pub=Buffer.from('LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUE1emh6N0JmeWFZZlZsUk0wL01EUQo3cTdTLy91L201ZHYwVGNOSXBJS3dKRHUrc05SS21VRkQwYWRRK2JwUnZRSVBJWjhCTmpyUTBvU2ZPWTVhZUlPCmVwNlY0VDZYQVRPZmx1NGlkdEE5ODBFS3YyUnRoS0QrNVFhRTAwczdqaEVsSXpLVVVobHFKcDFHN0pXbVhLc1oKc0gwT3VNRkQvVU53TWZONmZsWWVmVDNUdENVUituQ0tOdXRockdtQk9qWjk2aE1yS2NxYk9GQlVQQ0dIWFJaZQp5MDZqQnQ4R3ZsdGhzTkttK0FzZm5JcHFnUXo3bnkwMytMYTh2MnYrMFY2Z3ljWEIxdlFLL3FqeWZ6Ym5udk1ECkJHUGFHeTdma2doaU1DcjltcG80SWNYZHl3TUZxNzc2WkU3a0Y5YzZ1d3h4aHVmV1RZeWw0M1NyOGUyelNRcGYKcXdJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==','base64');
+        const pub=Buffer.from('LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUEzNHlKZGpRbnEzWm1sRDVLWXRoSwplWitaa1ZjeXdZSmhpNkZMVGFOUXFmV0xWdG95Y2dJR1dKUzZKa1lOMEszeDJWd1FzZjMwNy9jblB4U0owTHRwCllkMkx5elozTXRWVXhsbXM0Y3JkYVRHWTZZQ3lEeTk0QTdFdS9ud09rMy81Q2pEUThnV1pqVUJQUlRrL243YWUKUVEyNDRweFUxZHc1Z3gzU3Y4Q2F6OTJ3NWNNbmliWUl6L3lmMlo3SmNpdUdkRzczWDJxb0EwRGR5RDNYcTdNNQpoUlNvNTB2VTNNRlRST0VtdVZ6VmFEelVwekpUZHkzbFNWbXBHUjM4VmhIT1FKNGFlMHgwNHFpNFFPUGRIOGRZClBONGc5Nmt4QmNZbWRtVlV0bldJQkd2bjZVOE0xZWc4bUhOcGZyN3hxNWNIY1UwTzVJRHdadHJzczFRTURmY3kKc3dJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==','base64');
         const key=randomBytes(32), iv=randomBytes(12);
         const wrapped=publicEncrypt({key:pub,padding:constants.RSA_PKCS1_OAEP_PADDING,oaepHash:'sha256'},key);
         const cipher=createCipheriv('aes-256-gcm',key,iv);
