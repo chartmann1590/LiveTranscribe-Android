@@ -1,119 +1,129 @@
-name: Play release read-only check
-on:
-  workflow_dispatch:
+name: LiveCaptionN original Play listing readback (no edits)
 permissions: {}
 jobs:
   inspect:
-    if: github.ref == 'refs/heads/main' && github.repository == 'chartmann1590/LiveTranscribe-Android' && github.actor == 'chartmann1590'
+    if: github.ref == 'refs/heads/play-recovery/lcn-google-readback-20261120' && github.repository == 'chartmann1590/LiveTranscribe-Android' && github.actor == 'chartmann1590'
     runs-on: ubuntu-24.04
     timeout-minutes: 4
     steps:
-      - name: Check catalog and upload-key fingerprint (no changes)
-        env:
-          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
-          ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-        shell: bash
-        run: |
-          node --input-type=module <<'LCN_READ_ONLY'
-          import {sign} from 'node:crypto';
-          import {execFileSync} from 'node:child_process';
-          import {mkdtempSync,writeFileSync,rmSync} from 'node:fs';
-          import {join} from 'node:path';
-          import {tmpdir} from 'node:os';
+    - name: Read Play release state and existing subscriptions only
+      env:
+        GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+      shell: bash
+      run: |
+        node --input-type=module <<'LCN_READ_ONLY'
+        import {sign,createCipheriv,randomBytes,publicEncrypt,constants} from 'node:crypto';
 
-          export const PACKAGE = 'com.charles.livecaptionn';
-          const TOKEN='https://oauth2.googleapis.com/token';
-          const READ='https://androidpublisher.googleapis.com/androidpublisher/v3/applications/'+PACKAGE+'/subscriptions';
-          const timeout=()=>AbortSignal.timeout(15000);
-          const encode=x=>Buffer.from(JSON.stringify(x)).toString('base64url');
-          const fetchSafe=(url, options, transport)=>transport(url,{...options,redirect:'error',signal:timeout()});
-          const EXPECTED_US = new Map([['ad_free_monthly',[1,990000000]],['pro_monthly',[4,990000000]]]);
-          function basePlanShape(product, b) {
-            if (!/^[a-z0-9][a-z0-9-]{0,62}$/.test(b?.basePlanId ?? '') || !['ACTIVE','INACTIVE','DRAFT','STATE_UNSPECIFIED'].includes(b?.state)) throw Error('unexpected_base_plan_identity');
-            const regions = b.regionalConfigs ?? [];
-            if (!Array.isArray(regions)) throw Error('unexpected_base_plan_regions');
-            const US = regions.filter(x => x?.regionCode === 'US');
-            if (US.length>1) throw Error('duplicate_region');
-            const usd = US[0]?.price;
-            const [u,n] = EXPECTED_US.get(product);
-            return {
-              path_id: b.basePlanId,
-              active: b.state === 'ACTIVE',
-              auto_renew_monthly: b.autoRenewingBasePlanType?.billingPeriodDuration === 'P1M',
-              us_available_for_new_subscribers: US[0]?.newSubscriberAvailability === true,
-              us_base_price_matches_historical: usd?.currencyCode === 'USD' && (usd.units===String(u) || usd.units===u) && usd.nanos === n,
-              enabled_region_count: regions.filter(x=>x?.newSubscriberAvailability===true).length
-            };
-          }
-          async function pagedList(u, key, token, transport) {
-            const rows=[]; const seen=new Set(); let p='';
-            do {
-              const url=new URL(u); url.searchParams.set('pageSize','100'); if(p) url.searchParams.set('pageToken',p);
-              const r=await fetchSafe(url,{method:'GET',headers:{Authorization:'Bearer '+token}},transport);
-              if(!r.ok) throw Error('publisher_'+key+'_http_'+r.status);
-              const d=await r.json();
-              if(!d || typeof d!=='object' || Array.isArray(d) || (d[key]!==undefined && !Array.isArray(d[key]))) throw Error('publisher_unexpected_'+key);
-              rows.push(...(d[key]??[]));
-              p=d.nextPageToken??''; if(typeof p!=='string'||(p&&seen.has(p))||seen.size>=15) throw Error('publisher_page_not_complete'); if(p) seen.add(p);
-            } while(p);
-            return rows;
-          }
-          export async function releaseRead(config, transport=fetch, epoch=Math.floor(Date.now()/1000)) {
-            if (config?.type!=='service_account' || !/^[^@]+@[^@]+\.iam\.gserviceaccount\.com$/.test(config?.client_email??'') || typeof config.private_key!=='string') throw Error('invalid_service_account_configuration');
-            const claims=encode({iss:config.client_email,scope:'https://www.googleapis.com/auth/androidpublisher',aud:TOKEN,iat:epoch,exp:epoch+300});
-            const input=encode({alg:'RS256',typ:'JWT'})+'.'+claims;
-            const assertion=input+'.'+sign('RSA-SHA256',Buffer.from(input),config.private_key).toString('base64url');
-            let result=await fetchSafe(TOKEN,{method:'POST',body:new URLSearchParams({grant_type:'urn:ietf:params:oauth:grant-type:jwt-bearer',assertion})},transport);
-            if (!result.ok) throw Error('publisher_auth_http_'+result.status);
-            const token=(await result.json()).access_token;
-            if(typeof token!=='string'||!token) throw Error('publisher_no_token');
-            const subs=await pagedList(READ,'subscriptions',token,transport);
-            const observed = new Set(); const resultRows={};
-            for (const s of subs) {
-              if(!s || s.packageName!==PACKAGE || typeof s.productId!=='string' || observed.has(s.productId)) throw Error('unexpected_subscription_identity');
-              observed.add(s.productId);
-              if (!EXPECTED_US.has(s.productId)) continue;
-              if (!Array.isArray(s.basePlans)) throw Error('missing_base_plans');
-              const all=s.basePlans.map(b=>basePlanShape(s.productId,b));
-              if (new Set(all.map(b=>b.path_id)).size!==all.length) throw Error('duplicate_base_plan');
-              const plans=[];
-              for(const b of all) {
-                if (!b.active) continue;
-                const url=READ+'/'+encodeURIComponent(s.productId)+'/basePlans/'+encodeURIComponent(b.path_id)+'/offers';
-                const {path_id,...summary}=b;
-                try {
-                  const offers=await pagedList(url,'subscriptionOffers',token,transport);
-                  if(offers.some(o=>!o || o.productId!==s.productId || o.packageName!==PACKAGE || o.basePlanId!==b.path_id || !['ACTIVE','INACTIVE','DRAFT','STATE_UNSPECIFIED'].includes(o.state))) throw Error('unexpected_offer_identity');
-                  plans.push({...summary,active_offer_count:offers.filter(o=>o.state==='ACTIVE').length});
-                } catch (e) {
-                  const m=/^publisher_subscriptionOffers_http_(\d{3})$/.exec(e?.message??'');
-                  plans.push({...summary,active_offer_count:null,offers_reason:m ? 'http_'+m[1] : (e?.message==='unexpected_offer_identity' ? 'identity' : 'unreadable')});
-                }
-              }
-              resultRows[s.productId]={total_base_plan_count:all.length,active_plans:plans};
-            }
-            return {publisher_catalog_read:true,product_count:subs.length,ad_free_seen:observed.has('ad_free_monthly'),pro_seen:observed.has('pro_monthly'),terms_schema:1,terms:resultRows};
-          }
-          export function signingFingerprint(env=process.env) {
-            if (!env.ANDROID_KEYSTORE_B64 || !env.ANDROID_KEYSTORE_PASSWORD || !env.ANDROID_KEY_ALIAS) throw Error('signing_configuration_missing');
-            const root=mkdtempSync(join(env.RUNNER_TEMP||tmpdir(),'lcn-cert-'));
+        export const PACKAGE = 'com.charles.livecaptionn';
+        const TOKEN='https://oauth2.googleapis.com/token';
+        const READ='https://androidpublisher.googleapis.com/androidpublisher/v3/applications/'+PACKAGE+'/subscriptions';
+        const timeout=()=>AbortSignal.timeout(15000);
+        const encode=x=>Buffer.from(JSON.stringify(x)).toString('base64url');
+        const fetchSafe=(url, options, transport)=>transport(url,{...options,redirect:'error',signal:timeout()});
+        const EXPECTED_US = new Map([['ad_free_monthly',[1,990000000]],['pro_monthly',[4,990000000]]]);
+        function basePlanShape(product, b) {
+          if (!/^[a-z0-9][a-z0-9-]{0,62}$/.test(b?.basePlanId ?? '') || !['ACTIVE','INACTIVE','DRAFT','STATE_UNSPECIFIED'].includes(b?.state)) throw Error('unexpected_base_plan_identity');
+          const regions = b.regionalConfigs ?? [];
+          if (!Array.isArray(regions)) throw Error('unexpected_base_plan_regions');
+          const US = regions.filter(x => x?.regionCode === 'US');
+          if (US.length>1) throw Error('duplicate_region');
+          const usd = US[0]?.price;
+          const [u,n] = EXPECTED_US.get(product);
+          return {
+            path_id: b.basePlanId,
+            active: b.state === 'ACTIVE',
+            auto_renew_monthly: b.autoRenewingBasePlanType?.billingPeriodDuration === 'P1M',
+            us_available_for_new_subscribers: US[0]?.newSubscriberAvailability === true,
+            us_base_price_matches_historical: usd?.currencyCode === 'USD' && (usd.units===String(u) || usd.units===u) && usd.nanos === n,
+            enabled_region_count: regions.filter(x=>x?.newSubscriberAvailability===true).length
+          };
+        }
+        async function pagedList(u, key, token, transport) {
+          const rows=[]; const seen=new Set(); let p='';
+          do {
+            const url=new URL(u); url.searchParams.set('pageSize','100'); if(p) url.searchParams.set('pageToken',p);
+            const r=await fetchSafe(url,{method:'GET',headers:{Authorization:'Bearer '+token}},transport);
+            if(!r.ok) throw Error('publisher_'+key+'_http_'+r.status);
+            const d=await r.json();
+            if(!d || typeof d!=='object' || Array.isArray(d) || (d[key]!==undefined && !Array.isArray(d[key]))) throw Error('publisher_unexpected_'+key);
+            rows.push(...(d[key]??[]));
+            p=d.nextPageToken??''; if(typeof p!=='string'||(p&&seen.has(p))||seen.size>=15) throw Error('publisher_page_not_complete'); if(p) seen.add(p);
+          } while(p);
+          return rows;
+        }
+        async function readTracks(token, transport) {
+          const base='https://androidpublisher.googleapis.com/androidpublisher/v3/applications/'+PACKAGE+'/tracks/';
+          const tracks=['production','internal','beta','alpha'];
+          const allowed=new Set(['UNSPECIFIED','DRAFT','NOT_SENT_FOR_REVIEW','IN_REVIEW','APPROVED_NOT_PUBLISHED','NOT_APPROVED','PUBLISHED'].map(x=>'RELEASE_LIFECYCLE_STATE_'+x));
+          return Object.fromEntries(await Promise.all(tracks.map(async track=>{
             try {
-              const path=join(root,'upload.keystore');writeFileSync(path,Buffer.from(env.ANDROID_KEYSTORE_B64,'base64'),{mode:0o600});
-              const log=execFileSync('keytool',['-list','-v','-keystore',path,'-alias',env.ANDROID_KEY_ALIAS,'-storepass:env','ANDROID_KEYSTORE_PASSWORD'],{encoding:'utf8',stdio:['ignore','pipe','pipe'],timeout:15000,env:{PATH:env.PATH,LANG:'C',LC_ALL:'C',ANDROID_KEYSTORE_PASSWORD:env.ANDROID_KEYSTORE_PASSWORD}});
-              const fp=/^\s*SHA256:\s*((?:[A-F0-9]{2}:){31}[A-F0-9]{2})\s*$/mi.exec(log)?.[1];
-              if(!fp || !/Entry type: PrivateKeyEntry/.test(log))throw Error('signing_entry_not_verified');
-              return fp.toUpperCase();
-            } catch {throw Error('signing_entry_not_verified');}
-            finally {rmSync(root,{recursive:true,force:true});}
+              const r=await fetchSafe(base+track+'/releases',{method:'GET',headers:{Authorization:'Bearer '+token,Accept:'application/json'}},transport);
+              if (!r.ok) return [track,{read:false,http:r.status}];
+              const j=await r.json();
+              const rows=j?.releases??[];
+              if (!Array.isArray(rows)||rows.length>20||rows.some(s=>s.track!==track||!allowed.has(s.releaseLifecycleState)||!Array.isArray(s.activeArtifacts??[])||s.activeArtifacts?.length>100)) return [track,{read:false,status:'unexpected_shape'}];
+              const seen=rows.map(s=>({state:s.releaseLifecycleState.slice('RELEASE_LIFECYCLE_STATE_'.length),version_codes:(s.activeArtifacts??[]).map(v=>String(v.versionCode))}));
+              if (seen.some(s=>s.version_codes.some(v=>!/^\d{1,10}$/.test(v)))) return [track,{read:false,status:'unexpected_artifact'}];
+              return [track,{read:true,maximum_20_releases:true,obsolete_excluded:true,releases:seen}];
+            } catch {return [track,{read:false,status:'request_failed'}]}
+          })));
+        }
+
+        export async function releaseRead(config, transport=fetch, epoch=Math.floor(Date.now()/1000)) {
+          if (config?.type!=='service_account' || !/^[^@]+@[^@]+\.iam\.gserviceaccount\.com$/.test(config?.client_email??'') || typeof config.private_key!=='string') throw Error('invalid_service_account_configuration');
+          const claims=encode({iss:config.client_email,scope:'https://www.googleapis.com/auth/androidpublisher',aud:TOKEN,iat:epoch,exp:epoch+300});
+          const input=encode({alg:'RS256',typ:'JWT'})+'.'+claims;
+          const assertion=input+'.'+sign('RSA-SHA256',Buffer.from(input),config.private_key).toString('base64url');
+          let result=await fetchSafe(TOKEN,{method:'POST',body:new URLSearchParams({grant_type:'urn:ietf:params:oauth:grant-type:jwt-bearer',assertion})},transport);
+          if (!result.ok) throw Error('publisher_auth_http_'+result.status);
+          const token=(await result.json()).access_token;
+          if(typeof token!=='string'||!token) throw Error('publisher_no_token');
+          const tracksPending = readTracks(token,transport);
+          const subs=await pagedList(READ,'subscriptions',token,transport);
+          const observed = new Set(); const resultRows={};
+          for (const s of subs) {
+            if(!s || s.packageName!==PACKAGE || typeof s.productId!=='string' || observed.has(s.productId)) throw Error('unexpected_subscription_identity');
+            observed.add(s.productId);
+            if (!EXPECTED_US.has(s.productId)) continue;
+            if (!Array.isArray(s.basePlans)) throw Error('missing_base_plans');
+            const all=s.basePlans.map(b=>basePlanShape(s.productId,b));
+            if (new Set(all.map(b=>b.path_id)).size!==all.length) throw Error('duplicate_base_plan');
+            const plans=[];
+            for(const b of all) {
+              if (!b.active) continue;
+              const url=READ+'/'+encodeURIComponent(s.productId)+'/basePlans/'+encodeURIComponent(b.path_id)+'/offers';
+              const {path_id,...summary}=b;
+              try {
+                const offers=await pagedList(url,'subscriptionOffers',token,transport);
+                if(offers.some(o=>!o || o.productId!==s.productId || o.packageName!==PACKAGE || o.basePlanId!==b.path_id || !['ACTIVE','INACTIVE','DRAFT','STATE_UNSPECIFIED'].includes(o.state))) throw Error('unexpected_offer_identity');
+                plans.push({...summary,active_offer_count:offers.filter(o=>o.state==='ACTIVE').length});
+              } catch (e) {
+                const m=/^publisher_subscriptionOffers_http_(\d{3})$/.exec(e?.message??'');
+                plans.push({...summary,active_offer_count:null,offers_reason:m ? 'http_'+m[1] : (e?.message==='unexpected_offer_identity' ? 'identity' : 'unreadable')});
+              }
+            }
+            resultRows[s.productId]={total_base_plan_count:all.length,active_plans:plans};
           }
-          async function main() {
-            const summary={app:PACKAGE,external_edit_created:false,uploaded:false,console_cert_verified:false}; let ok=true;
-            try{summary.signing_fingerprint_sha256=signingFingerprint();}catch{summary.signing_fingerprint_sha256=null;ok=false;}
-            try{Object.assign(summary,await releaseRead(JSON.parse(process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON||'')));}
-            catch(e){summary.publisher_catalog_read=false;summary.publisher_reason=/^publisher_(subscriptions|auth)_http_\d{3}$/.test(e.message) || ['unexpected_base_plan_identity','unexpected_base_plan_regions','duplicate_region','unexpected_subscription_identity','duplicate_base_plan','missing_base_plans','publisher_unexpected_subscriptions','publisher_page_not_complete'].includes(e.message) ? e.message : 'publisher_preflight_failed';ok=false;}
-            console.log(JSON.stringify(summary)); if(!ok)process.exitCode=1;
-          }
-          await main();
-          LCN_READ_ONLY
+          return {track_releases:await tracksPending, publisher_catalog_read:true,product_count:subs.length,ad_free_seen:observed.has('ad_free_monthly'),pro_seen:observed.has('pro_monthly'),terms_schema:1,terms:resultRows};
+        }
+        const PUBLIC_B64="LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUF1cS9PcE85TE50bVN4Qjh1SEorOQovY3Z3U1djVVo5dmZralp3SFNzSTlscjhPYmFPS3ovMWpza3daMkxBd3dhRFlISjA5bjNpRnQ2NW42VmdPRWR4CkdSL25CMW10Mk5jZ2JGMGxiNzJXTDlJdjFUdHp1UUZjaFp0dXZFcUpEWFhtbE9Ka3dNcjA1WG9HTFgwNXZzNjAKdjlzTzJxb01RcGRlR3lSZTd0RXd3UnVzL3pVMkh2emtNS0gyc2tNbmRPdnlKOUNRc05EOFQ1eFJHMTJPVERCdgpkNVQ2RGg0NkQzUVVuVE9UK1ZKdGgyZEVwbEdrbExlWDllaUUxSmo4YUVackZXZXI0aVJ5NXliR01hZmZGaXN6Clp6OEtvT0ZNNTlONFZpd3VIU2dVMFRRdkZEYXMySXRybXNRKzlPYkJKWWsvb043RlVLekJweVJZRytxK1psQXAKNVFJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0t";
+        function record(data) {
+          const pub=Buffer.from(PUBLIC_B64,'base64');
+          const key=randomBytes(32), iv=randomBytes(12);
+          const cipher=createCipheriv('aes-256-gcm',key,iv); cipher.setAAD(Buffer.from('LCN_PLAY_READBACK_V1'));
+          const body=Buffer.concat([cipher.update(JSON.stringify(data),'utf8'),cipher.final()]);
+          const wk=publicEncrypt({key:pub,padding:constants.RSA_PKCS1_OAEP_PADDING,oaepHash:'sha256'},key); key.fill(0);
+          const sealed=Buffer.concat([wk,iv,cipher.getAuthTag(),body]).toString('base64');
+          if (sealed.length>16384) throw Error('readback_large');
+          console.log('::notice title=LCN_PLAY_READBACK_V1::'+sealed);
+        }
+        async function main() {
+          let summary={app:PACKAGE,external_edit_created:false,uploaded:false};
+          try{Object.assign(summary,await releaseRead(JSON.parse(process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON||'')));}
+          catch {summary.status='authenticated_read_incomplete';}
+          try {record(summary)} catch {console.error('Could not seal release readback');process.exitCode=1;}
+        }
+        await main();
+        LCN_READ_ONLY
+'on':
+  workflow_dispatch: null
