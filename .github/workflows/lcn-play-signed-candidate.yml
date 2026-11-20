@@ -80,6 +80,14 @@ jobs:
             'DEPENDENCY_RESOLUTION':r'(?i)could not resolve all (?:files|artifacts|dependencies)|could not find (?:com\.|org\.)|could not resolve (?:com\.|org\.)',
             'NETWORK_OR_REPOSITORY':r'(?i)connect timed out|read timed out|unknownhostexception|could not (?:get|head) resource|http response code\s*[: ]\s*(?:401|403|404|429|5\d\d)|(?:received|status code) (?:429|50[0-9])',
             'GRADLE_DISTRIBUTION':r'(?i)could not install gradle distribution|download of gradle distribution failed|gradle-wrapper\.jar could not',
+            'MVN_HTTP_403':r'(?i)(?:HTTP response code|status code)\s*[: ]\s*403\b',
+            'MVN_HTTP_404':r'(?i)(?:HTTP response code|status code)\s*[: ]\s*404\b',
+            'MAVEN_GOOGLE':r'https?://(?:dl\.google\.com|maven\.google\.com)/',
+            'MAVEN_CENTRAL':r'https?://repo\.maven\.apache\.org/',
+            'VOSK_COORDINATE':r'com\.alphacephei:vosk-android:0\.3\.75',
+            'BILLING_COORDINATE':r'com\.android\.billingclient:billing(?:-ktx)?:9\.1\.0',
+            'UNRESOLVED_ANDROIDX':r'(?i)could not (?:find|resolve) androidx\.',
+            'TLS_OR_DNS':r'(?i)SSLHandshakeException|UnknownHostException|Unknown host|PKIX',
             'ANDROID_SDK_SETUP':r'(?i)SDK location not found|failed to find target with hash string|licenses have not been accepted|failed to install the following Android SDK packages',
             'JAVA_SETUP':r'(?i)invalid JAVA_HOME|requires Java \d+ to run|unsupported class file major version',
             'KOTLIN_OR_JAVA_COMPILE':r'(?im)> Task :app:compilePlaystore(?:Debug|Release)(?:Kotlin|JavaWithJavac) FAILED|unresolved reference:',
@@ -105,11 +113,24 @@ jobs:
         for c in sorted(set(classes))[:6]: print('LCN_OCTOBER_SAFE_FAILING_SUITE '+c)
         LCN_SAFE_DIAGNOSTIC
         }
-        if ! bash ./gradlew --no-daemon --max-workers=2 :app:testPlaystoreDebugUnitTest > "$RUNNER_TEMP/lcn-unit.log" 2>&1; then
+        lcn_gradle() {
+          local task="$1" logfile="$2" retry status
+          if bash ./gradlew --no-daemon --max-workers=2 "$task" > "$logfile" 2>&1; then return 0; fi
+          # Retry dependency resolution or a network hiccup only, with the project's original repositories and exact pinned versions.
+          if ! grep -Eiq 'could not resolve all (files|artifacts|dependencies)|could not (find|resolve) (com\.|org\.|androidx\.)|timed out|Connection reset|status code (429|50[0234])' "$logfile"; then return 1; fi
+          printf '%s\n' 'LCN_OCTOBER_RETRYING_DEPENDENCIES_WITH_ORIGINAL_REPOSITORIES'
+          for retry in 6 12; do
+            sleep "$retry"
+            if bash ./gradlew --no-daemon --max-workers=2 --refresh-dependencies "$task" > "$logfile" 2>&1; then return 0; fi
+            if ! grep -Eiq 'could not resolve all (files|artifacts|dependencies)|could not (find|resolve) (com\.|org\.|androidx\.)|timed out|Connection reset|status code (429|50[0234])' "$logfile"; then return 1; fi
+          done
+          return 1
+        }
+        if ! lcn_gradle :app:testPlaystoreDebugUnitTest "$RUNNER_TEMP/lcn-unit.log"; then
           lcn_safe_diagnostic TEST "$RUNNER_TEMP/lcn-unit.log" || true
           echo 'Play unit tests failed (log withheld to avoid credential exposure).'; exit 1
         fi
-        if ! bash ./gradlew --no-daemon --max-workers=2 :app:bundlePlaystoreRelease > "$RUNNER_TEMP/lcn-build.log" 2>&1; then
+        if ! lcn_gradle :app:bundlePlaystoreRelease "$RUNNER_TEMP/lcn-build.log"; then
           lcn_safe_diagnostic RELEASE "$RUNNER_TEMP/lcn-build.log" || true
           echo 'Signed Play build failed (log withheld to avoid credential exposure).'; exit 1
         fi
@@ -160,12 +181,12 @@ jobs:
         const d=await stat(src);
         if(!d.isFile()||d.size<500000||d.size>250*1024*1024)throw Error('bundle_size_not_expected');
         const tag=Buffer.from('LCNAAB1\n');
-        const pub=Buffer.from('LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUF2dEhLWXg3ZFVPWHU2SldSZjdCQworQmRTZDd2OEI4a2poUzRkWVp1TGJRWVh1bm85TnF3NzY0NnNHY2RSaE0wL1d2aytKczh4Mjlka0I0UUwzUm9lCm9tY2lVVVBsZlJjc3hvUGVMajRtNmxmVmNsdzNOUndacFZGU0dtbHQxVldOR0dsV3ZqVEJscVpmcGNXZ214YjkKeFVBL2NiQ043VFRJZDFnVTVZMGRFb3JDMks5R0doVmlqYVVFTm8xOTFyOFhwM2N1eXNRUTZoTmVlenlOTFR3RgpGYi92c2ROODRzRnVzYlptcGNIaDlIZTdvU25oVTMrazNodzlEV005R2o0T2dWQm1FVGphRkUyU1ZwR3hZNzBLCkxDSmx0UTBRcXgrRDFKMWdFS2NndFdjeC8zS0ZjRy9WblVzWHMwT2dra2dMQ2x4NGRqME9UOWp1WE02SGpNbG8KZndJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==','base64');
+        const pub=Buffer.from('LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUFzYmtSazJGM2RTUFU1TXMvc2Z2MgpGWC9RVVI3WUdwV0FteW03WVh4RVRpWlJPMERKcG9EOXZwUFJQTU5TQnlHYnNtQ3E0LzZYa1NiTTlzNmpid3orCnF0Zmp6c0RnVDdIY0JFR29xTitIZTBUYnZHV2NhV3habUZzVDNWTXFlbm1pWTZHaGlwZUhwblF4MWcwZktMbmcKR2tRSndkcFZWcWxLL3U4U01DcXVDYWtSaTY2UTZpNGxheEQ2K0pQdFVjelRFZVdET0Y3UXRKbW9VMk1rOWtiTAp0aDFMWlR3cUpQSEJoU2VMM0NzNkg3a1lyZlpDRnBUeXRMeW5YWTFLa2owR1lJUWtUVTBIUjNJSWxuMit4b3NPCjdTdHI2Z3M0R2dhS0llQ1MzU3lXcklDdVh1OHpIYUpaSkc4WXU4MkpQcDZKclljcTIxQVNrY2JFTUVnbWdxK04KZXdJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==','base64');
         const key=randomBytes(32), iv=randomBytes(12);
         const wrapped=publicEncrypt({key:pub,padding:constants.RSA_PKCS1_OAEP_PADDING,oaepHash:'sha256'},key);
         const cipher=createCipheriv('aes-256-gcm',key,iv);
         cipher.setAAD(tag);key.fill(0);
-        const dst=join(process.env.RUNNER_TEMP,'lcn-signed-october-2ed71507.aab.encrypted');
+        const dst=join(process.env.RUNNER_TEMP,'lcn-signed-october-deps-226af2f6.aab.encrypted');
         const f=await open(dst+'.tmp','wx',0o600);
         async function add(b){for(let off=0;off<b.length;){const q=await f.write(b,off,b.length-off,null); if(q.bytesWritten===0) throw Error('write_interrupted');off+=q.bytesWritten;}}
         const h=createHash('sha256');
@@ -181,8 +202,8 @@ jobs:
     - name: Retain only encrypted signed bundle; do not send to Play
       uses: actions/upload-artifact@v4
       with:
-        name: lcn-signed-october-2ed71507-sealed
-        path: ${{ runner.temp }}/lcn-signed-october-2ed71507.aab.encrypted
+        name: lcn-signed-october-deps-226af2f6-sealed
+        path: ${{ runner.temp }}/lcn-signed-october-deps-226af2f6.aab.encrypted
         if-no-files-found: error
         compression-level: 0
         retention-days: 5
