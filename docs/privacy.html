@@ -114,79 +114,85 @@
 <section class="legal">
   <div class="container">
     <h1>Privacy policy</h1>
-    <p class="updated">Last updated: 8 July 2026</p>
+    <p class="updated">Last updated: 20 November 2026</p>
 
     <div class="tl-dr">
-      <p><strong>Short version.</strong> LiveCaptionN has no accounts. Speech recognition and translation both run on your device by default, and your captions/transcripts never leave your phone. The app includes Google AdMob ads (a banner and an app-open ad), and uses Firebase Crashlytics, Analytics, and Performance Monitoring in release builds to catch crashes and understand feature usage &mdash; both governed by <a href="https://policies.google.com/privacy">Google&rsquo;s privacy policy</a>. Two optional subscriptions, <strong>Ad-Free</strong> and <strong>Pro</strong>, are available: on the Play Store build, purchases go through Google Play Billing (Google handles all payment data); on the GitHub-distributed build, purchases go through Stripe, and the app only ever sends the email address you enter, never card details. Apart from ads, analytics, and (if you subscribe) billing, the app only reaches the internet when you explicitly tell it to &mdash; to download a Vosk speech model, download a Google ML Kit translation model, check GitHub for a new release, or send audio/text to an optional server you have configured yourself.</p>
+      <p><strong>Short version.</strong> Ordinary users do not create a LiveCaptionN account. A separate demo sign-in is available to app reviewers. Captions and translations can be processed on your device. Remote speech and translation modes, when used, send audio or text to the configured service. Feedback you send can be public. The app uses Google AdMob for ads and Firebase for analytics, crash reporting, and performance monitoring in release builds. The app is free to install. Ad-Free and Pro are optional upgrades. Google Play handles payments for the Play edition; Stripe handles payments for the separate GitHub edition.</p>
     </div>
 
     <h2>1. Who this policy is from</h2>
-    <p>LiveCaptionN is a free, open-source Android application maintained by <a href="https://github.com/chartmann1590">chartmann1590</a>. The full source code is available on <a href="https://github.com/chartmann1590/LiveTranscribe-Android">GitHub</a> and every release is built reproducibly by GitHub Actions from a public commit you can audit.</p>
+    <p>LiveCaptionN is a free, open-source Android application provided by Hartmann Studios (<a href="https://github.com/chartmann1590">chartmann1590</a>). The full source code is available on <a href="https://github.com/chartmann1590/LiveTranscribe-Android">GitHub</a> and every release is built reproducibly by GitHub Actions from a public commit you can audit.</p>
 
     <h2>2. What data LiveCaptionN processes</h2>
 
     <h3>Microphone / system audio</h3>
-    <p>When you start a captioning session, LiveCaptionN reads raw PCM audio from either your microphone (via Android&rsquo;s <code>VOICE_RECOGNITION</code> source) or the currently playing app (via <code>MediaProjection</code> + <code>AudioPlaybackCapture</code>). That audio is fed in ~100 ms chunks into the speech recognizer you have selected and is <strong>never written to disk and never sent over the network</strong> under the default configuration. Audio chunks are held in memory only for as long as it takes the recognizer to consume them, then discarded.</p>
+    <p>During an active captioning session, LiveCaptionN processes audio from the microphone or, with Android&rsquo;s permission, from another app&rsquo;s playback. Vosk recognizes audio on your device. When a remote speech engine is active, audio is sent to that engine for recognition. Some editions can use Android&rsquo;s speech recognizer, whose processing can depend on the speech service available on your device.</p>
 
     <h3>Transcripts</h3>
-    <p>Finalized transcript lines (original and translated text) are saved locally in a JSON file inside the app&rsquo;s private storage so you can review them on the <em>History</em> screen. That file is not shared with anyone and is removed when you uninstall the app or clear its data from Android&rsquo;s system settings. There is no cloud backup.</p>
+    <p>Saved captions and translations are stored in the app&rsquo;s private storage and can be deleted from History or by clearing local app data. If you export your history, you control that copy separately. Android backup and device transfer depend on your system settings and the rules of the installed version; clearing local data does not delete exported copies or prior backups.</p>
 
     <h3>Settings</h3>
-    <p>Your configuration (language pair, overlay position, chosen backends, server URLs you entered, etc.) is stored locally via Android DataStore Preferences in the app&rsquo;s private storage. It never leaves your device.</p>
+    <p>Your configuration (such as languages, overlay position, and server URLs) is stored in the app&rsquo;s private storage. Android backup and transfer are governed by your device settings and the installed version&rsquo;s backup rules.</p>
 
     <h2>3. Network connections LiveCaptionN may make</h2>
-    <p>By default the captioning pipeline is fully on-device. The app connects to the network only for the following reasons:</p>
+    <p>Vosk speech recognition and ML Kit translation can run on-device once models are installed. In editions that offer remote processing, the selected backends and device capabilities determine whether captioning and translation can run locally. Network use also includes the services below and the advertising, diagnostics, billing, and feedback services described in this policy.</p>
     <ul>
       <li><strong>Vosk speech model downloads.</strong> When you tap <em>Manage on-device models</em> and pick a new language, the app downloads the model zip from <a href="https://alphacephei.com/vosk/models"><code>alphacephei.com</code></a>, unzips it to app-private storage, and then never contacts that server again for that model.</li>
       <li><strong>Google ML Kit translation model downloads.</strong> The first time you use a given language pair, Google ML Kit downloads a ~30 MB translation model from Google&rsquo;s model service. After that the translation step is fully offline. The download is performed by Google Play Services on your behalf &mdash; see <a href="https://developers.google.com/ml-kit/terms">Google&rsquo;s ML Kit terms</a> and <a href="https://policies.google.com/privacy">Google&rsquo;s privacy policy</a> for details about that traffic.</li>
-      <li><strong>GitHub release check.</strong> Roughly twice a day, a background WorkManager job calls the public <code>api.github.com/repos/chartmann1590/LiveTranscribe-Android/releases/latest</code> endpoint to see whether a new version of the app has been published. The request sends no personal information beyond the standard HTTP metadata every app sends to any web server (IP address, User-Agent). You can disable update notifications by turning off the app&rsquo;s notification permission.</li>
-      <li><strong>Optional LibreTranslate server (only if you enable it).</strong> If you switch the translation backend to LibreTranslate in settings, the recognized text is POSTed to the LibreTranslate URL <em>you</em> configured. LiveCaptionN ships no default LibreTranslate server &mdash; you provide one. No data ever goes to a server the developer controls.</li>
-      <li><strong>Optional remote Whisper server (only if you enable it).</strong> If you switch the speech backend to the remote Whisper endpoint, captured audio is POSTed to the Whisper URL <em>you</em> configured. Same deal: you provide the URL, nothing goes to the developer.</li>
+      <li><strong>Update checks.</strong> Editions that check for GitHub releases send the usual network metadata, such as the IP address and HTTP client information, when requesting release information.</li>
+      <li><strong>LibreTranslate.</strong> When this backend is active, recognized text is sent to the configured LibreTranslate service. That service&rsquo;s operator handles the text under its own practices.</li>
+      <li><strong>Remote Whisper.</strong> When remote Whisper is active, captured audio is sent to the configured Whisper service. Some older editions can select remote modes when the device cannot run on-device models. Before captioning sensitive material, check the active backend and the chosen service&rsquo;s privacy practices.</li>
     </ul>
-    <p>If you use neither the Whisper nor the LibreTranslate backend, and you have already downloaded the Vosk and ML Kit models you need, the captioning pipeline itself works while your phone is in airplane mode (ads require a network connection to load).</p>
+    <p>On a compatible device, downloaded Vosk and ML Kit models allow local captioning and translation without a network connection when both local engines are selected. Ads, model downloads, remote modes and submitting feedback still require a connection.</p>
 
     <h2>4. Advertising</h2>
-    <p>LiveCaptionN displays ads served by <strong>Google AdMob</strong>: a banner at the bottom of the main UI and an app-open ad when you return to the app. Ads are displayed only inside the app&rsquo;s own activity &mdash; they never appear in the floating caption overlay.</p>
-    <p>The AdMob SDK may collect and process certain data as described in <a href="https://policies.google.com/privacy">Google&rsquo;s privacy policy</a> and <a href="https://policies.google.com/technologies/ads">Google&rsquo;s advertising policy</a>. This may include device identifiers, IP address, and interaction data for the purpose of serving and measuring ads. LiveCaptionN does <strong>not</strong> send any of your audio, transcripts, or settings to Google&rsquo;s ad network &mdash; only the standard data that the AdMob SDK collects on its own.</p>
-    <p>You can opt out of personalized advertising in your Android device settings under <em>Google &rarr; Ads &rarr; Opt out of Ads Personalization</em>, or by using an ad blocker. Opting out does not remove ads entirely but prevents Google from using your data to personalize them.</p>
+    <p>LiveCaptionN can display ads served by <strong>Google AdMob</strong> within the app&rsquo;s own interface, not in the floating caption overlay.</p>
+    <p>AdMob can collect and share data such as device or other identifiers, IP address (which can be used to estimate approximate location), app and ad interactions, and diagnostics to deliver and measure ads, provide analytics, and prevent fraud. See <a href="https://policies.google.com/privacy">Google&rsquo;s privacy policy</a> and <a href="https://policies.google.com/technologies/ads">Google&rsquo;s advertising policy</a>. LiveCaptionN does not send captured caption audio or saved transcripts to AdMob as advertising inputs.</p>
+    <p>Use the ad choices shown by your version of LiveCaptionN, where available, and <a href="https://myadcenter.google.com/">Google&rsquo;s ad settings</a> to manage ad personalization. These settings do not remove ads or control Firebase diagnostics.</p>
 
     <h2>5. Analytics and crash reporting</h2>
-    <p>Release builds of LiveCaptionN use <strong>Firebase Crashlytics</strong> (crash and error reporting), <strong>Firebase Analytics</strong> (basic feature-usage counts, e.g. which screens are opened), and <strong>Firebase Performance Monitoring</strong> (app startup/rendering performance). None of these ever see your audio, transcripts, or settings &mdash; they only see standard app-usage and diagnostic data (device model, OS version, crash stack traces, screen names). This collection is disabled entirely in debug builds. See <a href="https://policies.google.com/privacy">Google&rsquo;s privacy policy</a> for how Firebase/Google handles this data.</p>
+    <p>Release builds use <strong>Firebase Crashlytics</strong>, <strong>Firebase Analytics</strong>, and <strong>Firebase Performance Monitoring</strong>. Google processes usage events and technical information such as app or device identifiers, app and OS versions, crash logs, and performance diagnostics for app analytics and reliability. Analytics can record supported Play purchase events; it does not receive your card number from LiveCaptionN. See <a href="https://policies.google.com/privacy">Google&rsquo;s privacy policy</a> for how Google handles this data.</p>
 
     <h2>6. Subscriptions and billing</h2>
-    <p>LiveCaptionN offers two optional monthly subscriptions, <strong>Ad-Free</strong> and <strong>Pro</strong>. Everything free in the app today remains free forever &mdash; these are additive upgrades, not a paywall.</p>
+    <p>LiveCaptionN is free to install and has free captioning features. Ad-Free and Pro are optional monthly upgrades. Some features require Pro. LiveCaptionN does not require an app account, but Google Play subscriptions are linked to the Play account used to buy them.</p>
     <ul>
-      <li><strong>Play Store build.</strong> Purchases are handled entirely by <strong>Google Play Billing</strong>. LiveCaptionN never sees your payment details &mdash; Google processes the transaction and reports back only your entitlement status (which subscriptions are active).</li>
+      <li><strong>Play Store build.</strong> Google Play handles payment and renewal; LiveCaptionN uses Play purchase records to activate and restore subscriptions but does not receive your card details.</li>
       <li><strong>GitHub-distributed build.</strong> Purchases are handled by <strong>Stripe</strong> via a small backend the app talks to. The app sends only the email address you enter and, after a successful purchase, a Stripe-issued session identifier used to verify that purchase &mdash; it never sends card details, which are entered directly into Stripe&rsquo;s own hosted checkout page. Managing or canceling a subscription happens on Stripe&rsquo;s hosted Customer Portal, which verifies your identity by email itself.</li>
     </ul>
 
-    <h2>7. What LiveCaptionN does <em>not</em> do</h2>
+    <h3>App review demo</h3>
+    <p>The review edition has an optional sign-in for authorized app reviewers. When a reviewer signs in, the app sends the assigned demo account name, password and a one-time request challenge over HTTPS to an isolated service hosted on Cloudflare. The service uses the connection IP address to limit repeated attempts, and issues a temporary review grant to the app when the credentials match. It does not store submitted passwords or caption content. The hosting provider may process network and operational metadata under its own privacy terms. This demo does not access customer purchases, restore subscriptions, or transmit captured audio, transcripts or saved history. Ordinary customers do not need this sign-in.</p>
+
+    <h2>7. Public feedback and screenshots</h2>
+    <p>When you submit an in-app report or a reply, text you send can appear on the project&rsquo;s public GitHub issue tracker. A name or email address you enter can appear in the public report. An attached screenshot can be uploaded before the report is created, so do not attach sensitive material. Review what you send. If the diagnostics option is checked, the report can include technical information such as app and Android versions, device and language settings, memory and storage information, and the report time. Some versions start with that option checked; you can turn it off before sending.</p>
+
+    <h2>8. What LiveCaptionN does <em>not</em> do</h2>
     <ul>
-      <li>No account creation or login of any kind.</li>
-      <li>No data sold to third parties, and no data shared beyond what AdMob (section 4), Firebase (section 5), and Play Billing/Stripe (section 6, only for subscribers) collect as described above.</li>
+      <li>Ordinary users do not need a LiveCaptionN account; the separate demo sign-in is for app review only.</li>
+      <li>LiveCaptionN does not receive your card details. The service handling a Play or Stripe transaction depends on the edition you installed.</li>
       <li>No background audio capture &mdash; audio is only read while a captioning session is actively running and a foreground service notification is visible.</li>
-      <li>No access to your contacts, calendar, photos, SMS, call logs, or files outside the app&rsquo;s private storage.</li>
-      <li>Card/payment details are never seen by LiveCaptionN itself &mdash; they go directly to Google Play or Stripe.</li>
+      <li>LiveCaptionN does not read your contacts, calendar, SMS or call logs to provide captions. You choose any file or screenshot you attach and any location where you export captions.</li>
+      <li>LiveCaptionN does not require an app login to start captions.</li>
     </ul>
 
-    <h2>8. Permissions the app requests and why</h2>
+    <h2>9. Permissions the app requests and why</h2>
     <ul>
       <li><code>RECORD_AUDIO</code> &mdash; needed to capture microphone audio for speech recognition. Only used while a captioning session is active.</li>
       <li><code>SYSTEM_ALERT_WINDOW</code> &mdash; needed to draw the floating caption window on top of other apps. No data crosses this boundary; it is a rendering permission.</li>
       <li><code>FOREGROUND_SERVICE</code>, <code>FOREGROUND_SERVICE_MICROPHONE</code>, <code>FOREGROUND_SERVICE_MEDIA_PROJECTION</code> &mdash; required by Android 14+ so the captioning service can run with a persistent notification while you switch to another app.</li>
       <li><code>POST_NOTIFICATIONS</code> &mdash; used for the captioning session notification and for optional in-app update alerts.</li>
-      <li><code>INTERNET</code> &mdash; used only for the network connections listed in section 3.</li>
+      <li><code>INTERNET</code> &mdash; for network services described in this policy.</li>
     </ul>
-    <p>LiveCaptionN does <strong>not</strong> request location, contacts, storage (outside its own private directory), SMS, phone state, or biometric permissions.</p>
+    <p>LiveCaptionN does not request GPS location for captioning. IP-based approximate location used by advertising is described above.</p>
 
-    <h2>7. Children</h2>
+    <h2>10. Children</h2>
     <p>LiveCaptionN is a general-purpose accessibility tool and is not directed at children under 13. It does not knowingly collect any information from children.</p>
 
-    <h2>8. Changes to this policy</h2>
-    <p>If this policy ever changes, the updated version will be published at this URL and the &ldquo;Last updated&rdquo; date at the top will change. Because the app has no way to phone home, you will not receive an in-app notification about policy changes &mdash; check this page when a new release notes it.</p>
+    <h2>11. Changes to this policy</h2>
+    <p>Updates to this policy will appear at this address with a new &ldquo;Last updated&rdquo; date.</p>
 
-    <h2>9. Contact</h2>
-    <p>Questions, concerns, or security reports should be filed as an issue on the project&rsquo;s GitHub repository: <a href="https://github.com/chartmann1590/LiveTranscribe-Android/issues">github.com/chartmann1590/LiveTranscribe-Android/issues</a>. For sensitive security reports you can open a private security advisory via the same repository&rsquo;s <em>Security</em> tab.</p>
+    <h2>12. Contact</h2>
+    <p>For non-sensitive issues, visit the project&rsquo;s <a href="https://github.com/chartmann1590/LiveTranscribe-Android/issues">public support tracker</a>. Do not include private information in a public issue. For a privacy question, a request about your data, or a request to remove a public report or image, use the developer&rsquo;s <a href="https://charleshartmann.com/contact/">private contact form</a>. In the subject, write &ldquo;LiveCaptionN privacy&rdquo;. For a public report, include its link, but don&rsquo;t send a new copy of sensitive data. Removing a report or attachment from the project cannot erase copies someone else already made.</p>
   </div>
 </section>
 
