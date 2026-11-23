@@ -9,9 +9,12 @@ import android.media.projection.MediaProjection
 import android.os.Build
 import android.util.Log
 import com.charles.livecaptionn.settings.SttBackend
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,9 +24,7 @@ import java.io.ByteArrayOutputStream
 import kotlin.math.abs
 
 /**
- * Captures system/internal audio via MediaProjection + AudioPlaybackCapture,
- * buffers a short PCM window, encodes to WAV, sends to a Whisper-compatible
- * STT endpoint, and delivers recognized text via callback.
+ * Captures system audio continuously and processes audio chunks separately.
  */
 class SystemAudioEngine(
     private val context: Context,
@@ -35,7 +36,6 @@ class SystemAudioEngine(
     private val localSttClient: LocalVoskSttClient,
     private val scope: CoroutineScope,
     private val onResult: (SpeechResult) -> Unit,
-    /** Null clears any STT error hint after a successful round-trip to the server. */
     private val onSttError: (String?) -> Unit = {}
 ) : SpeechEngine {
 
@@ -46,42 +46,68 @@ class SystemAudioEngine(
 
     private var audioRecord: AudioRecord? = null
     private var captureJob: Job? = null
+    private var processingJob: Job? = null
+
     @Volatile private var running = false
     @Volatile private var paused = false
+    @Volatile private var captureGeneration = 0L
+
+    private data class AudioChunk(
+        val pcmData: ByteArray,
+        val generation: Long,
+        val averageAmplitude: Int
+    )
 
     override fun start() {
         if (running) return
         running = true
         paused = false
+        captureGeneration++
         startCapture()
     }
 
     override fun stop() {
         running = false
         paused = false
-        captureJob?.cancel()
-        captureJob = null
+        captureGeneration++
+
         try {
             audioRecord?.stop()
-        } catch (_: Throwable) {}
+        } catch (_: Throwable) {
+        }
+
+        captureJob?.cancel()
+        processingJob?.cancel()
+
+        captureJob = null
+        processingJob = null
+
         try {
             audioRecord?.release()
-        } catch (_: Throwable) {}
+        } catch (_: Throwable) {
+        }
+
         audioRecord = null
+
         try {
             projection.stop()
-        } catch (_: Throwable) {}
+        } catch (_: Throwable) {
+        }
+
         statusMutable.value = RecognitionStatus.IDLE
     }
 
     override fun pause() {
+        if (!running || paused) return
         paused = true
+        captureGeneration++
         statusMutable.value = RecognitionStatus.PAUSED
     }
 
     override fun resume() {
-        if (!running) return
+        if (!running || !paused) return
         paused = false
+        captureGeneration++
         statusMutable.value = RecognitionStatus.LISTENING
     }
 
@@ -92,6 +118,7 @@ class SystemAudioEngine(
             stop()
             return
         }
+
         val config = AudioPlaybackCaptureConfiguration.Builder(projection)
             .addMatchingUsage(AudioAttributes.USAGE_MEDIA)
             .addMatchingUsage(AudioAttributes.USAGE_GAME)
@@ -102,7 +129,7 @@ class SystemAudioEngine(
             SAMPLE_RATE,
             AudioFormat.CHANNEL_IN_MONO,
             AudioFormat.ENCODING_PCM_16BIT
-        ).coerceAtLeast(SAMPLE_RATE * 2) // at least 1 second buffer
+        ).coerceAtLeast(SAMPLE_RATE * 2)
 
         audioRecord = AudioRecord.Builder()
             .setAudioPlaybackCaptureConfig(config)
@@ -118,6 +145,7 @@ class SystemAudioEngine(
 
         if (audioRecord?.state != AudioRecord.STATE_INITIALIZED) {
             Log.e("SystemAudioEngine", "AudioRecord failed to initialize")
+            onSttError("AudioRecord failed to initialize")
             statusMutable.value = RecognitionStatus.ERROR
             stop()
             return
@@ -143,93 +171,183 @@ class SystemAudioEngine(
 
         statusMutable.value = RecognitionStatus.LISTENING
 
+        // Keep only two waiting chunks to prevent unlimited memory growth.
+        val audioQueue = Channel<AudioChunk>(
+            capacity = QUEUE_CAPACITY,
+            onBufferOverflow = BufferOverflow.DROP_OLDEST
+        )
+
+        // Consumer: performs STT independently from audio capture.
+        processingJob = scope.launch(Dispatchers.IO) {
+            try {
+                for (chunk in audioQueue) {
+                    if (!isActive || !running) break
+                    if (paused || chunk.generation != captureGeneration) continue
+
+                    statusMutable.value = RecognitionStatus.PROCESSING
+
+                    val outcome = try {
+                        when (sttBackend) {
+                            SttBackend.REMOTE_WHISPER -> {
+                                val wavData = WavEncoder.encode(
+                                    chunk.pcmData,
+                                    SAMPLE_RATE
+                                )
+                                sttClient.transcribe(wavData, sttUrl, languageCode)
+                            }
+
+                            SttBackend.LOCAL_VOSK -> {
+                                localSttClient.transcribe(
+                                    chunk.pcmData,
+                                    SAMPLE_RATE,
+                                    sourceLanguageCode
+                                )
+                            }
+                        }
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (t: Throwable) {
+                        Log.e("SystemAudioEngine", "STT processing failed", t)
+                        onSttError(t.message ?: "Speech recognition failed")
+                        if (running && !paused) {
+                            statusMutable.value = RecognitionStatus.LISTENING
+                        }
+                        continue
+                    }
+
+                    // Ignore results from audio captured before pause/resume.
+                    if (!running || paused ||
+                        chunk.generation != captureGeneration
+                    ) {
+                        continue
+                    }
+
+                    val err = outcome.errorMessage
+
+                    if (err != null) {
+                        onSttError(err)
+                        statusMutable.value = RecognitionStatus.ERROR
+                    } else {
+                        onSttError(null)
+
+                        val transcript = outcome.text.trim()
+
+                        if (transcript.isNotBlank()) {
+                            val shouldSuppress =
+                                sttBackend == SttBackend.REMOTE_WHISPER &&
+                                isLikelyHallucinatedTranscript(transcript)
+
+                            if (shouldSuppress) {
+                                Log.w(
+                                    "SystemAudioEngine",
+                                    "Ignoring likely hallucinated transcript: $transcript"
+                                )
+                                onSttError("Ignored low-confidence speech result")
+                            } else {
+                                Log.d(
+                                    "SystemAudioEngine",
+                                    "STT text avgAmp=${chunk.averageAmplitude} text=$transcript"
+                                )
+                                onResult(SpeechResult(transcript, isFinal = true))
+                            }
+                        }
+
+                        if (running && !paused) {
+                            statusMutable.value = RecognitionStatus.LISTENING
+                        }
+                    }
+                }
+            } finally {
+                audioQueue.cancel()
+            }
+        }
+
+        // Producer: continuously drains AudioRecord and queues complete chunks.
         captureJob = scope.launch(Dispatchers.Default) {
             val chunkSeconds = when (sttBackend) {
                 SttBackend.LOCAL_VOSK -> LOCAL_CHUNK_SECONDS
                 SttBackend.REMOTE_WHISPER -> REMOTE_CHUNK_SECONDS
             }
-            val chunkBytes = SAMPLE_RATE * 2 * chunkSeconds // 16-bit mono = 2 bytes/sample
+
+            val chunkBytes = SAMPLE_RATE * 2 * chunkSeconds
             val readBuffer = ByteArray(4096)
             var consecutiveSilentChunks = 0
+            var pcmBuffer = ByteArrayOutputStream(chunkBytes)
+            var chunkGeneration = captureGeneration
 
-            while (isActive && running) {
-                if (paused) {
-                    delay(200)
-                    continue
-                }
+            try {
+                while (isActive && running) {
+                    val read = audioRecord?.read(
+                        readBuffer,
+                        0,
+                        readBuffer.size
+                    ) ?: -1
 
-                val pcmBuffer = ByteArrayOutputStream(chunkBytes)
-                val startTime = System.currentTimeMillis()
-                var readError: Int? = null
+                    if (read < 0) {
+                        Log.e("SystemAudioEngine", "AudioRecord read failed: $read")
+                        onSttError("System audio capture failed (AudioRecord $read)")
+                        statusMutable.value = RecognitionStatus.ERROR
+                        delay(500)
+                        continue
+                    }
 
-                // Collect a short audio window before running STT.
-                while (pcmBuffer.size() < chunkBytes && isActive && running && !paused) {
-                    val read = audioRecord?.read(readBuffer, 0, readBuffer.size) ?: -1
-                    when {
-                        read > 0 -> pcmBuffer.write(readBuffer, 0, read)
-                        read == 0 -> delay(20)
-                        else -> {
-                            readError = read
-                            break
+                    if (read == 0) {
+                        delay(10)
+                        continue
+                    }
+
+                    // While paused, keep draining the recorder but discard audio.
+                    if (paused) {
+                        pcmBuffer.reset()
+                        chunkGeneration = captureGeneration
+                        continue
+                    }
+
+                    // A pause/resume happened while this chunk was being collected.
+                    if (chunkGeneration != captureGeneration) {
+                        pcmBuffer.reset()
+                        chunkGeneration = captureGeneration
+                    }
+
+                    pcmBuffer.write(readBuffer, 0, read)
+
+                    if (pcmBuffer.size() < chunkBytes) continue
+
+                    val pcmData = pcmBuffer.toByteArray()
+                    pcmBuffer.reset()
+
+                    if (paused || chunkGeneration != captureGeneration) {
+                        chunkGeneration = captureGeneration
+                        continue
+                    }
+
+                    chunkGeneration = captureGeneration
+
+                    if (pcmData.size < SAMPLE_RATE) continue
+
+                    val averageAmplitude = averageAbsAmplitude(pcmData)
+
+                    if (averageAmplitude < SILENCE_AVERAGE_ABS_THRESHOLD) {
+                        consecutiveSilentChunks++
+
+                        if (consecutiveSilentChunks >= SILENT_CHUNKS_BEFORE_HINT) {
+                            onSttError(NO_CAPTURABLE_AUDIO_MESSAGE)
                         }
+                        continue
                     }
-                    if (System.currentTimeMillis() - startTime > chunkSeconds * 1100L) break
-                }
 
-                if (readError != null) {
-                    Log.e("SystemAudioEngine", "AudioRecord read failed: $readError")
-                    onSttError("System audio capture failed (AudioRecord $readError)")
-                    statusMutable.value = RecognitionStatus.ERROR
-                    delay(1000)
-                    continue
-                }
+                    consecutiveSilentChunks = 0
 
-                if (pcmBuffer.size() < SAMPLE_RATE) continue // skip tiny chunks
-
-                val pcmData = pcmBuffer.toByteArray()
-                val averageAmplitude = averageAbsAmplitude(pcmData)
-                if (averageAmplitude < SILENCE_AVERAGE_ABS_THRESHOLD) {
-                    consecutiveSilentChunks += 1
-                    if (consecutiveSilentChunks >= SILENT_CHUNKS_BEFORE_HINT) {
-                        onSttError(NO_CAPTURABLE_AUDIO_MESSAGE)
-                    }
-                    statusMutable.value = if (paused) RecognitionStatus.PAUSED else RecognitionStatus.LISTENING
-                    continue
+                    audioQueue.trySend(
+                        AudioChunk(
+                            pcmData = pcmData,
+                            generation = captureGeneration,
+                            averageAmplitude = averageAmplitude
+                        )
+                    )
                 }
-
-                consecutiveSilentChunks = 0
-                statusMutable.value = RecognitionStatus.PROCESSING
-                val outcome = when (sttBackend) {
-                    SttBackend.REMOTE_WHISPER -> {
-                        val wavData = WavEncoder.encode(pcmData, SAMPLE_RATE)
-                        sttClient.transcribe(wavData, sttUrl, languageCode)
-                    }
-                    SttBackend.LOCAL_VOSK -> {
-                        localSttClient.transcribe(pcmData, SAMPLE_RATE, sourceLanguageCode)
-                    }
-                }
-                val err = outcome.errorMessage
-                if (err != null) {
-                    onSttError(err)
-                    statusMutable.value = RecognitionStatus.ERROR
-                } else {
-                    onSttError(null)
-                    val transcript = outcome.text.trim()
-                    if (transcript.isNotBlank()) {
-                        val shouldSuppress = sttBackend == SttBackend.REMOTE_WHISPER &&
-                            isLikelyHallucinatedTranscript(transcript)
-                        if (shouldSuppress) {
-                            Log.w("SystemAudioEngine", "Ignoring likely hallucinated transcript: $transcript")
-                            onSttError("Ignored low-confidence speech result")
-                        } else {
-                            Log.d("SystemAudioEngine", "STT text avgAmp=$averageAmplitude text=$transcript")
-                            onResult(SpeechResult(transcript, isFinal = true))
-                        }
-                    }
-                    if (!paused && running) {
-                        statusMutable.value = RecognitionStatus.LISTENING
-                    }
-                }
+            } finally {
+                audioQueue.close()
             }
         }
     }
@@ -238,8 +356,11 @@ class SystemAudioEngine(
         private const val SAMPLE_RATE = 16000
         private const val REMOTE_CHUNK_SECONDS = 6
         private const val LOCAL_CHUNK_SECONDS = 2
+        private const val QUEUE_CAPACITY = 2
+
         private const val SILENCE_AVERAGE_ABS_THRESHOLD = 120
         private const val SILENT_CHUNKS_BEFORE_HINT = 2
+
         private const val NO_CAPTURABLE_AUDIO_MESSAGE =
             "No capturable system audio yet. Play unmuted media in an app that allows audio capture."
 
@@ -247,19 +368,23 @@ class SystemAudioEngine(
             var sum = 0L
             var samples = 0
             var i = 0
+
             while (i + 1 < pcmData.size) {
                 val low = pcmData[i].toInt() and 0xFF
                 val high = pcmData[i + 1].toInt()
                 val sample = (high shl 8) or low
+
                 sum += abs(sample)
-                samples += 1
+                samples++
                 i += 2
             }
+
             return if (samples == 0) 0 else (sum / samples).toInt()
         }
 
         private fun isLikelyHallucinatedTranscript(text: String): Boolean {
             val normalized = text.lowercase().filter { it.isLetterOrDigit() }
+
             if (normalized.length <= 2) return true
             if (isRepeatedPattern(normalized)) return true
 
@@ -267,16 +392,23 @@ class SystemAudioEngine(
                 .split(Regex("\\s+"))
                 .map { it.trim { ch -> !ch.isLetterOrDigit() } }
                 .filter { it.isNotEmpty() }
+
             return words.size >= 4 && words.distinct().size == 1
         }
 
         private fun isRepeatedPattern(value: String): Boolean {
             val maxUnit = (value.length / 3).coerceAtMost(12)
+
             for (unitSize in 1..maxUnit) {
                 if (value.length % unitSize != 0) continue
+
                 val unit = value.substring(0, unitSize)
-                if (unit.repeat(value.length / unitSize) == value) return true
+
+                if (unit.repeat(value.length / unitSize) == value) {
+                    return true
+                }
             }
+
             return false
         }
     }
