@@ -109,6 +109,8 @@ class OverlayController(
             text = "Status: Idle"
             setTextColor(Color.WHITE)
             textSize = 11f
+            maxLines = 3
+            ellipsize = TextUtils.TruncateAt.END
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         }
 

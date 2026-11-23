@@ -5,11 +5,13 @@ import com.charles.livecaptionn.settings.CaptionSettings
 import com.charles.livecaptionn.settings.TranslationBackend
 import com.charles.livecaptionn.translation.RoutingTranslationRepository
 import com.charles.livecaptionn.translation.TranslationRepository
-import kotlinx.coroutines.flow.Flow
+import com.charles.livecaptionn.translation.TranslationStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RoutingTranslationRepositoryTest {
@@ -72,11 +74,44 @@ class RoutingTranslationRepositoryTest {
         repo.prewarm("en", "vi")
         assertEquals(1, mlKit.prewarmCount)
     }
+
+    @Test
+    fun statusFlow_propagatesFromActiveDelegate() = runTest {
+        val mlKit = FakeTranslationRepository(
+            result = "",
+            nextStatus = TranslationStatus(isError = true, message = "ML Kit download failed")
+        )
+        val libre = FakeTranslationRepository(
+            result = "",
+            nextStatus = TranslationStatus(isError = true, message = "LibreTranslate unreachable")
+        )
+        val settingsRepo = FakeSettingsRepo(TranslationBackend.ML_KIT)
+        val repo = RoutingTranslationRepository(
+            settingsRepository = settingsRepo,
+            mlKit = mlKit,
+            libre = libre
+        )
+
+        repo.translate("hello", "en", "vi", autoDetect = false)
+        assertTrue(repo.statusFlow.value.isError)
+        assertEquals("ML Kit download failed", repo.statusFlow.value.message)
+
+        settingsRepo.setBackend(TranslationBackend.LIBRE_TRANSLATE)
+        repo.translate("hello", "en", "vi", autoDetect = false)
+        assertTrue(repo.statusFlow.value.isError)
+        assertEquals("LibreTranslate unreachable", repo.statusFlow.value.message)
+    }
 }
 
-private class FakeTranslationRepository(private val result: String) : TranslationRepository {
+private class FakeTranslationRepository(
+    private val result: String,
+    private val nextStatus: TranslationStatus? = null
+) : TranslationRepository {
     var translateCount = 0
     var prewarmCount = 0
+
+    private val mutableStatus = MutableStateFlow(TranslationStatus())
+    override val statusFlow: StateFlow<TranslationStatus> = mutableStatus.asStateFlow()
 
     override suspend fun translate(
         text: String,
@@ -85,17 +120,25 @@ private class FakeTranslationRepository(private val result: String) : Translatio
         autoDetect: Boolean
     ): String {
         translateCount++
+        nextStatus?.let { mutableStatus.value = it }
         return result
     }
 
     override suspend fun prewarm(sourceCode: String, targetCode: String) {
         prewarmCount++
+        nextStatus?.let { mutableStatus.value = it }
     }
 }
 
-private class FakeSettingsRepo(private val backend: TranslationBackend) : SettingsRepository {
-    override val settingsFlow: StateFlow<CaptionSettings> =
-        MutableStateFlow(CaptionSettings(translationBackend = backend))
+private class FakeSettingsRepo(initialBackend: TranslationBackend) : SettingsRepository {
+    private val mutable = MutableStateFlow(CaptionSettings(translationBackend = initialBackend))
+    override val settingsFlow: StateFlow<CaptionSettings> = mutable
 
-    override suspend fun update(transform: (CaptionSettings) -> CaptionSettings) {}
+    fun setBackend(backend: TranslationBackend) {
+        mutable.value = mutable.value.copy(translationBackend = backend)
+    }
+
+    override suspend fun update(transform: (CaptionSettings) -> CaptionSettings) {
+        mutable.value = transform(mutable.value)
+    }
 }

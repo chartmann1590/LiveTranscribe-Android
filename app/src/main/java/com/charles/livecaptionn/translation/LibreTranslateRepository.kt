@@ -6,6 +6,10 @@ import com.charles.livecaptionn.data.SettingsRepository
 import com.charles.livecaptionn.settings.CaptionSettings
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -16,6 +20,9 @@ import java.util.concurrent.TimeUnit
 class LibreTranslateRepository(
     private val settingsRepository: SettingsRepository
 ) : TranslationRepository {
+
+    private val mutableStatus = MutableStateFlow(TranslationStatus())
+    override val statusFlow: StateFlow<TranslationStatus> = mutableStatus.asStateFlow()
 
     @Volatile
     private var cachedBaseUrl: String? = null
@@ -69,8 +76,10 @@ class LibreTranslateRepository(
         autoDetect: Boolean
     ): String {
         val clean = text.trim()
-        if (clean.isEmpty()) return clean
-        if (targetCode.isBlank()) return clean
+        if (clean.isEmpty() || targetCode.isBlank()) {
+            mutableStatus.value = TranslationStatus()
+            return clean
+        }
         return try {
             val req = TranslateRequest(
                 q = clean,
@@ -80,10 +89,29 @@ class LibreTranslateRepository(
             // Empty server response is treated as a failure so the
             // service can preserve the last good translation instead of
             // overwriting it with the raw source text.
-            api().translate(req).translatedText.trim()
+            val translated = api().translate(req).translatedText.trim()
+            if (translated.isEmpty()) {
+                mutableStatus.value = TranslationStatus(
+                    isError = true,
+                    message = "Translation failed: LibreTranslate returned an empty response."
+                )
+            } else {
+                mutableStatus.value = TranslationStatus()
+            }
+            translated
         } catch (t: Throwable) {
+            if (t is CancellationException) throw t
             Log.w("LibreTranslateRepo", "Translation failed.", t)
+            val detail = t.message?.takeIf { it.isNotBlank() } ?: t::class.java.simpleName
+            mutableStatus.value = TranslationStatus(
+                isError = true,
+                message = "LibreTranslate failed: $detail"
+            )
             ""
         }
+    }
+
+    override suspend fun prewarm(sourceCode: String, targetCode: String) {
+        mutableStatus.value = TranslationStatus()
     }
 }

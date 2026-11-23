@@ -2,7 +2,12 @@ package com.charles.livecaptionn.translation
 
 import com.charles.livecaptionn.data.SettingsRepository
 import com.charles.livecaptionn.settings.TranslationBackend
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 /**
  * Dispatches each translation call to the backend selected in user settings.
@@ -17,7 +22,12 @@ class RoutingTranslationRepository(
     private val libre: TranslationRepository
 ) : TranslationRepository {
 
+    private val mutableStatus = MutableStateFlow(TranslationStatus())
+    override val statusFlow: StateFlow<TranslationStatus> = mutableStatus.asStateFlow()
+
+    @Volatile
     private var cachedBackend: TranslationBackend? = null
+    @Volatile
     private var cachedDelegate: TranslationRepository? = null
 
     override suspend fun translate(
@@ -25,16 +35,43 @@ class RoutingTranslationRepository(
         sourceCode: String,
         targetCode: String,
         autoDetect: Boolean
-    ): String = activeDelegate().translate(text, sourceCode, targetCode, autoDetect)
+    ): String {
+        val delegate = activeDelegate()
+        return withDelegateStatus(delegate) {
+            delegate.translate(text, sourceCode, targetCode, autoDetect)
+        }
+    }
 
     override suspend fun prewarm(sourceCode: String, targetCode: String) {
-        activeDelegate().prewarm(sourceCode, targetCode)
+        val delegate = activeDelegate()
+        withDelegateStatus(delegate) {
+            delegate.prewarm(sourceCode, targetCode)
+        }
+    }
+
+    private suspend fun <T> withDelegateStatus(
+        delegate: TranslationRepository,
+        block: suspend () -> T
+    ): T = coroutineScope {
+        mutableStatus.value = delegate.statusFlow.value
+        val mirrorJob = launch {
+            delegate.statusFlow.collect { status ->
+                mutableStatus.value = status
+            }
+        }
+        try {
+            block()
+        } finally {
+            mirrorJob.cancel()
+            mutableStatus.value = delegate.statusFlow.value
+        }
     }
 
     private suspend fun activeDelegate(): TranslationRepository {
         val backend = settingsRepository.settingsFlow.first().translationBackend
-        if (cachedBackend == backend && cachedDelegate != null) {
-            return cachedDelegate!!
+        val existing = cachedDelegate
+        if (cachedBackend == backend && existing != null) {
+            return existing
         }
         val delegate = when (backend) {
             TranslationBackend.ML_KIT -> mlKit

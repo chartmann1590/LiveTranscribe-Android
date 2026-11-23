@@ -498,6 +498,19 @@ private fun CaptionControlCard(
                     color = MaterialTheme.colorScheme.error
                 )
             }
+            val transStatus = ui.runtime.translationStatus?.trim().orEmpty()
+            if (isRunning && transStatus.isNotEmpty()) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = transStatus,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (ui.runtime.translationIsError) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
+            }
 
             Spacer(Modifier.height(12.dp))
 
@@ -852,6 +865,16 @@ private fun LanguageCard(
                 requiresPro = languageRequiresPro,
                 onRequiresPro = onRequiresPro
             )
+
+            if (ui.settings.sourceLanguageCode.isNotBlank() &&
+                ui.settings.sourceLanguageCode.equals(ui.settings.targetLanguageCode, ignoreCase = true)
+            ) {
+                Text(
+                    text = t["Source and target languages are identical; captions will not be translated."],
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.tertiary
+                )
+            }
 
             // Context-specific helper text
             val vmAudio = ui.settings.audioSource

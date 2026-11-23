@@ -12,6 +12,7 @@ import android.content.pm.ServiceInfo
 import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.IBinder
+import android.os.SystemClock
 import android.provider.Settings
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -38,21 +39,18 @@ import com.charles.livecaptionn.speech.SystemAudioEngine
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.channels.BufferOverflow
-import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.ConcurrentLinkedQueue
 
-@OptIn(FlowPreview::class)
 class CaptionForegroundService : Service() {
     private var serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private lateinit var app: LiveCaptionApp
@@ -71,15 +69,13 @@ class CaptionForegroundService : Service() {
     @Volatile
     private var bufferedLineId: Long = NO_LINE_ID
     @Volatile
-    private var historyOnNextTranslate = false
+    private var lastAppliedLiveLineId: Long = NO_LINE_ID
+    private var lastTranslatedPartialId: Long = NO_LINE_ID
+    private var lastTranslatedPartialText: String = ""
     private val pendingFinalTranslations = ConcurrentLinkedQueue<TranslationRequest>()
 
-    /** Mic partials arrive faster than 400ms; cancel+restart jobs never finish. Debounce coalesces to one translate. */
-    private val translateRequests = MutableSharedFlow<Unit>(
-        replay = 0,
-        extraBufferCapacity = 1,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST
-    )
+    /** Conflated signal waking the translation loop whenever partials or finals arrive. */
+    private val translateSignals = Channel<Unit>(Channel.CONFLATED)
 
     private var currentAudioSource = AudioSource.MIC
 
@@ -211,9 +207,29 @@ class CaptionForegroundService : Service() {
                 }
             }
 
+            resetTranslationQueue()
+
             app.container.runtimeStore.update {
                 // Clear a reason left over from an earlier failed start.
-                it.copy(running = true, paused = false, status = RecognitionStatus.LISTENING, lastError = null)
+                it.copy(
+                    running = true,
+                    paused = false,
+                    status = RecognitionStatus.LISTENING,
+                    lastError = null,
+                    translationStatus = null,
+                    translationIsError = false
+                )
+            }
+
+            launch {
+                app.container.translationRepository.statusFlow.collectLatest { ts ->
+                    app.container.runtimeStore.update {
+                        it.copy(
+                            translationStatus = ts.message,
+                            translationIsError = ts.isError
+                        )
+                    }
+                }
             }
 
             // Prewarm the active translation backend so the first spoken
@@ -229,42 +245,82 @@ class CaptionForegroundService : Service() {
             }
 
             launch(Dispatchers.IO) {
-                translateRequests
-                    .debounce(TRANSLATE_DEBOUNCE_MS)
-                    .collect {
-                        while (true) {
-                            val final = pendingFinalTranslations.poll() ?: break
+                var hasTranslatedPartial = false
+                var lastPartialTranslateAtMs = 0L
+                while (true) {
+                    translateSignals.receive()
+                    while (true) {
+                        val final = pendingFinalTranslations.poll()
+                        if (final != null) {
                             translateSnapshot(final)
+                            continue
+                        }
+                        val hasPartial = synchronized(this@CaptionForegroundService) {
+                            bufferedText.isNotBlank() &&
+                                (bufferedLineId != lastTranslatedPartialId || bufferedText != lastTranslatedPartialText)
+                        }
+                        if (!hasPartial) break
+                        val waitMs = if (!hasTranslatedPartial) {
+                            0L
+                        } else {
+                            (PARTIAL_THROTTLE_MS - (SystemClock.elapsedRealtime() - lastPartialTranslateAtMs))
+                                .coerceAtLeast(0L)
+                        }
+                        if (waitMs > 0L) delay(waitMs)
+                        val urgentFinal = pendingFinalTranslations.poll()
+                        if (urgentFinal != null) {
+                            translateSnapshot(urgentFinal)
+                            continue
                         }
                         val partial = synchronized(this@CaptionForegroundService) {
-                            TranslationRequest(bufferedText, bufferedLineId, historyOnNextTranslate)
-                                .also { historyOnNextTranslate = false }
-                        }
-                        if (partial.text.isNotBlank()) translateSnapshot(partial)
+                            if (bufferedText.isBlank() ||
+                                (bufferedLineId == lastTranslatedPartialId && bufferedText == lastTranslatedPartialText)
+                            ) {
+                                null
+                            } else {
+                                val req = TranslationRequest(bufferedText, bufferedLineId, false)
+                                lastTranslatedPartialId = bufferedLineId
+                                lastTranslatedPartialText = bufferedText
+                                bufferedText = ""
+                                req
+                            }
+                        } ?: break
+                        hasTranslatedPartial = true
+                        lastPartialTranslateAtMs = SystemClock.elapsedRealtime()
+                        translateSnapshot(partial)
                     }
+                }
             }
 
             val onSpeechResult = { result: SpeechResult ->
                 val transcript = result.text.trim()
-                Log.d("CaptionService", "onSpeechResult final=${result.isFinal} text='$transcript'")
-                val candidateId = lineIdCounter.incrementAndGet()
-                app.container.runtimeStore.update {
-                    it.copy(
-                        originalText = transcript,
-                        // Partials overwrite the open line; finals close it so the next
-                        // utterance starts fresh. Works the same for mic and system audio
-                        // now that both stream.
-                        transcriptLines = recordTranscriptResult(
+                if (transcript.isNotBlank()) {
+                    Log.d("CaptionService", "onSpeechResult final=${result.isFinal} text='$transcript'")
+                    val candidateId = lineIdCounter.incrementAndGet()
+                    var committedLineId = NO_LINE_ID
+                    app.container.runtimeStore.update {
+                        val recorded = recordTranscriptResultWithId(
                             lines = it.transcriptLines,
                             originalText = transcript,
                             isFinal = result.isFinal,
-                            newLineId = candidateId
-                        ),
-                        status = RecognitionStatus.PROCESSING,
-                        lastError = null
-                    )
+                            newLineId = candidateId,
+                            noLineId = NO_LINE_ID
+                        )
+                        committedLineId = recorded.lineId
+                        it.copy(
+                            originalText = transcript,
+                            // Partials overwrite the open line; finals close it so the next
+                            // utterance starts fresh. Works the same for mic and system audio
+                            // now that both stream.
+                            transcriptLines = recorded.lines,
+                            status = RecognitionStatus.PROCESSING,
+                            lastError = null
+                        )
+                    }
+                    if (committedLineId != NO_LINE_ID) {
+                        queueTranslation(transcript, committedLineId, result.isFinal)
+                    }
                 }
-                queueTranslation(transcript, candidateId, result.isFinal)
             }
 
             val mediaProjection = if (currentAudioSource == AudioSource.SYSTEM) {
@@ -390,7 +446,10 @@ class CaptionForegroundService : Service() {
         translatedText = runtime.translatedText.ifBlank { runtime.originalText },
         transcriptText = overlayTranscriptText(runtime),
         status = runtime.status,
-        statusDetail = runtime.lastError,
+        statusDetail = listOfNotNull(
+            runtime.lastError?.trim()?.takeIf { it.isNotEmpty() },
+            runtime.translationStatus?.trim()?.takeIf { it.isNotEmpty() }
+        ).joinToString("\n").ifBlank { null },
         textSizeSp = settings.textSizeSp,
         opacity = settings.overlayOpacity,
         showOriginal = settings.showOriginal,
@@ -404,17 +463,35 @@ class CaptionForegroundService : Service() {
 
     private fun queueTranslation(text: String, lineId: Long, isFinal: Boolean = false) {
         synchronized(this) {
-            bufferedText = text
-            bufferedLineId = lineId
             if (isFinal) {
+                while (pendingFinalTranslations.size >= MAX_TRANSCRIPT_LINES) {
+                    pendingFinalTranslations.poll()
+                }
                 pendingFinalTranslations.add(TranslationRequest(text, lineId, true))
                 // Finals are retained in the queue; do not translate the same
                 // immutable snapshot again through the mutable partial slot.
                 bufferedText = ""
-                historyOnNextTranslate = false
+                bufferedLineId = NO_LINE_ID
+            } else {
+                bufferedText = text
+                bufferedLineId = lineId
             }
         }
-        translateRequests.tryEmit(Unit)
+        translateSignals.trySend(Unit)
+    }
+
+    private fun resetTranslationQueue() {
+        synchronized(this) {
+            pendingFinalTranslations.clear()
+            bufferedText = ""
+            bufferedLineId = NO_LINE_ID
+            lastAppliedLiveLineId = NO_LINE_ID
+            lastTranslatedPartialId = NO_LINE_ID
+            lastTranslatedPartialText = ""
+        }
+        while (translateSignals.tryReceive().isSuccess) {
+            // Drain any stale signal from a prior session.
+        }
     }
 
     private suspend fun translateSnapshot(request: TranslationRequest) {
@@ -425,13 +502,27 @@ class CaptionForegroundService : Service() {
             targetCode = captionSettings.targetLanguageCode,
             autoDetect = currentAudioSource == AudioSource.SYSTEM || captionSettings.autoDetectSource
         )
-        if (translated.isBlank()) return
+        if (translated.isBlank()) {
+            app.container.runtimeStore.update {
+                it.copy(status = if (paused) RecognitionStatus.PAUSED else RecognitionStatus.LISTENING)
+            }
+            return
+        }
         val translatedWithGlossary = applyGlossary(translated, app.container.glossary.list())
         app.container.runtimeStore.update {
-            val current = it.transcriptLines.any { line -> line.id == request.lineId }
+            val applied = applyTranslationResult(
+                lines = it.transcriptLines,
+                currentTranslatedText = it.translatedText,
+                lastAppliedLiveLineId = lastAppliedLiveLineId,
+                requestLineId = request.lineId,
+                isFinal = request.saveHistory,
+                translatedText = translatedWithGlossary,
+                noLineId = NO_LINE_ID
+            )
+            lastAppliedLiveLineId = applied.lastAppliedLiveLineId
             it.copy(
-                translatedText = if (current) translatedWithGlossary else it.translatedText,
-                transcriptLines = updateTranscriptTranslation(it.transcriptLines, request.lineId, translatedWithGlossary),
+                translatedText = applied.translatedText,
+                transcriptLines = applied.lines,
                 status = if (paused) RecognitionStatus.PAUSED else RecognitionStatus.LISTENING
             )
         }
@@ -490,6 +581,8 @@ class CaptionForegroundService : Service() {
 
     private fun stopFlow() {
         captionSessionActive.set(false)
+        paused = false
+        resetTranslationQueue()
         try { speechEngine?.stop() } catch (_: Throwable) {}
         speechEngine = null
         overlayController?.hide()
@@ -510,16 +603,27 @@ class CaptionForegroundService : Service() {
 
     private fun failAndStop(message: String) {
         captionSessionActive.set(false)
+        paused = false
+        resetTranslationQueue()
         failureMessage = message
         try { speechEngine?.stop() } catch (_: Throwable) {}
         speechEngine = null
         overlayController?.hide()
         overlayController = null
+        overlayReady.value = 0
         MediaProjectionHolder.clear()
         app.container.runtimeStore.update {
-            it.copy(running = false, paused = false, status = RecognitionStatus.ERROR, lastError = message)
+            it.copy(
+                running = false,
+                paused = false,
+                status = RecognitionStatus.ERROR,
+                lastError = message,
+                translationStatus = null,
+                translationIsError = false
+            )
         }
         serviceScope.cancel()
+        serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
@@ -581,7 +685,7 @@ class CaptionForegroundService : Service() {
 
         private const val CHANNEL_ID = "caption_channel"
         private const val NOTIF_ID = 2001
-        private const val TRANSLATE_DEBOUNCE_MS = 450L
+        private const val PARTIAL_THROTTLE_MS = 350L
         private const val NO_LINE_ID = -1L
     }
 }

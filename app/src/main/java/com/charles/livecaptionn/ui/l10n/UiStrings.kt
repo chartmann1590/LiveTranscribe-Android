@@ -113,6 +113,7 @@ object UiStringCatalog {
         "Loading languages from LibreTranslate…",
         "%d languages reported by LibreTranslate. Add more to your server by installing extra Argos Translate packages.",
         "Auto-detect source",
+        "Source and target languages are identical; captions will not be translated.",
         "Close",
         "Choose language",
         "Search",

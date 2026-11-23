@@ -12,6 +12,16 @@ package com.charles.livecaptionn.service
 internal const val MAX_TRANSCRIPT_LINES = 30
 
 /**
+ * Output of recording an STT result, pairing the updated scroll-back list with
+ * the stable [lineId] of the line that holds [originalText] (which may be a
+ * reused open line's id rather than the candidate id).
+ */
+internal data class RecordedTranscript(
+    val lines: List<CaptionRuntimeLine>,
+    val lineId: Long
+)
+
+/**
  * Record a new STT result into the transcript line list.
  *
  * Open/closed state is driven solely by [isFinal] (Vosk's own segment
@@ -31,23 +41,46 @@ internal fun recordTranscriptResult(
     originalText: String,
     isFinal: Boolean,
     newLineId: Long
-): List<CaptionRuntimeLine> {
-    if (originalText.isBlank()) return lines
+): List<CaptionRuntimeLine> =
+    recordTranscriptResultWithId(lines, originalText, isFinal, newLineId).lines
+
+/**
+ * Same as [recordTranscriptResult], additionally returning the actual id of
+ * the line containing [originalText] so translation requests always reconcile
+ * against the committed line id (even when transitioning an existing open
+ * partial with identical text to `isFinal = true`).
+ */
+internal fun recordTranscriptResultWithId(
+    lines: List<CaptionRuntimeLine>,
+    originalText: String,
+    isFinal: Boolean,
+    newLineId: Long,
+    noLineId: Long = -1L
+): RecordedTranscript {
+    if (originalText.isBlank()) return RecordedTranscript(lines, noLineId)
     val last = lines.lastOrNull()
     val lastIsOpen = last != null && !last.isFinal
 
     if (lastIsOpen) {
-        if (last!!.originalText == originalText && last.isFinal == isFinal) return lines
+        if (last!!.originalText == originalText && last.isFinal == isFinal) {
+            return RecordedTranscript(lines, last.id)
+        }
         val updatedLine = if (last.originalText == originalText) {
             last.copy(isFinal = isFinal)
         } else {
             CaptionRuntimeLine(id = newLineId, originalText = originalText, isFinal = isFinal)
         }
-        return (lines.dropLast(1) + updatedLine).takeLast(MAX_TRANSCRIPT_LINES)
+        return RecordedTranscript(
+            lines = (lines.dropLast(1) + updatedLine).takeLast(MAX_TRANSCRIPT_LINES),
+            lineId = updatedLine.id
+        )
     }
 
-    return (lines + CaptionRuntimeLine(id = newLineId, originalText = originalText, isFinal = isFinal))
-        .takeLast(MAX_TRANSCRIPT_LINES)
+    val appended = CaptionRuntimeLine(id = newLineId, originalText = originalText, isFinal = isFinal)
+    return RecordedTranscript(
+        lines = (lines + appended).takeLast(MAX_TRANSCRIPT_LINES),
+        lineId = appended.id
+    )
 }
 
 /**
@@ -71,6 +104,73 @@ internal fun updateTranscriptTranslation(
     return lines.mapIndexed { index, line ->
         if (index == existingIndex) line.copy(translatedText = translatedText) else line
     }
+}
+
+/**
+ * Result of applying a completed translation snapshot to the current transcript
+ * state, including updated scroll-back lines and live preview state.
+ */
+internal data class AppliedTranslation(
+    val lines: List<CaptionRuntimeLine>,
+    val translatedText: String,
+    val lastAppliedLiveLineId: Long
+)
+
+/**
+ * Applies a completed translation for [requestLineId] to [lines] and the live
+ * preview [currentTranslatedText]. If an open utterance evolved to a newer id
+ * while an in-flight partial was translating, updates the live preview while
+ * leaving [lines] untouched so stale partials never attach to newer line ids.
+ */
+internal fun applyTranslationResult(
+    lines: List<CaptionRuntimeLine>,
+    currentTranslatedText: String,
+    lastAppliedLiveLineId: Long,
+    requestLineId: Long,
+    isFinal: Boolean,
+    translatedText: String,
+    noLineId: Long = -1L
+): AppliedTranslation {
+    val clean = translatedText.trim()
+    if (clean.isEmpty()) {
+        return AppliedTranslation(lines, currentTranslatedText, lastAppliedLiveLineId)
+    }
+
+    val updatedLines = updateTranscriptTranslation(lines, requestLineId, clean)
+    val matchedExistingLine = lines.any { it.id == requestLineId }
+
+    if (matchedExistingLine) {
+        val isLatestLine = updatedLines.lastOrNull()?.id == requestLineId
+        val isNewerOrEqualLive = lastAppliedLiveLineId == noLineId || requestLineId >= lastAppliedLiveLineId
+        val shouldUpdateLive = isLatestLine || isNewerOrEqualLive || currentTranslatedText.isBlank()
+        return AppliedTranslation(
+            lines = updatedLines,
+            translatedText = if (shouldUpdateLive) clean else currentTranslatedText,
+            lastAppliedLiveLineId = if (shouldUpdateLive) requestLineId else lastAppliedLiveLineId
+        )
+    }
+
+    // Open line evolved to a newer id while a partial translation was in flight.
+    // Keep the line list untouched (so stale partials never attach to newer ids),
+    // but update the live preview if this partial belongs to the active open utterance.
+    if (!isFinal) {
+        val lastLine = lines.lastOrNull()
+        val lastFinalId = lines.lastOrNull { it.isFinal }?.id ?: noLineId
+        val belongsToActiveOpenUtterance = lastLine != null &&
+            !lastLine.isFinal &&
+            requestLineId > lastFinalId &&
+            requestLineId <= lastLine.id
+        val isNewerOrEqualLive = lastAppliedLiveLineId == noLineId || requestLineId >= lastAppliedLiveLineId
+        if (belongsToActiveOpenUtterance && isNewerOrEqualLive) {
+            return AppliedTranslation(
+                lines = lines,
+                translatedText = clean,
+                lastAppliedLiveLineId = requestLineId
+            )
+        }
+    }
+
+    return AppliedTranslation(lines, currentTranslatedText, lastAppliedLiveLineId)
 }
 
 /**
