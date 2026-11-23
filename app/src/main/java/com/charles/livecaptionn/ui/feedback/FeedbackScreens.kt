@@ -489,7 +489,11 @@ fun IssueDetailsDialog(
                                     android.content.Intent.ACTION_VIEW,
                                     android.net.Uri.parse(issue.htmlUrl)
                                 )
-                                context.startActivity(intent)
+                                try {
+                                    context.startActivity(intent)
+                                } catch (_: android.content.ActivityNotFoundException) {
+                                } catch (_: RuntimeException) {
+                                }
                             },
                             shape = RoundedCornerShape(8.dp)
                         ) {

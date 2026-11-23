@@ -29,21 +29,59 @@ class LocalVoskSttClient(private val registry: VoskModelRegistry) {
     private var cachedModel: Model? = null
     private val modelMutex = Mutex()
 
-    /** Open a streaming session for [languageCode] at [sampleRate]. Returns null if no model. */
+    data class OpenSessionOutcome(
+        val session: VoskStreamingSession?,
+        val errorMessage: String? = null
+    )
+
+    /** Open a streaming session for [languageCode] at [sampleRate]. Returns null if unavailable. */
     suspend fun openSession(
         languageCode: String,
         sampleRate: Int
-    ): VoskStreamingSession? = withContext(Dispatchers.IO) {
-        val model = modelFor(languageCode) ?: return@withContext null
+    ): VoskStreamingSession? = openSessionWithOutcome(languageCode, sampleRate).session
+
+    /** Open a streaming session and return a user-facing error message if model load fails. */
+    suspend fun openSessionWithOutcome(
+        languageCode: String,
+        sampleRate: Int
+    ): OpenSessionOutcome = withContext(Dispatchers.IO) {
+        val model = try {
+            modelFor(languageCode)
+        } catch (e: java.io.IOException) {
+            Log.w("LocalVoskSttClient", "Failed to load Vosk model for $languageCode; invalidating", e)
+            clearCachedModel(languageCode)
+            registry.invalidateInstalledModel(languageCode)
+            return@withContext OpenSessionOutcome(
+                null,
+                "The '$languageCode' speech model could not be loaded (files may be corrupted). Please re-download it."
+            )
+        } catch (t: Throwable) {
+            Log.w("LocalVoskSttClient", "openSession modelFor failed for $languageCode", t)
+            return@withContext OpenSessionOutcome(null, localFailureMessage(languageCode, t))
+        }
+        if (model == null) {
+            return@withContext OpenSessionOutcome(
+                null,
+                "No on-device model installed for '$languageCode'. Open the language picker to download one."
+            )
+        }
         try {
             val recognizer = Recognizer(model, sampleRate.toFloat()).apply {
                 setWords(false)
                 setMaxAlternatives(0)
             }
-            VoskStreamingSession(recognizer)
+            OpenSessionOutcome(VoskStreamingSession(recognizer))
+        } catch (e: java.io.IOException) {
+            Log.w("LocalVoskSttClient", "Recognizer creation failed for $languageCode; invalidating", e)
+            clearCachedModel(languageCode)
+            registry.invalidateInstalledModel(languageCode)
+            OpenSessionOutcome(
+                null,
+                "The '$languageCode' speech model could not be loaded (files may be corrupted). Please re-download it."
+            )
         } catch (t: Throwable) {
             Log.w("LocalVoskSttClient", "openSession failed for $languageCode", t)
-            null
+            OpenSessionOutcome(null, localFailureMessage(languageCode, t))
         }
     }
 
@@ -69,9 +107,25 @@ class LocalVoskSttClient(private val registry: VoskModelRegistry) {
                 }
                 TranscribeOutcome(text)
             }
+        } catch (e: java.io.IOException) {
+            Log.w("LocalVoskSttClient", "Local transcription failed due to unreadable model", e)
+            clearCachedModel(languageCode)
+            registry.invalidateInstalledModel(languageCode)
+            TranscribeOutcome(
+                "",
+                "The '$languageCode' speech model could not be loaded (files may be corrupted). Please re-download it."
+            )
         } catch (t: Throwable) {
             Log.w("LocalVoskSttClient", "Local transcription failed", t)
             TranscribeOutcome("", localFailureMessage(languageCode, t))
+        }
+    }
+
+    private suspend fun clearCachedModel(languageCode: String) = modelMutex.withLock {
+        if (cachedLanguageCode.equals(languageCode, ignoreCase = true)) {
+            try { cachedModel?.close() } catch (_: Throwable) {}
+            cachedModel = null
+            cachedLanguageCode = null
         }
     }
 
@@ -117,6 +171,7 @@ class LocalVoskSttClient(private val registry: VoskModelRegistry) {
 class VoskStreamingSession internal constructor(
     private val recognizer: Recognizer
 ) {
+    private val lock = Any()
     @Volatile private var closed = false
 
     /**
@@ -125,7 +180,7 @@ class VoskStreamingSession internal constructor(
      * silence/segment boundary) plus the current text — if `accepted`, [text]
      * is the finalized segment; otherwise it's the latest partial.
      */
-    fun feed(pcm: ByteArray, length: Int = pcm.size): FeedResult {
+    fun feed(pcm: ByteArray, length: Int = pcm.size): FeedResult = synchronized(lock) {
         if (closed) return FeedResult("", accepted = false)
         val accepted = try {
             recognizer.acceptWaveForm(pcm, length)
@@ -138,11 +193,11 @@ class VoskStreamingSession internal constructor(
         } else {
             LocalVoskSttClient.extractText(recognizer.partialResult)
         }
-        return FeedResult(text, accepted)
+        FeedResult(text, accepted)
     }
 
     /** Flushes any buffered audio and returns the final remaining text. */
-    fun finish(): String {
+    fun finish(): String = synchronized(lock) {
         if (closed) return ""
         return try {
             LocalVoskSttClient.extractText(recognizer.finalResult)
@@ -152,7 +207,7 @@ class VoskStreamingSession internal constructor(
         }
     }
 
-    fun close() {
+    fun close() = synchronized(lock) {
         if (closed) return
         closed = true
         try { recognizer.close() } catch (_: Throwable) {}

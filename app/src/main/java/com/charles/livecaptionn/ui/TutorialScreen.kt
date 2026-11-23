@@ -1,5 +1,6 @@
 package com.charles.livecaptionn.ui
 
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -562,7 +563,11 @@ fun TutorialScreen(
                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(REMOTE_SETUP_DOC_URL)).apply {
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
-                    context.startActivity(intent)
+                    try {
+                        context.startActivity(intent)
+                    } catch (_: ActivityNotFoundException) {
+                    } catch (_: RuntimeException) {
+                    }
                 },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),

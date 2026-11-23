@@ -2,6 +2,7 @@ package com.charles.livecaptionn
 
 import android.Manifest
 import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.projection.MediaProjectionConfig
@@ -9,8 +10,9 @@ import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.Bundle
 import com.charles.livecaptionn.review.PlayReviewHelper
-import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -41,7 +43,6 @@ import com.charles.livecaptionn.ui.MainViewModelFactory
 import com.charles.livecaptionn.ui.OnboardingScreen
 import com.charles.livecaptionn.ui.l10n.UiStringsProvider
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -75,16 +76,19 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Play In-App Review - trigger after 3 launches
-        try {
-            val prefs = getSharedPreferences("play_review", MODE_PRIVATE)
-            val count = prefs.getInt("launch_count", 0) + 1
-            prefs.edit().putInt("launch_count", count).apply()
-            if (count >= 3 && count % 5 == 0) {
-                lifecycleScope.launch {
+        lifecycleScope.launch {
+            try {
+                val shouldLaunch = withContext(Dispatchers.IO) {
+                    val prefs = getSharedPreferences("play_review", MODE_PRIVATE)
+                    val count = prefs.getInt("launch_count", 0) + 1
+                    prefs.edit().putInt("launch_count", count).apply()
+                    count >= 3 && count % 5 == 0
+                }
+                if (shouldLaunch) {
                     PlayReviewHelper.requestAndLaunch(this@MainActivity)
                 }
-            }
-        } catch (_: Exception) {}
+            } catch (_: Exception) {}
+        }
 
         val app = application as LiveCaptionApp
         pendingCheckoutSessionId = extractCheckoutSessionId(intent)
@@ -168,15 +172,40 @@ class MainActivity : ComponentActivity() {
             val settings = app.container.settingsRepository.settingsFlow.first()
             when (settings.audioSource) {
                 AudioSource.SYSTEM -> {
-                    val mpManager = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-                    val captureIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                        mpManager.createScreenCaptureIntent(
-                            MediaProjectionConfig.createConfigForDefaultDisplay()
-                        )
-                    } else {
-                        mpManager.createScreenCaptureIntent()
+                    val mpManager = getSystemService(MEDIA_PROJECTION_SERVICE) as? MediaProjectionManager
+                    if (mpManager == null) {
+                        app.container.runtimeStore.update {
+                            it.copy(
+                                status = com.charles.livecaptionn.speech.RecognitionStatus.ERROR,
+                                lastError = "System audio capture is not supported on this device. Please switch to Microphone mode."
+                            )
+                        }
+                        return@launch
                     }
-                    mediaProjectionLauncher.launch(captureIntent)
+                    try {
+                        val captureIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                            mpManager.createScreenCaptureIntent(
+                                MediaProjectionConfig.createConfigForDefaultDisplay()
+                            )
+                        } else {
+                            mpManager.createScreenCaptureIntent()
+                        }
+                        mediaProjectionLauncher.launch(captureIntent)
+                    } catch (_: ActivityNotFoundException) {
+                        app.container.runtimeStore.update {
+                            it.copy(
+                                status = com.charles.livecaptionn.speech.RecognitionStatus.ERROR,
+                                lastError = "System audio capture is not supported on this device. Please switch to Microphone mode."
+                            )
+                        }
+                    } catch (e: RuntimeException) {
+                        app.container.runtimeStore.update {
+                            it.copy(
+                                status = com.charles.livecaptionn.speech.RecognitionStatus.ERROR,
+                                lastError = "System audio capture is unavailable: ${e.message ?: e::class.java.simpleName}"
+                            )
+                        }
+                    }
                 }
                 AudioSource.MIC -> {
                     val hasMic = ContextCompat.checkSelfPermission(
@@ -185,7 +214,16 @@ class MainActivity : ComponentActivity() {
                     if (hasMic) {
                         startCaptionService(AudioSource.MIC)
                     } else {
-                        audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                        try {
+                            audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                        } catch (_: ActivityNotFoundException) {
+                            app.container.runtimeStore.update {
+                                it.copy(
+                                    status = com.charles.livecaptionn.speech.RecognitionStatus.ERROR,
+                                    lastError = "Permission prompt is unavailable on this device."
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -201,10 +239,19 @@ class MainActivity : ComponentActivity() {
             // it on slow devices, crashing the app).
             putExtra(CaptionForegroundService.EXTRA_AUDIO_SOURCE, audioSource.name)
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(intent)
-        } else {
-            startService(intent)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
+            }
+        } catch (t: Throwable) {
+            (application as LiveCaptionApp).container.runtimeStore.update {
+                it.copy(
+                    status = com.charles.livecaptionn.speech.RecognitionStatus.ERROR,
+                    lastError = "Could not start caption service: ${t.message ?: t::class.java.simpleName}"
+                )
+            }
         }
     }
 

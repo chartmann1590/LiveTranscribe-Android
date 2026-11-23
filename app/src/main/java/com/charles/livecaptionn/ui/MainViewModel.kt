@@ -24,11 +24,13 @@ import com.charles.livecaptionn.settings.TranslationBackend
 import com.charles.livecaptionn.speech.VoskModelInfo
 import com.charles.livecaptionn.data.CaptionProfile
 import com.charles.livecaptionn.update.UpdateInfo
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainViewModel(
     private val container: AppContainer,
@@ -40,13 +42,27 @@ class MainViewModel(
     )
     val state: StateFlow<MainUiState> = mutableState.asStateFlow()
 
+    private var hasInspectedSpecs = false
+    private var cachedSpecsTier: CompatibilityTier? = null
+    private var cachedSpecs: DeviceSpecs? = null
+
     init {
         viewModelScope.launch {
             container.settingsRepository.settingsFlow.collectLatest { settings ->
                 val simulatedTier = settings.simulatedCompatibilityTier?.let { name ->
                     try { CompatibilityTier.valueOf(name) } catch (_: Throwable) { null }
                 }
-                val specs = DeviceCompatibilityChecker.inspect(getApplication(), simulatedTier)
+                val specs = if (hasInspectedSpecs && simulatedTier == cachedSpecsTier && cachedSpecs != null) {
+                    cachedSpecs!!
+                } else {
+                    val inspected = withContext(Dispatchers.IO) {
+                        DeviceCompatibilityChecker.inspect(getApplication(), simulatedTier)
+                    }
+                    cachedSpecsTier = simulatedTier
+                    cachedSpecs = inspected
+                    hasInspectedSpecs = true
+                    inspected
+                }
                 var shouldShowUnsupported = mutableState.value.showUnsupportedModal
 
                 if (specs.tier == CompatibilityTier.UNSUPPORTED) {
@@ -141,7 +157,11 @@ class MainViewModel(
         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(target)).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
-        context.startActivity(intent)
+        try {
+            context.startActivity(intent)
+        } catch (_: ActivityNotFoundException) {
+        } catch (_: RuntimeException) {
+        }
     }
 
     fun refreshPermissionState() {

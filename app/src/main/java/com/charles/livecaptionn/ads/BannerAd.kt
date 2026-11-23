@@ -48,6 +48,9 @@ fun BannerAd(modifier: Modifier = Modifier) {
                 }
                 loadAd(AdRequest.Builder().build())
             }
+        },
+        onRelease = { adView ->
+            try { adView.destroy() } catch (_: Throwable) {}
         }
     )
 }

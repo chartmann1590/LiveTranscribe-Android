@@ -16,6 +16,7 @@ import com.charles.livecaptionn.settings.AudioSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -65,20 +66,24 @@ class StreamingSttEngine(
     override fun stop() {
         running = false
         paused = false
-        captureJob?.cancel()
-        captureJob = null
-        try { audioRecord?.stop() } catch (_: Throwable) {}
-        try { audioRecord?.release() } catch (_: Throwable) {}
-        audioRecord = null
-        session?.finish()?.let { remainder ->
-            if (remainder.isNotBlank()) onResult(SpeechResult(remainder, isFinal = true))
-        }
-        session?.close()
-        session = null
-        if (audioSource == AudioSource.SYSTEM) {
-            try { mediaProjection?.stop() } catch (_: Throwable) {}
-        }
         statusMutable.value = RecognitionStatus.IDLE
+        val job = captureJob
+        captureJob = null
+        val record = audioRecord
+        audioRecord = null
+        val sess = session
+        session = null
+        val proj = if (audioSource == AudioSource.SYSTEM) mediaProjection else null
+        job?.cancel()
+        // Release AudioRecord / Vosk Recognizer / MediaProjection off the Main thread
+        // to avoid native teardown blocking the UI loop (Crashlytics #223).
+        CLEANUP_SCOPE.launch {
+            try { job?.join() } catch (_: Throwable) {}
+            try { record?.stop() } catch (_: Throwable) {}
+            try { record?.release() } catch (_: Throwable) {}
+            try { sess?.close() } catch (_: Throwable) {}
+            try { proj?.stop() } catch (_: Throwable) {}
+        }
     }
 
     override fun pause() {
@@ -93,11 +98,14 @@ class StreamingSttEngine(
     }
 
     private suspend fun startInternal() {
-        val localSession = localSttClient.openSession(languageCode, SAMPLE_RATE)
+        val outcome = localSttClient.openSessionWithOutcome(languageCode, SAMPLE_RATE)
+        val localSession = outcome.session
         if (localSession == null) {
             onError(
-                "No on-device model installed for '$languageCode'. " +
-                    "Open the language picker to download one."
+                outcome.errorMessage ?: (
+                    "No on-device model installed for '$languageCode'. " +
+                        "Open the language picker to download one."
+                    )
             )
             statusMutable.value = RecognitionStatus.ERROR
             running = false
@@ -283,6 +291,7 @@ class StreamingSttEngine(
     }
 
     companion object {
+        private val CLEANUP_SCOPE = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         private const val TAG = "StreamingSttEngine"
         private const val SAMPLE_RATE = 16_000
         /** ~100ms at 16kHz mono 16-bit = 3200 bytes. Small chunks = live partials. */

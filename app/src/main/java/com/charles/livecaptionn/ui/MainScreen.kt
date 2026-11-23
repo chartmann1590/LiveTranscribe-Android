@@ -229,7 +229,11 @@ fun MainScreen(
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(REMOTE_SETUP_DOC_URL)).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
-                setupContext.startActivity(intent)
+                try {
+                    setupContext.startActivity(intent)
+                } catch (_: android.content.ActivityNotFoundException) {
+                } catch (_: RuntimeException) {
+                }
             }
 
             if (specs != null) {

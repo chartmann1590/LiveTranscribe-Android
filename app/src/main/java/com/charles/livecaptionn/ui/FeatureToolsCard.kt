@@ -113,16 +113,14 @@ fun FeatureToolsCard(
                 }) { Text(t["Save Pro preset"]) }
             }
             if (profileItems.isNotEmpty()) {
-                LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f, fill = false)) {
-                    items(profileItems, key = { it.id }) { profile ->
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Text(profile.name, Modifier.weight(1f))
-                            TextButton(onClick = { if (!profile.proOnly || hasPro) onApplyProfile(profile) else onRequiresPro() }) { Text(t["Use"]) }
-                            IconButton(onClick = {
-                                scope.launch { profiles.delete(profile.id) }
-                                profileItems = profileItems.filterNot { it.id == profile.id }
-                            }) { Icon(Icons.Filled.Delete, contentDescription = t["Delete"]) }
-                        }
+                profileItems.forEach { profile ->
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(profile.name, Modifier.weight(1f))
+                        TextButton(onClick = { if (!profile.proOnly || hasPro) onApplyProfile(profile) else onRequiresPro() }) { Text(t["Use"]) }
+                        IconButton(onClick = {
+                            scope.launch { profiles.delete(profile.id) }
+                            profileItems = profileItems.filterNot { it.id == profile.id }
+                        }) { Icon(Icons.Filled.Delete, contentDescription = t["Delete"]) }
                     }
                 }
             }

@@ -73,8 +73,16 @@ class PlayBillingRepository(
             }
             return PurchaseFlowResult.Failed(reason)
         }
+        if (activity.isFinishing || activity.isDestroyed) {
+            return PurchaseFlowResult.Failed("Purchase could not start because the screen closed.")
+        }
         val offerToken = details.subscriptionOfferDetails?.firstOrNull()?.offerToken
-        val responseCode = adapter.launchBillingFlow(activity, details, offerToken)
+        val responseCode = try {
+            adapter.launchBillingFlow(activity, details, offerToken)
+        } catch (e: Throwable) {
+            Log.w(TAG, "launchBillingFlow failed", e)
+            return PurchaseFlowResult.Failed(e.message ?: "Google Play Billing could not open")
+        }
         return if (responseCode == BillingClient.BillingResponseCode.OK) {
             PurchaseFlowResult.Started
         } else {

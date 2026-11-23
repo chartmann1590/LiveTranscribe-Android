@@ -114,7 +114,7 @@ class AppOpenAdManager(
     // ── Load / show ──
 
     private fun loadAd() {
-        if (!AdUnits.ENABLED || AdUnits.APP_OPEN.isBlank()) return
+        if (!AdUnits.ENABLED || AdUnits.APP_OPEN.isBlank() || hasAdFree) return
         // Never touch the SDK before its init callback (main-thread lock -> ANR).
         if (!AdsInitState.ready.value) return
         if (isLoadingAd || isAdAvailable()) return

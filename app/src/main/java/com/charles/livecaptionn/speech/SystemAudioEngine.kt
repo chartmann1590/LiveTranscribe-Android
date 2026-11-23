@@ -12,6 +12,7 @@ import com.charles.livecaptionn.settings.SttBackend
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -59,19 +60,18 @@ class SystemAudioEngine(
     override fun stop() {
         running = false
         paused = false
-        captureJob?.cancel()
-        captureJob = null
-        try {
-            audioRecord?.stop()
-        } catch (_: Throwable) {}
-        try {
-            audioRecord?.release()
-        } catch (_: Throwable) {}
-        audioRecord = null
-        try {
-            projection.stop()
-        } catch (_: Throwable) {}
         statusMutable.value = RecognitionStatus.IDLE
+        val job = captureJob
+        captureJob = null
+        val record = audioRecord
+        audioRecord = null
+        job?.cancel()
+        CLEANUP_SCOPE.launch {
+            try { job?.join() } catch (_: Throwable) {}
+            try { record?.stop() } catch (_: Throwable) {}
+            try { record?.release() } catch (_: Throwable) {}
+            try { projection.stop() } catch (_: Throwable) {}
+        }
     }
 
     override fun pause() {
@@ -235,6 +235,7 @@ class SystemAudioEngine(
     }
 
     companion object {
+        private val CLEANUP_SCOPE = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         private const val SAMPLE_RATE = 16000
         private const val REMOTE_CHUNK_SECONDS = 6
         private const val LOCAL_CHUNK_SECONDS = 2

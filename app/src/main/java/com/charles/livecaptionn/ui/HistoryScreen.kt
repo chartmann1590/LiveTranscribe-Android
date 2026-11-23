@@ -1,5 +1,6 @@
 package com.charles.livecaptionn.ui
 
+import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -91,7 +92,7 @@ fun HistoryScreen(
             onDismissRequest = { deleteTarget = null },
             title = { Text(t["Delete entry"]) },
             text = {
-                Text(t.format("Delete this transcript entry?\n\n\"%s\"", deleteTarget?.originalText?.take(60)))
+                Text(t.format("Delete this transcript entry?\n\n\"%s\"", deleteTarget?.originalText?.take(60).orEmpty()))
             },
             confirmButton = {
                 TextButton(onClick = {
@@ -130,7 +131,11 @@ fun HistoryScreen(
                                 type = "text/plain"
                                 putExtra(Intent.EXTRA_TEXT, TranscriptExport(entries).asText())
                             }
-                            context.startActivity(Intent.createChooser(share, t["Share transcripts"]))
+                            try {
+                                context.startActivity(Intent.createChooser(share, t["Share transcripts"]))
+                            } catch (_: ActivityNotFoundException) {
+                            } catch (_: RuntimeException) {
+                            }
                         }) {
                             Icon(Icons.Filled.ContentCopy, contentDescription = t["Share transcripts"])
                         }

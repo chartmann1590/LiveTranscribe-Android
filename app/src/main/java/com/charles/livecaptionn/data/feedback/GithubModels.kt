@@ -9,22 +9,22 @@ data class CreateIssueRequest(
 
 data class GithubIssue(
     val number: Int,
-    val title: String,
-    val state: String,
-    @Json(name = "html_url") val htmlUrl: String,
-    @Json(name = "created_at") val createdAt: String,
+    val title: String = "",
+    val state: String = "",
+    @Json(name = "html_url") val htmlUrl: String = "",
+    @Json(name = "created_at") val createdAt: String = "",
     val body: String? = null
 )
 
 data class GithubUser(
-    val login: String
+    val login: String = ""
 )
 
 data class GithubComment(
     val id: Long,
-    val body: String,
-    @Json(name = "created_at") val createdAt: String,
-    val user: GithubUser
+    val body: String = "",
+    @Json(name = "created_at") val createdAt: String = "",
+    val user: GithubUser = GithubUser()
 )
 
 data class PostCommentRequest(

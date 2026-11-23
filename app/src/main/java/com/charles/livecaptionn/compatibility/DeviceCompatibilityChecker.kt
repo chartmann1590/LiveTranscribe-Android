@@ -54,8 +54,11 @@ object DeviceCompatibilityChecker {
             Build.SUPPORTED_64_BIT_ABIS.isNotEmpty()
         }
         val freeStorageMb = getFreeStorageMb(context)
-        val deviceModel = "${Build.MANUFACTURER.replaceFirstChar { it.uppercase() }} ${Build.MODEL}"
-        val androidVersion = "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})"
+        val manufacturer = (Build.MANUFACTURER ?: "").trim().replaceFirstChar { it.uppercase() }
+        val model = (Build.MODEL ?: "Android").trim()
+        val deviceModel = listOf(manufacturer, model).filter { it.isNotEmpty() }.joinToString(" ")
+        val release = (Build.VERSION.RELEASE ?: "").trim().ifEmpty { "${Build.VERSION.SDK_INT}" }
+        val androidVersion = "Android $release (API ${Build.VERSION.SDK_INT})"
 
         val (detectedTier, reasons) = evaluateTier(
             totalRamMb = totalRamMb,

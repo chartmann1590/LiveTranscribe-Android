@@ -69,7 +69,11 @@ class LanguageCatalogStore(
                 val api = buildApi(baseUrl)
                 val fetched = api.languages()
                 val mapped = fetched
-                    .map { Language(code = it.code, name = it.name) }
+                    .mapNotNull { lang ->
+                        val code = lang.code?.trim().orEmpty()
+                        val name = lang.name?.trim().orEmpty()
+                        if (code.isEmpty() || name.isEmpty()) null else Language(code = code, name = name)
+                    }
                     .sortedBy { it.name.lowercase() }
                 mutable.value = LibreCatalogState(
                     languages = mapped,

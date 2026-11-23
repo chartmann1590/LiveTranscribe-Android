@@ -2,11 +2,15 @@ package com.charles.livecaptionn
 
 import com.charles.livecaptionn.speech.ModelQuality
 import com.charles.livecaptionn.speech.VoskModelCatalog
+import com.charles.livecaptionn.speech.VoskModelRegistry
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
+import java.nio.file.Files
 
 class VoskModelCatalogTest {
 
@@ -102,5 +106,45 @@ class VoskModelCatalogTest {
         val model = VoskModelCatalog.findByLanguage("ar")
         assertNotNull(model)
         assertEquals(ModelQuality.LARGE, model?.quality)
+    }
+
+    @Test
+    fun isValidModelDir_missingOrEmptyOrMarkerOnly_returnsFalse() {
+        val root = Files.createTempDirectory("vosk-invalid-test").toFile()
+        try {
+            val missing = File(root, "missing")
+            assertFalse(VoskModelRegistry.isValidModelDir(missing))
+
+            val empty = File(root, "empty").apply { mkdirs() }
+            assertFalse(VoskModelRegistry.isValidModelDir(empty))
+
+            val markerOnly = File(root, "marker-only").apply {
+                mkdirs()
+                File(this, ".installed").writeText("ok")
+            }
+            assertFalse(VoskModelRegistry.isValidModelDir(markerOnly))
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun isValidModelDir_confOrAmOrFinalMdl_returnsTrue() {
+        val root = Files.createTempDirectory("vosk-valid-test").toFile()
+        try {
+            val withConf = File(root, "with-conf").apply { File(this, "conf").mkdirs() }
+            assertTrue(VoskModelRegistry.isValidModelDir(withConf))
+
+            val withAm = File(root, "with-am").apply { File(this, "am").mkdirs() }
+            assertTrue(VoskModelRegistry.isValidModelDir(withAm))
+
+            val withFinalMdl = File(root, "with-final").apply {
+                mkdirs()
+                File(this, "final.mdl").writeText("weights")
+            }
+            assertTrue(VoskModelRegistry.isValidModelDir(withFinalMdl))
+        } finally {
+            root.deleteRecursively()
+        }
     }
 }

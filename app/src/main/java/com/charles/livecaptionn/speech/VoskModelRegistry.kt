@@ -123,6 +123,26 @@ class VoskModelRegistry(private val context: Context) {
     }
 
     /**
+     * Deletes a corrupted or unreadable installed model (downloaded or unpacked
+     * bundled copy) and refreshes the catalog so the user can re-download or
+     * re-extract it cleanly instead of crashing on subsequent starts.
+     */
+    fun invalidateInstalledModel(languageCode: String) {
+        val installed = mutableModels.value.filter {
+            it.languageCode.equals(languageCode, ignoreCase = true) && it.installed
+        }
+        val candidate = installed.firstOrNull { it.quality == ModelQuality.LARGE }
+            ?: installed.firstOrNull()
+            ?: return
+        val dir = when (candidate.source) {
+            VoskSource.BUNDLED -> File(context.filesDir, "vosk/bundled/${candidate.modelName}")
+            VoskSource.DOWNLOADED -> downloadedModelDir(candidate.modelName)
+        }
+        if (dir.exists()) dir.deleteRecursively()
+        refresh()
+    }
+
+    /**
      * Downloads [info] to local storage, unzips it, and refreshes state. Returns
      * true on success. The caller should observe [downloadProgress] for UI feedback.
      */
@@ -240,7 +260,7 @@ class VoskModelRegistry(private val context: Context) {
         val root = File(context.filesDir, "vosk/models")
         if (!root.exists() || !root.isDirectory) return emptySet()
         return root.listFiles()
-            ?.filter { it.isDirectory && File(it, ".installed").exists() }
+            ?.filter { it.isDirectory && File(it, ".installed").exists() && isValidModelDir(it) }
             ?.map { it.name }
             ?.toSet()
             ?: emptySet()
@@ -254,7 +274,7 @@ class VoskModelRegistry(private val context: Context) {
     private fun ensureBundledCopied(modelName: String): File {
         val targetDir = File(context.filesDir, "vosk/bundled/$modelName")
         val marker = File(targetDir, ".copied")
-        if (!marker.exists()) {
+        if (!marker.exists() || !isValidModelDir(targetDir)) {
             if (targetDir.exists()) targetDir.deleteRecursively()
             targetDir.mkdirs()
             copyAssetDirectory("models/$modelName", targetDir)
@@ -321,6 +341,20 @@ class VoskModelRegistry(private val context: Context) {
             sourceDir.deleteRecursively()
         }
         stagingDir.deleteRecursively()
+        if (!isValidModelDir(finalDir)) {
+            finalDir.deleteRecursively()
+            throw java.io.IOException("Extracted model archive is incomplete")
+        }
         File(finalDir, ".installed").writeText("ok")
+    }
+
+    companion object {
+        internal fun isValidModelDir(dir: File): Boolean =
+            dir.isDirectory && (
+                File(dir, "conf").isDirectory ||
+                    File(dir, "am").isDirectory ||
+                    File(dir, "final.mdl").exists() ||
+                    File(dir, "mfcc.conf").exists()
+                )
     }
 }
