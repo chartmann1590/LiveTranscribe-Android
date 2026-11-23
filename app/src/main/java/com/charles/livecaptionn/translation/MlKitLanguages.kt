@@ -9,7 +9,7 @@ import com.charles.livecaptionn.settings.Language
  * a hardcoded list so that `MainUiState` (a pure data class) can expose it
  * without touching ML Kit APIs — any drift from the SDK is caught at runtime
  * by `TranslateLanguage.fromLanguageTag` inside `MlKitTranslationRepository`,
- * which silently falls through for unknown codes.
+ * which now surfaces an error (never a silent passthrough) for unknown codes.
  */
 object MlKitLanguages {
     val LIST: List<Language> = listOf(
@@ -85,4 +85,48 @@ object MlKitLanguages {
     )
 
     fun requiresPro(code: String): Boolean = code.trim().lowercase() !in FREE_TIER
+
+    private val SUPPORTED_CODES: Set<String> = LIST.map { it.code }.toSet()
+
+    /** Legacy Java locale aliases ML Kit resolves to codes in [LIST]. */
+    private val CODE_ALIASES: Map<String, String> = mapOf(
+        "iw" to "he",
+        "in" to "id"
+    )
+
+    /**
+     * Whether [code] names a language ML Kit can translate. Region/variant
+     * tags are judged by their base language (`ru-RU` → `ru`). Pure Kotlin so
+     * the unsupported-language guard is unit-testable without the ML Kit SDK.
+     */
+    fun isSupported(code: String): Boolean {
+        val base = code.trim().lowercase().substringBefore('-').substringBefore('_')
+        if (base.isEmpty()) return false
+        return (CODE_ALIASES[base] ?: base) in SUPPORTED_CODES
+    }
+
+    /**
+     * User-facing error message when the [sourceCode] → [targetCode] pair
+     * cannot be translated on-device, or null when the pair is supported.
+     * `"auto"` gets its own message: ML Kit Translate has no built-in
+     * language identification, so an auto source must never silently fall
+     * back to showing the untranslated original.
+     */
+    fun unsupportedPairMessage(sourceCode: String, targetCode: String): String? {
+        if (sourceCode.trim().equals("auto", ignoreCase = true) ||
+            targetCode.trim().equals("auto", ignoreCase = true)
+        ) {
+            return "Auto-detect isn't supported for on-device translation. " +
+                "Choose the spoken language instead."
+        }
+        if (!isSupported(sourceCode)) {
+            return "Translation language not supported: '${sourceCode.trim()}'. " +
+                "Choose a supported source language."
+        }
+        if (!isSupported(targetCode)) {
+            return "Translation language not supported: '${targetCode.trim()}'. " +
+                "Choose a supported target language."
+        }
+        return null
+    }
 }
