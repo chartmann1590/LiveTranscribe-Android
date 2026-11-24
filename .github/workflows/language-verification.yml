@@ -85,13 +85,12 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-      - name: Placeholder google-services.json
+      - name: Generate app/google-services.json from secret
+        env:
+          GOOGLE_SERVICES_JSON_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
         run: |
-          if [ ! -f app/google-services.json ]; then
-            cat > app/google-services.json <<'JSON'
-          {"project_info":{"project_number":"0","project_id":"placeholder"},"client":[{"client_info":{"mobilesdk_app_id":"1:0:android:0","android_client_info":{"package_name":"com.charles.livecaptionn"}},"api_key":[{"current_key":"placeholder"}],"services":{"appinvite_service":{"other_platform_oauth_client":[]}}}],"configuration_version":"1"}
-          JSON
-          fi
+          mkdir -p app
+          echo "$GOOGLE_SERVICES_JSON_B64" | base64 --decode > app/google-services.json
       - name: ML Kit all-language sweep + Vosk subset on emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
