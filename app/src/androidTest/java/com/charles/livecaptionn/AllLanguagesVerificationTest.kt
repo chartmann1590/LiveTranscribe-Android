@@ -2,6 +2,7 @@ package com.charles.livecaptionn
 
 import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import com.charles.livecaptionn.translation.MlKitLanguages
 import com.charles.livecaptionn.translation.MlKitTranslationRepository
 import com.google.android.gms.tasks.Tasks
@@ -25,8 +26,19 @@ import java.util.concurrent.TimeUnit
  *   3. X -> en translation of a native greeting must be non-blank, differ
  *      from the input, and contain Latin letters (i.e. real English output).
  * The X model is deleted after each language so the whole sweep fits on a
- * nearly-full device. Failures are collected, logged per language, and only
- * asserted at the end so one bad language never hides the rest.
+ * nearly-full device, and the pair's Translator clients are released after
+ * each language — cached translators hold native model resources for the
+ * life of the process, and accumulating ~116 of them on the CI emulator
+ * (512 MB heap) preceded a process crash that killed the whole sweep
+ * (Language Verification run #5, 2026-11-24). Failures are collected,
+ * logged per language, and only asserted at the end so one bad language
+ * never hides the rest.
+ *
+ * CI runs this test in chunks: pass
+ * `-e mlkitLanguages af,ar,be,...` to scope one invocation to a subset of
+ * languages (same pattern as VoskAllLanguagesTest's `voskLanguages`), so a
+ * crash in one chunk cannot take the remaining languages' results with it.
+ * With no argument the full sweep runs, as on a local device.
  */
 @RunWith(AndroidJUnit4::class)
 class AllLanguagesVerificationTest {
@@ -35,7 +47,21 @@ class AllLanguagesVerificationTest {
     fun everyLanguage_downloadsAndTranslatesBothDirections() = runBlocking {
         val repo = MlKitTranslationRepository()
         val failures = mutableListOf<String>()
-        val codes = MlKitLanguages.LIST.map { it.code }.filter { it != "en" }
+        val allCodes = MlKitLanguages.LIST.map { it.code }.filter { it != "en" }
+        // `-e mlkitLanguages af,ar,...` scopes this run to one chunk (CI);
+        // unknown codes are reported as failures rather than silently skipped.
+        val only = InstrumentationRegistry.getArguments().getString("mlkitLanguages")
+            ?.split(',')?.map { it.trim().lowercase() }?.filter { it.isNotEmpty() }
+        val codes = if (only.isNullOrEmpty()) {
+            allCodes
+        } else {
+            only.filter { code ->
+                val known = code in allCodes
+                if (!known) failures += "$code: not in MlKitLanguages.LIST (chunk argument)"
+                known
+            }
+        }
+        Log.i(TAG, "MLKITX_START chunk=${only?.joinToString(",") ?: "all"} count=${codes.size}")
         try {
             for (code in codes) {
                 val sample = SAMPLES[code]
@@ -82,6 +108,9 @@ class AllLanguagesVerificationTest {
                 Log.i(TAG, "MLKITX $code->en ok=$okXToEn ms=$ms in=$sample out=$outEn why=$whyXToEn")
                 if (!okXToEn) failures += "$code X->en: $whyXToEn"
 
+                // Free this pair's native translator resources before the
+                // next language — see the class KDoc (run #5 crash).
+                repo.releasePair("en", code)
                 deleteModel(code)
             }
         } finally {
