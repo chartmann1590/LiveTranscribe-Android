@@ -1,0 +1,99 @@
+name: Language Verification
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 13 * * 1'
+  pull_request:
+    paths:
+      - 'app/src/main/java/com/charles/livecaptionn/translation/**'
+      - 'app/src/main/java/com/charles/livecaptionn/speech/**'
+      - 'app/src/main/java/com/charles/livecaptionn/settings/Language.kt'
+      - 'app/src/androidTest/java/com/charles/livecaptionn/AllLanguagesVerificationTest.kt'
+      - 'app/src/androidTest/java/com/charles/livecaptionn/VoskAllLanguagesTest.kt'
+      - 'app/src/androidTest/java/com/charles/livecaptionn/MlKitAllLanguagesTest.kt'
+      - 'app/src/test/java/com/charles/livecaptionn/LanguageCatalogIntegrityTest.kt'
+      - '.github/workflows/language-verification.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  tier1-catalog-integrity:
+    name: Tier 1 - catalog integrity + Vosk URL check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - name: Catalog integrity unit tests
+        run: ./gradlew testGithubDebugUnitTest --tests "com.charles.livecaptionn.LanguageCatalogIntegrityTest" --tests "com.charles.livecaptionn.VoskModelCatalogTest" --tests "com.charles.livecaptionn.LanguageTest"
+      - name: Check every Vosk download URL resolves
+        run: |
+          set -u
+          catalog=app/src/main/java/com/charles/livecaptionn/speech/VoskModelCatalog.kt
+          models=$(grep -oE '"vosk-model-[a-z0-9.-]+"' "$catalog" | tr -d '"' | sort -u)
+          echo "### Vosk model URL check" >> "$GITHUB_STEP_SUMMARY"
+          fail=0
+          for m in $models; do
+            url="https://alphacephei.com/vosk/models/$m.zip"
+            headers=$(curl -sI --max-time 60 "$url")
+            code=$(echo "$headers" | head -1 | awk '{print $2}')
+            echo "$m -> HTTP $code"
+            if [ "$code" != "200" ]; then fail=1; fi
+          done
+          if [ "$fail" != "0" ]; then echo "::error::At least one Vosk model URL did not return HTTP 200"; exit 1; fi
+      - name: Upload unit test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tier1-unit-test-reports
+          path: app/build/reports/tests/
+          if-no-files-found: ignore
+
+  tier2-emulator-sweep:
+    name: Tier 2 - emulator ML Kit sweep + Vosk subset
+    if: github.event_name != 'pull_request'
+    needs: tier1-catalog-integrity
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: ML Kit all-language sweep + Vosk subset on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis_playstore
+          arch: x86_64
+          profile: pixel_6
+          disk-size: 8192M
+          heap-size: 512M
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          disable-animations: true
+          script: |
+            ./gradlew connectedGithubDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.charles.livecaptionn.AllLanguagesVerificationTest
+            ./gradlew connectedGithubDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.charles.livecaptionn.VoskAllLanguagesTest -Pandroid.testInstrumentationRunnerArguments.voskLanguages=es,de,ru,ja,zh
+      - name: Upload test reports and per-language results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tier2-language-results
+          path: |
+            app/build/reports/androidTests/
+            app/build/outputs/androidTest-results/
+          if-no-files-found: ignore
