@@ -178,6 +178,26 @@ class TranslationEndToEndTest {
         }
     }
 
+    @Test
+    fun mlKit_autoSource_returnsEmptyAndErrorStatus_notPassthrough() = runBlocking {
+        val repo = MlKitTranslationRepository()
+        try {
+            val original = "привет как дела"
+            val result = repo.translate(original, "auto", "en", autoDetect = true)
+            assertEquals(
+                "Auto source must not silently pass the original through",
+                "",
+                result
+            )
+            assertTrue(repo.statusFlow.value.isError)
+            assertTrue(
+                repo.statusFlow.value.message?.contains("Auto-detect", ignoreCase = true) == true
+            )
+        } finally {
+            repo.close()
+        }
+    }
+
     private companion object {
         const val TAG = "TranslationE2ETest"
     }

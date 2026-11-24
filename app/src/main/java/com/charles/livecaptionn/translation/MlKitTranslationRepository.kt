@@ -37,8 +37,11 @@ import kotlin.coroutines.resumeWithException
  *
  * Return-value contract:
  *   - Identity (source == target) or blank input → original text.
- *   - Unsupported pair → original text (graceful degradation so captions
- *     keep flowing; the user can switch backend in settings).
+ *   - Unsupported pair (including an `"auto"` source — ML Kit Translate has
+ *     no language identification) → empty string, with the reason surfaced
+ *     as an error on [statusFlow]. Never the original text: silently
+ *     passing it through looks exactly like a translation that rendered
+ *     the source unchanged, which is the bug this guard exists to prevent.
  *   - Runtime failure (download stall, model load error, etc.) → empty
  *     string. The service treats an empty result as "don't overwrite the
  *     last good translation", and [statusFlow] surfaces the reason to the UI.
@@ -67,12 +70,31 @@ class MlKitTranslationRepository : TranslationRepository {
         if (clean.isEmpty()) return clean
         if (targetCode.isBlank()) return clean
 
+        // Fail loudly (empty result + error status) for pairs ML Kit cannot
+        // translate — most importantly an "auto" source, which previously
+        // fell through to a silent passthrough of the original text.
+        MlKitLanguages.unsupportedPairMessage(sourceCode, targetCode)?.let { message ->
+            mutableStatus.value = TranslationStatus(
+                downloading = false,
+                message = message,
+                isError = true
+            )
+            return ""
+        }
+
         val src = TranslateLanguage.fromLanguageTag(sourceCode.trim().lowercase())
         val dst = TranslateLanguage.fromLanguageTag(targetCode.trim().lowercase())
         if (src == null || dst == null) {
-            Log.w(TAG, "ML Kit does not support pair $sourceCode → $targetCode; passing text through.")
-            mutableStatus.value = TranslationStatus()
-            return clean
+            val message = MlKitLanguages.unsupportedPairMessage(sourceCode, targetCode)
+                ?: "Translation language not supported: $sourceCode → $targetCode. " +
+                    "Choose a supported language."
+            Log.w(TAG, "ML Kit does not support pair $sourceCode → $targetCode.")
+            mutableStatus.value = TranslationStatus(
+                downloading = false,
+                message = message,
+                isError = true
+            )
+            return ""
         }
         if (src == dst) {
             mutableStatus.value = TranslationStatus()
@@ -108,6 +130,14 @@ class MlKitTranslationRepository : TranslationRepository {
     }
 
     override suspend fun prewarm(sourceCode: String, targetCode: String) {
+        MlKitLanguages.unsupportedPairMessage(sourceCode, targetCode)?.let { message ->
+            mutableStatus.value = TranslationStatus(
+                downloading = false,
+                message = message,
+                isError = true
+            )
+            return
+        }
         val src = TranslateLanguage.fromLanguageTag(sourceCode.trim().lowercase()) ?: return
         val dst = TranslateLanguage.fromLanguageTag(targetCode.trim().lowercase()) ?: return
         if (src == dst) {
