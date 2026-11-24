@@ -32,6 +32,13 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: gradle
+      - name: Placeholder google-services.json
+        run: |
+          if [ ! -f app/google-services.json ]; then
+            cat > app/google-services.json <<'JSON'
+          {"project_info":{"project_number":"0","project_id":"placeholder"},"client":[{"client_info":{"mobilesdk_app_id":"1:0:android:0","android_client_info":{"package_name":"com.charles.livecaptionn"}},"api_key":[{"current_key":"placeholder"}],"services":{"appinvite_service":{"other_platform_oauth_client":[]}}}],"configuration_version":"1"}
+          JSON
+          fi
       - name: Catalog integrity unit tests
         run: ./gradlew testGithubDebugUnitTest --tests "com.charles.livecaptionn.LanguageCatalogIntegrityTest" --tests "com.charles.livecaptionn.VoskModelCatalogTest" --tests "com.charles.livecaptionn.LanguageTest"
       - name: Check every Vosk download URL resolves
