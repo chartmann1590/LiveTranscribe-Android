@@ -42,8 +42,29 @@ class VoskAllLanguagesTest {
         val failures = mutableListOf<String>()
         val silence = ByteArray(32_000) // 1 s of 16 kHz 16-bit silence
 
-        // 1) Bundled models load straight from assets.
+        // 1) Bundled models load straight from assets. The assets/models tree
+        // is gitignored (models are staged before release builds), so a build
+        // without staged assets has no bundled copy — in that case download
+        // the identical catalog model and verify that instead, and say so.
         for (bundled in VoskModelCatalog.BUNDLED_MODELS) {
+            registry.refresh()
+            val isBundledInstalled = registry.installedModels()
+                .any { it.modelName == bundled.modelName && it.isBundled }
+            if (!isBundledInstalled) {
+                val entry = VoskModelCatalog.findByModelName(bundled.modelName)
+                val dl = entry?.let {
+                    withTimeoutOrNull(600_000L) { registry.downloadAndInstall(it) }
+                }
+                registry.refresh()
+                val outcome = withTimeoutOrNull(300_000L) {
+                    client.transcribe(silence, 16_000, bundled.languageCode)
+                }
+                val ok = dl == true && outcome != null && outcome.errorMessage == null
+                Log.i(TAG, "VOSKX bundled ${bundled.languageCode} model=${bundled.modelName} ok=$ok note='assets not staged in this build; verified via download of identical model' text='${outcome?.text}' err=${outcome?.errorMessage}")
+                if (!ok) failures += "${bundled.languageCode} bundled-assets-absent, download fallback: ${outcome?.errorMessage ?: "download failed/timeout"}"
+                if (entry != null) registry.uninstall(entry.modelName)
+                continue
+            }
             val outcome = withTimeoutOrNull(120_000L) {
                 client.transcribe(silence, 16_000, bundled.languageCode)
             }
@@ -52,12 +73,17 @@ class VoskAllLanguagesTest {
             if (!ok) failures += "${bundled.languageCode} bundled: ${outcome?.errorMessage ?: "timeout"}"
         }
 
-        // 2) Smallest downloadable variant per unique language.
+        // 2) Smallest downloadable variant per unique language. CI runs can
+        // pass -e voskLanguages es,de,ru,zh to scope downloads to a subset;
+        // on-device runs leave it unset and cover every language.
+        val only = InstrumentationRegistry.getArguments().getString("voskLanguages")
+            ?.split(",")?.map { it.trim().lowercase() }?.filter { it.isNotEmpty() }?.toSet()
         val smallest = VoskModelCatalog.DOWNLOADABLE
             .groupBy { it.languageCode.lowercase() }
             .mapValues { (_, entries) -> entries.minByOrNull { it.sizeMb }!! }
+            .filterKeys { only == null || it in only }
             .toSortedMap()
-        Log.i(TAG, "VOSKX languages=${smallest.keys}")
+        Log.i(TAG, "VOSKX languages=${smallest.keys} subset=${only != null}")
 
         for ((code, entry) in smallest) {
             // en/vi small entries are byte-identical to the bundled models
