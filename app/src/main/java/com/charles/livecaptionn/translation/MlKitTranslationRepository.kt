@@ -129,6 +129,25 @@ class MlKitTranslationRepository : TranslationRepository {
         }
     }
 
+    /**
+     * Closes and evicts the cached [Translator] clients for both directions
+     * of a language pair, freeing the native model resources they hold.
+     * Translators are otherwise cached for the life of the process, which is
+     * right for the caption service (a single active pair) but leaks native
+     * memory when a caller sweeps many pairs in one process — e.g. the
+     * all-languages verification test, where ~116 cached translators on a
+     * 512 MB-heap emulator preceded a process crash. The on-disk models are
+     * untouched; the next [translate] for the pair recreates the client and
+     * re-checks the download.
+     */
+    fun releasePair(sourceCode: String, targetCode: String) {
+        val src = TranslateLanguage.fromLanguageTag(sourceCode.trim().lowercase()) ?: return
+        val dst = TranslateLanguage.fromLanguageTag(targetCode.trim().lowercase()) ?: return
+        if (src == dst) return
+        evictTranslator("$src|$dst")
+        evictTranslator("$dst|$src")
+    }
+
     override suspend fun prewarm(sourceCode: String, targetCode: String) {
         MlKitLanguages.unsupportedPairMessage(sourceCode, targetCode)?.let { message ->
             mutableStatus.value = TranslationStatus(

@@ -98,13 +98,37 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_6
-          disk-size: 8192M
-          heap-size: 512M
+          disk-size: 16384M
+          heap-size: 1024M
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           disable-animations: true
+          # The ML Kit sweep runs in 6 chunks (one gradle invocation each,
+          # scoped by -e mlkitLanguages). Run #5 (2026-11-24) ran all 58
+          # languages in a single test/process: it crashed ~18 minutes in
+          # ("Process crashed") and every remaining language's result was
+          # lost. Chunking means one chunk's crash cannot hide the others;
+          # each chunk's reports are copied aside before the next starts,
+          # and the step fails at the end if any chunk failed.
           script: |
-            ./gradlew connectedGithubDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.charles.livecaptionn.AllLanguagesVerificationTest
-            ./gradlew connectedGithubDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.charles.livecaptionn.VoskAllLanguagesTest -Pandroid.testInstrumentationRunnerArguments.voskLanguages=es,de,ru,ja,zh
+            mkdir -p app/build/outputs/tier2-chunks
+            run_chunk() {
+              name="$1"; langs="$2"
+              echo "=== ML Kit chunk $name: $langs ==="
+              ./gradlew connectedGithubDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.charles.livecaptionn.AllLanguagesVerificationTest -Pandroid.testInstrumentationRunnerArguments.mlkitLanguages=$langs \
+                || echo "$name" >> app/build/outputs/tier2-chunks/FAILED_CHUNKS.txt
+              mkdir -p "app/build/outputs/tier2-chunks/$name"
+              cp -r app/build/outputs/androidTest-results "app/build/outputs/tier2-chunks/$name/" || true
+              cp -r app/build/reports/androidTests "app/build/outputs/tier2-chunks/$name/" || true
+            }
+            run_chunk chunk1 af,ar,be,bg,bn,ca,cs,cy,da,de
+            run_chunk chunk2 el,eo,es,et,fa,fi,fr,ga,gl,gu
+            run_chunk chunk3 he,hi,hr,ht,hu,id,is,it,ja,ka
+            run_chunk chunk4 kn,ko,lt,lv,mk,mr,ms,mt,nl,no
+            run_chunk chunk5 pl,pt,ro,ru,sk,sl,sq,sv,sw,ta
+            run_chunk chunk6 te,th,tl,tr,uk,ur,vi,zh
+            ./gradlew connectedGithubDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.charles.livecaptionn.VoskAllLanguagesTest -Pandroid.testInstrumentationRunnerArguments.voskLanguages=es,de,ru,ja,zh \
+              || echo "vosk" >> app/build/outputs/tier2-chunks/FAILED_CHUNKS.txt
+            if [ -s app/build/outputs/tier2-chunks/FAILED_CHUNKS.txt ]; then echo "Failed chunks:"; cat app/build/outputs/tier2-chunks/FAILED_CHUNKS.txt; exit 1; fi
       - name: Upload test reports and per-language results
         if: always()
         uses: actions/upload-artifact@v4
@@ -113,4 +137,5 @@ jobs:
           path: |
             app/build/reports/androidTests/
             app/build/outputs/androidTest-results/
+            app/build/outputs/tier2-chunks/
           if-no-files-found: ignore
