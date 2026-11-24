@@ -69,6 +69,19 @@ class MlKitTranslationRepositoryTest {
     }
 
     @Test
+    fun releasePair_withoutCachedTranslators_isNoOp() {
+        // The all-languages sweep calls releasePair after every language to
+        // free native translator resources; on a fresh repository (nothing
+        // cached) and for auto/identity pairs it must simply do nothing.
+        val repo = MlKitTranslationRepository()
+        repo.releasePair("en", "ru")
+        repo.releasePair("ru", "en")
+        repo.releasePair("auto", "en")
+        repo.releasePair("en", "en")
+        repo.close()
+    }
+
+    @Test
     fun unsupportedPairMessage_autoAndUnknown_areRejected() {
         assertTrue(
             MlKitLanguages.unsupportedPairMessage("auto", "en")
